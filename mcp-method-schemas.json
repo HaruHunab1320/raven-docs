@@ -1,0 +1,1998 @@
+{
+  "methods": [
+    {
+      "name": "system.listMethods",
+      "description": "Lists all available MCP methods with their categories",
+      "category": "System",
+      "parameters": {},
+      "returns": {
+        "methods": {
+          "type": "array",
+          "description": "List of all available method names",
+          "items": {
+            "type": "string"
+          }
+        },
+        "categories": {
+          "type": "object",
+          "description": "Methods organized by category",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "INTERNAL_ERROR",
+          "message": "Failed to retrieve method list",
+          "resolution": "Contact support if the issue persists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "List all available methods",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "system.listMethods",
+            "params": {},
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "methods": [
+                "system.listMethods",
+                "system.getMethodSchema",
+                "context.set",
+                "context.get",
+                "context.delete",
+                "context.list",
+                "context.clear",
+                "space.create",
+                "space.list",
+                "page.create"
+              ],
+              "categories": {
+                "System": [
+                  "system.listMethods",
+                  "system.getMethodSchema"
+                ],
+                "Context Management": [
+                  "context.set",
+                  "context.get",
+                  "context.delete",
+                  "context.list",
+                  "context.clear"
+                ],
+                "Space Management": [
+                  "space.create",
+                  "space.list"
+                ],
+                "Document Management": [
+                  "page.create"
+                ]
+              }
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["system.getMethodSchema"]
+    },
+    {
+      "name": "system.getMethodSchema",
+      "description": "Retrieves detailed schema information for a specific method",
+      "category": "System",
+      "parameters": {
+        "methodName": {
+          "type": "string",
+          "description": "Name of the method to retrieve schema for",
+          "required": true,
+          "example": "page.create"
+        }
+      },
+      "returns": {
+        "name": {
+          "type": "string",
+          "description": "Name of the method"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what the method does"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category the method belongs to"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Parameter definitions for the method"
+        },
+        "returns": {
+          "type": "object",
+          "description": "Return value structure"
+        },
+        "errors": {
+          "type": "array",
+          "description": "Possible errors the method can return"
+        },
+        "examples": {
+          "type": "array",
+          "description": "Example usage of the method"
+        },
+        "relatedMethods": {
+          "type": "array",
+          "description": "Related methods that might be of interest"
+        }
+      },
+      "errors": [
+        {
+          "code": "METHOD_NOT_FOUND",
+          "message": "The specified method does not exist",
+          "resolution": "Use system.listMethods to get a list of available methods"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get schema for page.create method",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "system.getMethodSchema",
+            "params": {
+              "methodName": "page.create"
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "name": "page.create",
+              "description": "Creates a new document page within a space",
+              "category": "Document Management",
+              "parameters": {
+                "workspaceId": {
+                  "type": "string",
+                  "description": "UUID of the workspace",
+                  "required": true
+                },
+                "spaceId": {
+                  "type": "string",
+                  "description": "UUID of the space to create the page in",
+                  "required": true
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Title of the page",
+                  "required": true
+                },
+                "content": {
+                  "type": "object",
+                  "description": "Page content in Raven Docs format",
+                  "required": true
+                }
+              },
+              "returns": {
+                "id": {
+                  "type": "string",
+                  "description": "UUID of the created page"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Title of the created page"
+                }
+              },
+              "errors": [
+                {
+                  "code": "SPACE_NOT_FOUND",
+                  "message": "The specified space does not exist",
+                  "resolution": "Check the spaceId parameter or list available spaces"
+                }
+              ],
+              "examples": [],
+              "relatedMethods": [
+                "page.update",
+                "page.get",
+                "page.delete"
+              ]
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["system.listMethods"]
+    },
+    {
+      "name": "space.create",
+      "description": "Creates a new workspace space for organizing documents",
+      "category": "Space Management",
+      "parameters": {
+        "workspaceId": {
+          "type": "string",
+          "description": "UUID of the workspace",
+          "required": true,
+          "example": "01963588-32a9-7f89-879e-afb8fb600a5a"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the space",
+          "required": true,
+          "example": "Project Documentation"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the space purpose",
+          "required": false,
+          "example": "Contains all documentation for our main project"
+        }
+      },
+      "returns": {
+        "id": {
+          "type": "string",
+          "description": "UUID of the created space"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the created space"
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-friendly identifier for the space"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the space"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of when the space was created"
+        }
+      },
+      "errors": [
+        {
+          "code": "DUPLICATE_NAME",
+          "message": "Space with this name already exists",
+          "resolution": "Choose a different name for the space"
+        },
+        {
+          "code": "WORKSPACE_NOT_FOUND",
+          "message": "The specified workspace does not exist",
+          "resolution": "Check the workspaceId parameter"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Create a basic space",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "space.create",
+            "params": {
+              "workspaceId": "01963588-32a9-7f89-879e-afb8fb600a5a",
+              "name": "Daily Review Demo",
+              "description": "A space for demonstrating real-time document creation"
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "id": "01964729-c19e-7de3-b67d-71d4dc330b0f",
+              "name": "Daily Review Demo",
+              "slug": "daily-review-demo",
+              "description": "A space for demonstrating real-time document creation",
+              "createdAt": "2023-09-15T14:32:10.123Z"
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["space.get", "space.list", "space.update", "space.delete"]
+    },
+    {
+      "name": "space.list",
+      "description": "Lists all spaces in a workspace that the user has access to",
+      "category": "Space Management",
+      "parameters": {
+        "workspaceId": {
+          "type": "string",
+          "description": "UUID of the workspace",
+          "required": true,
+          "example": "01963588-32a9-7f89-879e-afb8fb600a5a"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Page number for pagination",
+          "required": false,
+          "default": 1,
+          "example": 1
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Number of spaces per page",
+          "required": false,
+          "default": 20,
+          "example": 20
+        }
+      },
+      "returns": {
+        "items": {
+          "type": "array",
+          "description": "List of space objects",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "UUID of the space"
+              },
+              "name": {
+                "type": "string",
+                "description": "Name of the space"
+              },
+              "slug": {
+                "type": "string",
+                "description": "URL-friendly identifier for the space"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the space"
+              }
+            }
+          }
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of spaces available"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Current page number"
+        },
+        "pageCount": {
+          "type": "integer",
+          "description": "Total number of pages available"
+        }
+      },
+      "errors": [
+        {
+          "code": "WORKSPACE_NOT_FOUND",
+          "message": "The specified workspace does not exist",
+          "resolution": "Check the workspaceId parameter"
+        }
+      ],
+      "examples": [
+        {
+          "description": "List all spaces in a workspace",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "space.list",
+            "params": {
+              "workspaceId": "01963588-32a9-7f89-879e-afb8fb600a5a",
+              "page": 1,
+              "limit": 10
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "items": [
+                {
+                  "id": "01964729-c19e-7de3-b67d-71d4dc330b0f",
+                  "name": "Daily Review Demo",
+                  "slug": "daily-review-demo",
+                  "description": "A space for demonstrating real-time document creation"
+                }
+              ],
+              "total": 1,
+              "page": 1,
+              "pageCount": 1
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["space.create", "space.get", "space.update", "space.delete"]
+    },
+    {
+      "name": "page.create",
+      "description": "Creates a new document page within a space",
+      "category": "Document Management",
+      "parameters": {
+        "workspaceId": {
+          "type": "string",
+          "description": "UUID of the workspace",
+          "required": true,
+          "example": "01963588-32a9-7f89-879e-afb8fb600a5a"
+        },
+        "spaceId": {
+          "type": "string",
+          "description": "UUID of the space to create the page in",
+          "required": true,
+          "example": "01964729-c19e-7de3-b67d-71d4dc330b0f"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the page",
+          "required": true,
+          "example": "Daily Team Review"
+        },
+        "content": {
+          "type": "object",
+          "description": "Page content in Raven Docs format",
+          "required": true,
+          "example": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Hello world"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "returns": {
+        "id": {
+          "type": "string",
+          "description": "UUID of the created page"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the created page"
+        },
+        "slugId": {
+          "type": "string",
+          "description": "URL-friendly identifier for the page"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of when the page was created"
+        }
+      },
+      "errors": [
+        {
+          "code": "SPACE_NOT_FOUND",
+          "message": "The specified space does not exist",
+          "resolution": "Check the spaceId parameter or list available spaces"
+        },
+        {
+          "code": "INVALID_CONTENT",
+          "message": "The provided content format is invalid",
+          "resolution": "Ensure content follows the Raven Docs document schema"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Create a simple page",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "page.create",
+            "params": {
+              "workspaceId": "01963588-32a9-7f89-879e-afb8fb600a5a",
+              "spaceId": "01964729-c19e-7de3-b67d-71d4dc330b0f",
+              "title": "Daily Team Review",
+              "content": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "This is a test page."
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "id": "01964729-c9c8-726a-b1ad-313000d32328",
+              "title": "Daily Team Review",
+              "slugId": "daily-team-review",
+              "createdAt": "2023-09-15T14:35:22.456Z"
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["page.get", "page.update", "page.delete", "page.list"]
+    },
+    {
+      "name": "context.set",
+      "description": "Stores a context value for the current session",
+      "category": "Context Management",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key for the context value",
+          "required": true,
+          "example": "currentProject"
+        },
+        "value": {
+          "type": "any",
+          "description": "The value to store",
+          "required": true,
+          "example": "project-123"
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Time-to-live in seconds for the context value",
+          "required": false,
+          "example": 3600
+        }
+      },
+      "returns": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation was successful"
+        }
+      },
+      "errors": [
+        {
+          "code": "INVALID_PARAMS",
+          "message": "Missing required parameters",
+          "resolution": "Ensure key and value parameters are provided"
+        },
+        {
+          "code": "CONTEXT_ERROR",
+          "message": "Failed to store context",
+          "resolution": "Check that Redis is operational"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Set a context value",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "context.set",
+            "params": {
+              "key": "currentProject",
+              "value": "project-123"
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "success": true
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["context.get", "context.delete", "context.list", "context.clear"]
+    },
+    {
+      "name": "context.get",
+      "description": "Retrieves a context value from the current session",
+      "category": "Context Management",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key for the context value",
+          "required": true,
+          "example": "currentProject"
+        }
+      },
+      "returns": {
+        "key": {
+          "type": "string",
+          "description": "The key of the context value"
+        },
+        "value": {
+          "type": "any",
+          "description": "The stored context value"
+        }
+      },
+      "errors": [
+        {
+          "code": "INVALID_PARAMS",
+          "message": "Missing required parameters",
+          "resolution": "Ensure key parameter is provided"
+        },
+        {
+          "code": "NOT_FOUND",
+          "message": "Context key not found",
+          "resolution": "Verify that the key exists or was set previously"
+        },
+        {
+          "code": "CONTEXT_ERROR",
+          "message": "Failed to retrieve context",
+          "resolution": "Check that Redis is operational"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get a context value",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "context.get",
+            "params": {
+              "key": "currentProject"
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "key": "currentProject",
+              "value": "project-123"
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["context.set", "context.delete", "context.list", "context.clear"]
+    },
+    {
+      "name": "context.delete",
+      "description": "Deletes a context value from the current session",
+      "category": "Context Management",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key for the context value to delete",
+          "required": true,
+          "example": "currentProject"
+        }
+      },
+      "returns": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation was successful"
+        }
+      },
+      "errors": [
+        {
+          "code": "INVALID_PARAMS",
+          "message": "Missing required parameters",
+          "resolution": "Ensure key parameter is provided"
+        },
+        {
+          "code": "CONTEXT_ERROR",
+          "message": "Failed to delete context",
+          "resolution": "Check that Redis is operational"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Delete a context value",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "context.delete",
+            "params": {
+              "key": "currentProject"
+            },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "success": true
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["context.set", "context.get", "context.list", "context.clear"]
+    },
+    {
+      "name": "context.list",
+      "description": "Lists all context keys for the current session",
+      "category": "Context Management",
+      "parameters": {},
+      "returns": {
+        "keys": {
+          "type": "array",
+          "description": "List of context keys",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "CONTEXT_ERROR",
+          "message": "Failed to list context keys",
+          "resolution": "Check that Redis is operational"
+        }
+      ],
+      "examples": [
+        {
+          "description": "List all context keys",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "context.list",
+            "params": {},
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "keys": ["currentProject", "lastSearchQuery", "userPreferences"]
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["context.set", "context.get", "context.delete", "context.clear"]
+    },
+    {
+      "name": "context.clear",
+      "description": "Clears all context values for the current session",
+      "category": "Context Management",
+      "parameters": {},
+      "returns": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation was successful"
+        }
+      },
+      "errors": [
+        {
+          "code": "CONTEXT_ERROR",
+          "message": "Failed to clear context",
+          "resolution": "Check that Redis is operational"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Clear all context values",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "context.clear",
+            "params": {},
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "success": true
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["context.set", "context.get", "context.delete", "context.list"]
+    },
+    {
+      "name": "project.list",
+      "description": "List projects in a space",
+      "category": "Project Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "includeArchived": { "type": "boolean", "description": "Include archived projects" },
+        "searchTerm": { "type": "string", "description": "Search term" }
+      },
+      "returns": {
+        "projects": { "type": "array", "description": "List of projects" },
+        "pagination": { "type": "object", "description": "Pagination info" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Invalid params", "resolution": "Provide spaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "List projects in a space",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.list",
+            "params": { "spaceId": "space_123", "limit": 20 },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "projects": [], "pagination": { "page": 1, "limit": 20, "total": 0, "totalPages": 0 } },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.get", "project.create", "project.update"]
+    },
+    {
+      "name": "project.get",
+      "description": "Get a project by ID",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" }
+      },
+      "returns": {
+        "project": { "type": "object", "description": "Project details" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Get a project",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.get",
+            "params": { "projectId": "project_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "project_123", "name": "Alpha" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.list", "project.update", "project.delete"]
+    },
+    {
+      "name": "project.create",
+      "description": "Create a new project",
+      "category": "Project Management",
+      "parameters": {
+        "name": { "type": "string", "description": "Project name" },
+        "description": { "type": "string", "description": "Project description" },
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "workspaceId": { "type": "string", "description": "ID of the workspace" },
+        "icon": { "type": "string", "description": "Project icon" },
+        "color": { "type": "string", "description": "Project color" }
+      },
+      "returns": {
+        "project": { "type": "object", "description": "Created project" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Invalid params", "resolution": "Provide name, spaceId, workspaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Create a project",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.create",
+            "params": { "name": "Beta", "spaceId": "space_123", "workspaceId": "ws_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "project_456", "name": "Beta" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.update", "project.createPage"]
+    },
+    {
+      "name": "project.update",
+      "description": "Update a project",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" },
+        "name": { "type": "string", "description": "Project name" },
+        "description": { "type": "string", "description": "Project description" },
+        "icon": { "type": "string", "description": "Project icon" },
+        "color": { "type": "string", "description": "Project color" },
+        "coverImage": { "type": "string", "description": "Cover image URL" }
+      },
+      "returns": {
+        "project": { "type": "object", "description": "Updated project" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Update a project name",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.update",
+            "params": { "projectId": "project_123", "name": "Alpha v2" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "project_123", "name": "Alpha v2" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.get", "project.list"]
+    },
+    {
+      "name": "project.archive",
+      "description": "Archive or unarchive a project",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" },
+        "isArchived": { "type": "boolean", "description": "Archive state" }
+      },
+      "returns": {
+        "project": { "type": "object", "description": "Updated project" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Archive a project",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.archive",
+            "params": { "projectId": "project_123", "isArchived": true },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "project_123", "isArchived": true },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.update", "project.list"]
+    },
+    {
+      "name": "project.delete",
+      "description": "Delete a project",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Whether the project was deleted" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Delete a project",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.delete",
+            "params": { "projectId": "project_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "success": true },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.get", "project.list"]
+    },
+    {
+      "name": "project.createPage",
+      "description": "Create a project home page (if missing)",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" },
+        "workspaceId": { "type": "string", "description": "ID of the workspace" }
+      },
+      "returns": {
+        "project": { "type": "object", "description": "Updated project" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Create a project page",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.createPage",
+            "params": { "projectId": "project_123", "workspaceId": "ws_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "project_123", "homePageId": "page_123" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.get", "page.create"]
+    },
+    {
+      "name": "task.list",
+      "description": "List tasks by project or space",
+      "category": "Task Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" },
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "status": { "type": "array", "description": "Status filter" },
+        "bucket": { "type": "array", "description": "Bucket filter" },
+        "searchTerm": { "type": "string", "description": "Search term" }
+      },
+      "returns": {
+        "tasks": { "type": "array", "description": "List of tasks" },
+        "pagination": { "type": "object", "description": "Pagination info" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Invalid params", "resolution": "Provide projectId or spaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "List tasks for a space",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.list",
+            "params": { "spaceId": "space_123", "limit": 20 },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "tasks": [], "pagination": { "page": 1, "limit": 20, "total": 0, "totalPages": 0 } },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.get", "task.create", "task.update"]
+    },
+    {
+      "name": "task.get",
+      "description": "Get a task by ID",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Task details" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Get a task",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.get",
+            "params": { "taskId": "task_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_123", "title": "Draft spec" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.list", "task.update", "task.delete"]
+    },
+    {
+      "name": "task.create",
+      "description": "Create a new task",
+      "category": "Task Management",
+      "parameters": {
+        "title": { "type": "string", "description": "Task title" },
+        "description": { "type": "string", "description": "Task description" },
+        "status": { "type": "string", "description": "Task status" },
+        "priority": { "type": "string", "description": "Task priority" },
+        "bucket": { "type": "string", "description": "Task bucket" },
+        "dueDate": { "type": "string", "description": "Due date (ISO)" },
+        "projectId": { "type": "string", "description": "Project ID" },
+        "parentTaskId": { "type": "string", "description": "Parent task ID" },
+        "pageId": { "type": "string", "description": "Linked page ID" },
+        "assigneeId": { "type": "string", "description": "Assignee user ID" },
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Created task" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Invalid params", "resolution": "Provide title, spaceId, workspaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Create a task",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.create",
+            "params": { "title": "Draft spec", "spaceId": "space_123", "workspaceId": "ws_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_456", "title": "Draft spec" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.update", "task.list"]
+    },
+    {
+      "name": "task.update",
+      "description": "Update a task",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" },
+        "title": { "type": "string", "description": "Task title" },
+        "description": { "type": "string", "description": "Task description" },
+        "status": { "type": "string", "description": "Task status" },
+        "priority": { "type": "string", "description": "Task priority" },
+        "bucket": { "type": "string", "description": "Task bucket" },
+        "dueDate": { "type": "string", "description": "Due date (ISO)" },
+        "assigneeId": { "type": "string", "description": "Assignee user ID" },
+        "pageId": { "type": "string", "description": "Linked page ID" },
+        "estimatedTime": { "type": "number", "description": "Estimated time" },
+        "position": { "type": "string", "description": "Position key" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Updated task" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Update a task title",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.update",
+            "params": { "taskId": "task_123", "title": "Spec v2" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_123", "title": "Spec v2" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.get", "task.list"]
+    },
+    {
+      "name": "task.delete",
+      "description": "Delete a task",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Whether the task was deleted" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Delete a task",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.delete",
+            "params": { "taskId": "task_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "success": true },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.get", "task.list"]
+    },
+    {
+      "name": "task.complete",
+      "description": "Mark a task complete or incomplete",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" },
+        "isCompleted": { "type": "boolean", "description": "Completion state" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Updated task" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Complete a task",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.complete",
+            "params": { "taskId": "task_123", "isCompleted": true },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_123", "isCompleted": true },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.update"]
+    },
+    {
+      "name": "task.assign",
+      "description": "Assign or unassign a task",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" },
+        "assigneeId": { "type": "string", "description": "Assignee user ID" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Updated task" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Assign a task",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.assign",
+            "params": { "taskId": "task_123", "assigneeId": "user_123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_123", "assigneeId": "user_123" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.update"]
+    },
+    {
+      "name": "task.moveToProject",
+      "description": "Move a task to another project",
+      "category": "Task Management",
+      "parameters": {
+        "taskId": { "type": "string", "description": "ID of the task" },
+        "projectId": { "type": "string", "description": "Target project ID" }
+      },
+      "returns": {
+        "task": { "type": "object", "description": "Updated task" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Task not found", "resolution": "Check the taskId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Move a task to another project",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "task.moveToProject",
+            "params": { "taskId": "task_123", "projectId": "project_456" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": { "id": "task_123", "projectId": "project_456" },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["task.update", "project.get"]
+    },
+    {
+      "name": "page.recent",
+      "description": "List recent pages for a user or space",
+      "category": "Document Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "Optional space ID" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "query": { "type": "string", "description": "Search query" }
+      },
+      "returns": {
+        "pages": { "type": "array", "description": "Recent pages" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.list", "page.search"]
+    },
+    {
+      "name": "page.breadcrumbs",
+      "description": "Get breadcrumb trail for a page",
+      "category": "Document Management",
+      "parameters": {
+        "pageId": { "type": "string", "description": "ID of the page" }
+      },
+      "returns": {
+        "breadcrumbs": { "type": "array", "description": "Breadcrumb entries" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Page not found", "resolution": "Check the pageId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.get"]
+    },
+    {
+      "name": "page.sidebarPages",
+      "description": "List sidebar pages for a space",
+      "category": "Document Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "pageId": { "type": "string", "description": "Current page ID" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "query": { "type": "string", "description": "Search query" }
+      },
+      "returns": {
+        "pages": { "type": "array", "description": "Sidebar pages" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Page not found", "resolution": "Check the pageId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.list"]
+    },
+    {
+      "name": "page.historyInfo",
+      "description": "Get details for a page history entry",
+      "category": "Document Management",
+      "parameters": {
+        "historyId": { "type": "string", "description": "History entry ID" }
+      },
+      "returns": {
+        "history": { "type": "object", "description": "History details" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "History not found", "resolution": "Check the historyId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.getHistory"]
+    },
+    {
+      "name": "page.moveToSpace",
+      "description": "Move a page to another space",
+      "category": "Document Management",
+      "parameters": {
+        "pageId": { "type": "string", "description": "ID of the page" },
+        "spaceId": { "type": "string", "description": "Target space ID" }
+      },
+      "returns": {
+        "page": { "type": "object", "description": "Moved page" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Page not found", "resolution": "Check the pageId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.move"]
+    },
+    {
+      "name": "space.members",
+      "description": "List members of a space",
+      "category": "Space Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "query": { "type": "string", "description": "Search query" }
+      },
+      "returns": {
+        "members": { "type": "array", "description": "Space members" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["space.updatePermissions"]
+    },
+    {
+      "name": "space.membersAdd",
+      "description": "Add members to a space",
+      "category": "Space Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "userIds": { "type": "array", "description": "User IDs" },
+        "groupIds": { "type": "array", "description": "Group IDs" },
+        "role": { "type": "string", "description": "Role to assign" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["space.members", "space.updatePermissions"]
+    },
+    {
+      "name": "space.membersRemove",
+      "description": "Remove a member from a space",
+      "category": "Space Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "userId": { "type": "string", "description": "User ID" },
+        "groupId": { "type": "string", "description": "Group ID" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["space.members"]
+    },
+    {
+      "name": "space.changeMemberRole",
+      "description": "Change a space member role",
+      "category": "Space Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "ID of the space" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "userId": { "type": "string", "description": "User ID" },
+        "role": { "type": "string", "description": "New role" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["space.members"]
+    },
+    {
+      "name": "comment.resolve",
+      "description": "Resolve or unresolve a comment",
+      "category": "Comment Management",
+      "parameters": {
+        "commentId": { "type": "string", "description": "Comment ID" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "resolved": { "type": "boolean", "description": "Resolve state" }
+      },
+      "returns": {
+        "comment": { "type": "object", "description": "Updated comment" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Comment not found", "resolution": "Check the commentId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["comment.update"]
+    },
+    {
+      "name": "workspace.members",
+      "description": "List workspace members",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" },
+        "query": { "type": "string", "description": "Search query" }
+      },
+      "returns": {
+        "members": { "type": "array", "description": "Workspace members" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.get"]
+    },
+    {
+      "name": "workspace.changeMemberRole",
+      "description": "Change a workspace member role",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "userId": { "type": "string", "description": "User ID" },
+        "role": { "type": "string", "description": "New role" }
+      },
+      "returns": {
+        "member": { "type": "object", "description": "Updated member" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.members"]
+    },
+    {
+      "name": "workspace.deleteMember",
+      "description": "Delete a workspace member",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "userId": { "type": "string", "description": "User ID" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.members"]
+    },
+    {
+      "name": "workspace.invites",
+      "description": "List workspace invitations",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "page": { "type": "number", "description": "Page number" },
+        "limit": { "type": "number", "description": "Items per page" }
+      },
+      "returns": {
+        "invites": { "type": "array", "description": "Workspace invitations" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.inviteCreate"]
+    },
+    {
+      "name": "workspace.inviteInfo",
+      "description": "Get workspace invitation info",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "invitationId": { "type": "string", "description": "Invitation ID" }
+      },
+      "returns": {
+        "invite": { "type": "object", "description": "Invitation details" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Invite not found", "resolution": "Check the invitationId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.invites"]
+    },
+    {
+      "name": "workspace.inviteCreate",
+      "description": "Create workspace invitations",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "emails": { "type": "array", "description": "Email addresses" },
+        "role": { "type": "string", "description": "Role to assign" },
+        "groupIds": { "type": "array", "description": "Group IDs" }
+      },
+      "returns": {
+        "invites": { "type": "array", "description": "Created invites" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.invites"]
+    },
+    {
+      "name": "workspace.inviteResend",
+      "description": "Resend a workspace invitation",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "invitationId": { "type": "string", "description": "Invitation ID" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Invite not found", "resolution": "Check the invitationId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.invites"]
+    },
+    {
+      "name": "workspace.inviteRevoke",
+      "description": "Revoke a workspace invitation",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "invitationId": { "type": "string", "description": "Invitation ID" }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Operation status" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Invite not found", "resolution": "Check the invitationId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.invites"]
+    },
+    {
+      "name": "workspace.inviteLink",
+      "description": "Get workspace invitation link",
+      "category": "Workspace Management",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "invitationId": { "type": "string", "description": "Invitation ID" }
+      },
+      "returns": {
+        "inviteLink": { "type": "string", "description": "Invite link" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Invite not found", "resolution": "Check the invitationId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.invites"]
+    },
+    {
+      "name": "workspace.checkHostname",
+      "description": "Check workspace hostname availability",
+      "category": "Workspace Management",
+      "parameters": {
+        "hostname": { "type": "string", "description": "Hostname to check" }
+      },
+      "returns": {
+        "available": { "type": "boolean", "description": "Availability status" }
+      },
+      "errors": [
+        { "code": "INTERNAL_ERROR", "message": "Request failed", "resolution": "Check logs" }
+      ],
+      "examples": [],
+      "relatedMethods": ["workspace.update"]
+    },
+    {
+      "name": "search.query",
+      "description": "Search pages",
+      "category": "Search",
+      "parameters": {
+        "query": { "type": "string", "description": "Search query" },
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "creatorId": { "type": "string", "description": "Creator ID" },
+        "limit": { "type": "number", "description": "Limit results" },
+        "offset": { "type": "number", "description": "Offset results" }
+      },
+      "returns": {
+        "results": { "type": "array", "description": "Search results" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.search"]
+    },
+    {
+      "name": "search.suggest",
+      "description": "Get search suggestions",
+      "category": "Search",
+      "parameters": {
+        "query": { "type": "string", "description": "Search query" },
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "includeUsers": { "type": "boolean", "description": "Include users" },
+        "includeGroups": { "type": "boolean", "description": "Include groups" },
+        "includePages": { "type": "boolean", "description": "Include pages" },
+        "limit": { "type": "number", "description": "Limit results" }
+      },
+      "returns": {
+        "suggestions": { "type": "object", "description": "Suggestion groups" }
+      },
+      "errors": [
+        { "code": "INTERNAL_ERROR", "message": "Request failed", "resolution": "Check logs" }
+      ],
+      "examples": [],
+      "relatedMethods": ["search.query"]
+    },
+    {
+      "name": "import.requestUpload",
+      "description": "Request a presigned upload URL for imports",
+      "category": "Import/Export",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "fileName": { "type": "string", "description": "File name" },
+        "mimeType": { "type": "string", "description": "MIME type" },
+        "expiresIn": { "type": "number", "description": "TTL in seconds" }
+      },
+      "returns": {
+        "uploadUrl": { "type": "string", "description": "Presigned upload URL" }
+      },
+      "errors": [
+        { "code": "INTERNAL_ERROR", "message": "Request failed", "resolution": "Check logs" }
+      ],
+      "examples": [],
+      "relatedMethods": ["import.page"]
+    },
+    {
+      "name": "import.page",
+      "description": "Import a page from storage",
+      "category": "Import/Export",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "filePath": { "type": "string", "description": "Storage file path" }
+      },
+      "returns": {
+        "page": { "type": "object", "description": "Imported page" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "File not found", "resolution": "Check the filePath" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["page.create"]
+    },
+    {
+      "name": "export.page",
+      "description": "Export a page",
+      "category": "Import/Export",
+      "parameters": {
+        "pageId": { "type": "string", "description": "Page ID" },
+        "format": { "type": "string", "description": "Export format" },
+        "includeChildren": { "type": "boolean", "description": "Include children" },
+        "expiresIn": { "type": "number", "description": "TTL in seconds" }
+      },
+      "returns": {
+        "downloadUrl": { "type": "string", "description": "Download URL" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Page not found", "resolution": "Check the pageId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["export.space"]
+    },
+    {
+      "name": "export.space",
+      "description": "Export a space",
+      "category": "Import/Export",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "format": { "type": "string", "description": "Export format" },
+        "includeAttachments": { "type": "boolean", "description": "Include attachments" },
+        "expiresIn": { "type": "number", "description": "TTL in seconds" }
+      },
+      "returns": {
+        "downloadUrl": { "type": "string", "description": "Download URL" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Space not found", "resolution": "Check the spaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["export.page"]
+    },
+    {
+      "name": "approval.request",
+      "description": "Request approval for a sensitive operation",
+      "category": "Approvals",
+      "parameters": {
+        "method": { "type": "string", "description": "MCP method name" },
+        "params": { "type": "object", "description": "Method parameters" },
+        "ttlSeconds": { "type": "number", "description": "TTL in seconds" }
+      },
+      "returns": {
+        "approvalToken": { "type": "string", "description": "Approval token" }
+      },
+      "errors": [
+        { "code": "INTERNAL_ERROR", "message": "Request failed", "resolution": "Check logs" }
+      ],
+      "examples": [],
+      "relatedMethods": ["approval.confirm"]
+    },
+    {
+      "name": "approval.confirm",
+      "description": "Confirm an approval token",
+      "category": "Approvals",
+      "parameters": {
+        "approvalToken": { "type": "string", "description": "Approval token" },
+        "method": { "type": "string", "description": "MCP method name" },
+        "params": { "type": "object", "description": "Method parameters" }
+      },
+      "returns": {
+        "approved": { "type": "boolean", "description": "Approval status" }
+      },
+      "errors": [
+        { "code": "INTERNAL_ERROR", "message": "Request failed", "resolution": "Check logs" }
+      ],
+      "examples": [],
+      "relatedMethods": ["approval.request"]
+    },
+    {
+      "name": "task.triageSummary",
+      "description": "Get a daily triage summary for a space",
+      "category": "Task Management",
+      "parameters": {
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "limit": { "type": "number", "description": "Items per list" }
+      },
+      "returns": {
+        "inbox": { "type": "array", "description": "Inbox tasks" },
+        "dueToday": { "type": "array", "description": "Tasks due today" },
+        "overdue": { "type": "array", "description": "Overdue tasks" },
+        "counts": { "type": "object", "description": "Bucket counts" }
+      },
+      "errors": [
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["task.list"]
+    },
+    {
+      "name": "memory.ingest",
+      "description": "Store a new agent memory entry",
+      "category": "Memory",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Optional space ID" },
+        "source": { "type": "string", "description": "Memory source label" },
+        "content": { "type": "object", "description": "Structured memory content" },
+        "summary": { "type": "string", "description": "Short summary" },
+        "tags": { "type": "array", "description": "Memory tags" },
+        "timestamp": { "type": "string", "description": "ISO-8601 timestamp" },
+        "entities": { "type": "array", "description": "Entity references" }
+      },
+      "returns": {
+        "id": { "type": "string", "description": "Memory ID" },
+        "summary": { "type": "string", "description": "Stored summary" },
+        "timestamp": { "type": "string", "description": "Stored timestamp" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing required fields", "resolution": "Provide workspaceId and source" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["memory.query"]
+    },
+    {
+      "name": "memory.query",
+      "description": "Query stored memories with optional semantic search",
+      "category": "Memory",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Optional space ID" },
+        "query": { "type": "string", "description": "Semantic query text" },
+        "tags": { "type": "array", "description": "Filter tags" },
+        "from": { "type": "string", "description": "Start date" },
+        "to": { "type": "string", "description": "End date" },
+        "limit": { "type": "number", "description": "Max results" }
+      },
+      "returns": {
+        "items": { "type": "array", "description": "Matching memories" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["memory.ingest"]
+    },
+    {
+      "name": "memory.daily",
+      "description": "List memories for a specific date",
+      "category": "Memory",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Optional space ID" },
+        "date": { "type": "string", "description": "ISO-8601 date" },
+        "limit": { "type": "number", "description": "Max results" }
+      },
+      "returns": {
+        "items": { "type": "array", "description": "Daily memories" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["memory.days"]
+    },
+    {
+      "name": "memory.days",
+      "description": "List recent days with memory activity counts",
+      "category": "Memory",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Optional space ID" },
+        "days": { "type": "number", "description": "Number of days to include" }
+      },
+      "returns": {
+        "days": { "type": "array", "description": "Days with counts" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["memory.daily"]
+    },
+    {
+      "name": "repo.listTree",
+      "description": "List repository tree entries for a path",
+      "category": "Repo",
+      "parameters": {
+        "host": { "type": "string", "description": "Repo host: github|gitlab|bitbucket" },
+        "owner": { "type": "string", "description": "Repository owner or workspace" },
+        "repo": { "type": "string", "description": "Repository name" },
+        "ref": { "type": "string", "description": "Branch, tag, or commit" },
+        "path": { "type": "string", "description": "Path to list" }
+      },
+      "returns": {
+        "entries": { "type": "array", "description": "Tree entries" },
+        "path": { "type": "string", "description": "Requested path" },
+        "ref": { "type": "string", "description": "Resolved ref" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing owner or repo", "resolution": "Provide owner and repo" },
+        { "code": "INTERNAL_ERROR", "message": "Repo API error", "resolution": "Check host and access token" }
+      ],
+      "examples": [],
+      "relatedMethods": ["repo.readFile"]
+    },
+    {
+      "name": "repo.readFile",
+      "description": "Read a file from a repository",
+      "category": "Repo",
+      "parameters": {
+        "host": { "type": "string", "description": "Repo host: github|gitlab|bitbucket" },
+        "owner": { "type": "string", "description": "Repository owner or workspace" },
+        "repo": { "type": "string", "description": "Repository name" },
+        "ref": { "type": "string", "description": "Branch, tag, or commit" },
+        "path": { "type": "string", "description": "File path" },
+        "maxBytes": { "type": "number", "description": "Maximum bytes to return" }
+      },
+      "returns": {
+        "content": { "type": "string", "description": "File content" },
+        "truncated": { "type": "boolean", "description": "Whether content is truncated" },
+        "size": { "type": "number", "description": "Original size in bytes" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing owner, repo, or path", "resolution": "Provide owner, repo, path" },
+        { "code": "INTERNAL_ERROR", "message": "Repo API error", "resolution": "Check host and access token" }
+      ],
+      "examples": [],
+      "relatedMethods": ["repo.listTree"]
+    },
+    {
+      "name": "ai.generate",
+      "description": "Generate content with Gemini models",
+      "category": "AI",
+      "parameters": {
+        "model": { "type": "string", "description": "Gemini model name" },
+        "contents": { "type": "array", "description": "Gemini contents payload" },
+        "generationConfig": { "type": "object", "description": "Generation config" },
+        "safetySettings": { "type": "array", "description": "Safety settings" },
+        "tools": { "type": "array", "description": "Tools" },
+        "toolConfig": { "type": "object", "description": "Tool config" }
+      },
+      "returns": {
+        "response": { "type": "object", "description": "Gemini response payload" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Invalid request", "resolution": "Check model and contents" },
+        { "code": "INTERNAL_ERROR", "message": "Gemini API error", "resolution": "Check logs or API key" }
+      ],
+      "examples": [],
+      "relatedMethods": []
+    }
+  ]
+}  

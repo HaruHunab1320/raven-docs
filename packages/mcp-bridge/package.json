@@ -1,0 +1,27 @@
+{
+  "name": "@raven-docs/mcp-bridge",
+  "version": "0.1.0",
+  "description": "Model Context Protocol bridge for Raven Docs",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.1",
+    "axios": "^1.7.9",
+    "dotenv": "^16.5.0",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.30",
+    "jest": "^29.7.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

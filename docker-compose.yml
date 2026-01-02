@@ -1,0 +1,64 @@
+version: '3'
+
+services:
+  # Redis service for caching and context storage
+  redis:
+    image: redis:7.2-alpine
+    container_name: raven-docs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 900 1 --loglevel warning --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks:
+      - raven-docs-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # PostgreSQL database service
+  db:
+    image: postgres:16-alpine
+    container_name: raven-docs-postgres
+    environment:
+      POSTGRES_DB: raven-docs
+      POSTGRES_USER: raven-docs_user
+      POSTGRES_PASSWORD: raven-docs_secure_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - raven-docs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raven-docs_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Memgraph service for agent memory (graph + vector)
+  memgraph:
+    image: memgraph/memgraph:latest
+    container_name: raven-docs-memgraph
+    ports:
+      - "7687:7687"
+      - "3005:3000"
+    networks:
+      - raven-docs-network
+    restart: unless-stopped
+
+networks:
+  raven-docs-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
+  db_data:
+    driver: local

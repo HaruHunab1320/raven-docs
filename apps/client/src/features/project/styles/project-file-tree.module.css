@@ -1,0 +1,54 @@
+.treeContainer {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.nodeSelected {
+  background-color: rgba(34, 139, 230, 0.1);
+}
+
+.nodeActive {
+  background-color: rgba(34, 139, 230, 0.1);
+}
+
+.nodeLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrowButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menuButton {
+  opacity: 0;
+  margin-left: auto;
+}
+
+.node:hover .menuButton {
+  opacity: 1;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+} 

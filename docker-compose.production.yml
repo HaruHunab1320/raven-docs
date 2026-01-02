@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  raven-docs:
+    image: raven-docs/raven-docs:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - APP_URL=${APP_URL}
+      - APP_SECRET=${APP_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - STORAGE_DRIVER=${STORAGE_DRIVER:-local}
+      - FILE_UPLOAD_SIZE_LIMIT=${FILE_UPLOAD_SIZE_LIMIT:-50MB}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - raven-docs_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - raven-docs_network
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=raven-docs
+      - POSTGRES_USER=${DB_USER:-raven-docs}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-raven-docs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-docs_network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-docs_network
+
+volumes:
+  raven-docs_data:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  raven-docs_network:
+    driver: bridge

@@ -1,0 +1,114 @@
+.treeContainer {
+  width: 100%;
+  position: relative;
+}
+
+.treeRow {
+  display: flex;
+  align-items: center;
+  user-select: none;
+  cursor: pointer;
+  padding-right: 8px;
+  transition: background-color 0.2s ease;
+  border-radius: 4px;
+  margin: 1px 0;
+}
+
+.treeRow:hover {
+  background-color: var(--mantine-color-gray-0);
+}
+
+.treeNodeInner {
+  width: 100%;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.treeNodeLeft {
+  flex: 1;
+  max-width: calc(100% - 50px);
+}
+
+.treeNodeActions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.treeRow:hover .treeNodeActions {
+  opacity: 1;
+}
+
+.actionButton {
+  color: var(--mantine-color-gray-6);
+}
+
+.actionButton:hover {
+  color: var(--mantine-color-gray-9);
+  background-color: var(--mantine-color-gray-1);
+}
+
+.nodeName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  font-weight: 500;
+}
+
+.completedTask {
+  text-decoration: line-through;
+  color: var(--mantine-color-gray-6);
+}
+
+.activeTreeRow {
+  background-color: var(--mantine-color-blue-0);
+}
+
+.selectedTreeRow {
+  background-color: var(--mantine-color-blue-0);
+}
+
+.arrowContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-todo {
+  background-color: var(--mantine-color-gray-5);
+}
+
+.status-in_progress {
+  background-color: var(--mantine-color-blue-5);
+}
+
+.status-done {
+  background-color: var(--mantine-color-green-5);
+}
+
+.status-blocked {
+  background-color: var(--mantine-color-red-5);
+}
+
+.status-in_review {
+  background-color: var(--mantine-color-yellow-5);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 20px;
+} 

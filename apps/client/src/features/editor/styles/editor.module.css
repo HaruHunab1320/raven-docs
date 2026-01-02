@@ -1,0 +1,10 @@
+.editor {
+    height: 100%;
+    padding: 16px 0;
+    margin: 0 auto;
+
+    @media print {
+        padding: 0;
+        margin: 0;
+    }
+}

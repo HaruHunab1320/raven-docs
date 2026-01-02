@@ -1,0 +1,32 @@
+.input {
+  width: 360px;
+
+  @media (max-width: 900px) {
+    width: 240px;
+  }
+
+  @media (max-width: 600px) {
+    display: none;
+  }
+}
+
+.select {
+  width: 180px;
+
+  @media (max-width: 900px) {
+    width: 140px;
+  }
+
+  @media (max-width: 600px) {
+    display: none;
+  }
+}
+
+.group {
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  align-items: center;
+  gap: 8px;
+}

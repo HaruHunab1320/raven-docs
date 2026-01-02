@@ -1,0 +1,43 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background-color: var(--raven-docs-body-bg, var(--mantine-color-body));
+}
+
+body {
+  margin: 0;
+  background-color: var(--raven-docs-body-bg, var(--mantine-color-body));
+  color: var(--raven-docs-text-color, var(--mantine-color-text));
+}
+
+[data-theme^="project89"] .mantine-AppShell-header,
+[data-theme^="project89"] .mantine-AppShell-navbar,
+[data-theme^="project89"] .mantine-AppShell-aside {
+  background-color: var(--raven-docs-body-bg, var(--mantine-color-body));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.mantine-Spotlight-root {
+  background: transparent;
+  border: 0;
+}
+
+.mantine-Spotlight-root:not(:empty) {
+  background: var(--raven-docs-surface-bg, var(--mantine-color-body));
+  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.mantine-Spotlight-search {
+  background: var(--raven-docs-surface-bg, var(--mantine-color-body));
+}
+
+.mantine-Spotlight-actions {
+  background: var(--raven-docs-surface-bg, var(--mantine-color-body));
+}
