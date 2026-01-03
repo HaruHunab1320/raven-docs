@@ -3,11 +3,13 @@ import {
   IsArray,
   IsDate,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 export class MemoryIngestDto {
@@ -19,6 +21,8 @@ export class MemoryIngestDto {
   spaceId?: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
   source: string;
 
   @IsOptional()
@@ -31,15 +35,36 @@ export class MemoryIngestDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   tags?: string[];
 
   @IsOptional()
-  entities?: Array<{ id: string; type: string; name: string }>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MemoryEntityInputDto)
+  entities?: MemoryEntityInputDto[];
 
   @IsOptional()
   @Type(() => Date)
   @IsDate()
   timestamp?: Date;
+}
+
+export class MemoryEntityInputDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  type: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  name: string;
 }
 
 export class MemoryQueryDto {

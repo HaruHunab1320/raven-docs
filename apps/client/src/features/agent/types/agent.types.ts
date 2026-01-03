@@ -18,6 +18,7 @@ export interface AgentSettings {
   allowPageWrites: boolean;
   allowProjectWrites: boolean;
   allowGoalWrites: boolean;
+  allowResearchWrites: boolean;
   autonomySchedule: {
     dailyEnabled: boolean;
     dailyHour: number;

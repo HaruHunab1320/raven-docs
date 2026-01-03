@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MCPService } from './mcp.service';
-import { MCPRequest, MCPResponse, MCPErrorCode } from './interfaces/mcp.interface';
+import { MCPRequest, MCPResponse } from './interfaces/mcp.interface';
 import { User } from '@raven-docs/db/types/entity.types';
 import { PageHandler } from './handlers/page.handler';
 import { SpaceHandler } from './handlers/space.handler';
@@ -24,6 +24,8 @@ import { ImportHandler } from './handlers/import.handler';
 import { ExportHandler } from './handlers/export.handler';
 import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
+import { RepoHandler } from './handlers/repo.handler';
+import { ResearchHandler } from './handlers/research.handler';
 import { MCPErrorCode } from './utils/error.utils';
 
 describe('MCPService', () => {
@@ -162,6 +164,14 @@ describe('MCPService', () => {
         },
         {
           provide: MemoryHandler,
+          useValue: {},
+        },
+        {
+          provide: RepoHandler,
+          useValue: {},
+        },
+        {
+          provide: ResearchHandler,
           useValue: {},
         },
         {

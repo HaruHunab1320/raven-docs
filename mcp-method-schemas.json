@@ -1926,6 +1926,74 @@
       "relatedMethods": ["memory.daily"]
     },
     {
+      "name": "research.create",
+      "description": "Create a new deep research job for a space",
+      "category": "Research",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Space ID" },
+        "topic": { "type": "string", "description": "Research topic" },
+        "goal": { "type": "string", "description": "Optional research goal" },
+        "timeBudgetMinutes": { "type": "number", "description": "Time budget in minutes" },
+        "outputMode": { "type": "string", "description": "Output mode: longform|brief" },
+        "sources": { "type": "object", "description": "Source toggles for docs/web/repo" },
+        "repoTargets": { "type": "array", "description": "Repository targets for code research" },
+        "reportPageId": { "type": "string", "description": "Optional page ID to write the report into" }
+      },
+      "returns": {
+        "id": { "type": "string", "description": "Research job ID" },
+        "status": { "type": "string", "description": "Initial status" },
+        "topic": { "type": "string", "description": "Research topic" },
+        "createdAt": { "type": "string", "description": "Created timestamp" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId, spaceId, or topic", "resolution": "Provide required fields" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["research.list", "research.info"]
+    },
+    {
+      "name": "research.list",
+      "description": "List research jobs for a space",
+      "category": "Research",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "spaceId": { "type": "string", "description": "Space ID" }
+      },
+      "returns": {
+        "jobs": { "type": "array", "description": "Research jobs" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId or spaceId", "resolution": "Provide required fields" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["research.create", "research.info"]
+    },
+    {
+      "name": "research.info",
+      "description": "Fetch a research job by ID",
+      "category": "Research",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID" },
+        "jobId": { "type": "string", "description": "Research job ID" }
+      },
+      "returns": {
+        "id": { "type": "string", "description": "Research job ID" },
+        "status": { "type": "string", "description": "Current status" },
+        "reportPageId": { "type": "string", "description": "Report page ID" },
+        "logPageId": { "type": "string", "description": "Log page ID" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId or jobId", "resolution": "Provide required fields" },
+        { "code": "RESOURCE_NOT_FOUND", "message": "Research job not found", "resolution": "Check jobId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["research.list"]
+    },
+    {
       "name": "repo.listTree",
       "description": "List repository tree entries for a path",
       "category": "Repo",

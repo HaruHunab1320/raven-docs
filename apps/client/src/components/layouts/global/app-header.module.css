@@ -25,6 +25,10 @@
     line-height: 1.1;
 }
 
+.brandGroup {
+    gap: rem(4px);
+}
+
 .desktopOnly {
     display: inline-flex;
 }

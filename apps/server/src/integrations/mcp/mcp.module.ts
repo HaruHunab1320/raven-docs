@@ -20,6 +20,7 @@ import { ExportHandler } from './handlers/export.handler';
 import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
+import { ResearchHandler } from './handlers/research.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -53,6 +54,7 @@ import { SearchModule } from '../../core/search/search.module';
 import { StorageModule } from '../../integrations/storage/storage.module';
 import { AIModule } from '../../integrations/ai/ai.module';
 import { AgentMemoryModule } from '../../core/agent-memory/agent-memory.module';
+import { ResearchModule } from '../../core/research/research.module';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 
 /**
@@ -82,6 +84,7 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     StorageModule,
     AIModule,
     AgentMemoryModule,
+    ResearchModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [MCPController, ApiKeyController, ApprovalCenterController],
@@ -107,6 +110,7 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     AIHandler,
     MemoryHandler,
     RepoHandler,
+    ResearchHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

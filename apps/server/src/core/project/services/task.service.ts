@@ -427,29 +427,61 @@ export class TaskService {
     content?: any;
   }) {
     if (!params.content) {
-      return { created: 0, skipped: 0 };
+      return { created: 0, updated: 0, deleted: 0, skipped: 0 };
     }
 
-    const items = extractTaskItems(params.content);
-    if (!items.length) {
-      return { created: 0, skipped: 0 };
+    let content = params.content;
+    if (typeof content === 'string') {
+      try {
+        content = JSON.parse(content);
+      } catch {
+        return { created: 0, updated: 0, deleted: 0, skipped: 0 };
+      }
     }
+
+    const items = extractTaskItems(content);
 
     const existing = await this.taskRepo.findByPageId(params.pageId);
-    const existingTitles = new Set(
-      existing.map((task) => task.title.toLowerCase()),
+    const itemsByTitle = new Map(
+      items.map((item) => [item.text.toLowerCase(), item]),
     );
 
     let created = 0;
+    let updated = 0;
+    let deleted = 0;
     let skipped = 0;
 
-    for (const item of items) {
-      const key = item.text.toLowerCase();
-      if (existingTitles.has(key)) {
-        skipped += 1;
+    for (const task of existing) {
+      const key = task.title.toLowerCase();
+      const item = itemsByTitle.get(key);
+      if (!item) {
+        await this.delete(task.id);
+        deleted += 1;
         continue;
       }
 
+      itemsByTitle.delete(key);
+      let didUpdate = false;
+
+      if (task.title !== item.text) {
+        await this.update(task.id, { title: item.text });
+        didUpdate = true;
+      }
+
+      const desiredStatus = item.checked ? TaskStatus.DONE : TaskStatus.TODO;
+      if (task.status !== desiredStatus) {
+        await this.update(task.id, { status: desiredStatus });
+        didUpdate = true;
+      }
+
+      if (didUpdate) {
+        updated += 1;
+      } else {
+        skipped += 1;
+      }
+    }
+
+    for (const item of itemsByTitle.values()) {
       await this.create(params.userId, params.workspaceId, {
         title: item.text,
         status: item.checked ? TaskStatus.DONE : TaskStatus.TODO,
@@ -460,7 +492,7 @@ export class TaskService {
       created += 1;
     }
 
-    return { created, skipped };
+    return { created, updated, deleted, skipped };
   }
 
   async findByPageId(

@@ -14,6 +14,7 @@ export class AgentPolicyService {
     'task.update': 'allowTaskWrites',
     'page.create': 'allowPageWrites',
     'project.create': 'allowProjectWrites',
+    'research.create': 'allowResearchWrites',
   };
 
   constructor(private readonly approvalService: MCPApprovalService) {}

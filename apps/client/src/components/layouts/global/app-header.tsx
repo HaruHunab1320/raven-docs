@@ -31,10 +31,7 @@ import {
 } from "@tabler/icons-react";
 // import { MCPEventIndicator } from "@/features/websocket/components/mcp-event-indicator.tsx";
 
-const links = [
-  { link: APP_ROUTE.HOME, label: "Home" },
-  { link: APP_ROUTE.FILES, label: "Files" },
-];
+const links = [{ link: APP_ROUTE.FILES, label: "Files" }];
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -97,6 +94,7 @@ export function AppHeader() {
   const [currentUser] = useAtom(currentUserAtom);
   const user = currentUser?.user;
   const workspace = currentUser?.workspace;
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -149,16 +147,30 @@ export function AppHeader() {
             </>
           )}
 
-          <Text
-            size="lg"
-            fw={600}
-            style={{ cursor: "pointer", userSelect: "none" }}
-            component={Link}
-            to="/home"
-            className={classes.brand}
-          >
-            Raven Docs
-          </Text>
+          <Group wrap="nowrap" gap="xs" className={classes.brandGroup}>
+            <Link to="/home" aria-label={t("Raven Docs home")}>
+              <img
+                src={logoSrc}
+                alt={t("Raven Docs logo")}
+                style={{
+                  height: 24,
+                  width: 24,
+                  objectFit: "contain",
+                  display: "block",
+                }}
+              />
+            </Link>
+            <Text
+              size="lg"
+              fw={600}
+              style={{ cursor: "pointer", userSelect: "none" }}
+              component={Link}
+              to="/home"
+              className={classes.brand}
+            >
+              Raven Docs
+            </Text>
+          </Group>
 
           <Group ml={50} gap={5} className={classes.links} visibleFrom="sm">
             {items}

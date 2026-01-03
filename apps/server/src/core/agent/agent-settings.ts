@@ -18,6 +18,7 @@ export interface AgentSettings {
   allowPageWrites: boolean;
   allowProjectWrites: boolean;
   allowGoalWrites: boolean;
+  allowResearchWrites: boolean;
   autonomySchedule: {
     dailyEnabled: boolean;
     dailyHour: number;
@@ -58,6 +59,7 @@ export const defaultAgentSettings: AgentSettings = {
   allowPageWrites: false,
   allowProjectWrites: false,
   allowGoalWrites: false,
+  allowResearchWrites: false,
   autonomySchedule: {
     dailyEnabled: true,
     dailyHour: 7,

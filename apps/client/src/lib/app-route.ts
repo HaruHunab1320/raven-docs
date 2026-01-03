@@ -14,6 +14,7 @@ const APP_ROUTE = {
     WAITING: (spaceId: string) => `/spaces/${spaceId}/waiting`,
     SOMEDAY: (spaceId: string) => `/spaces/${spaceId}/someday`,
     INSIGHTS: (spaceId: string) => `/spaces/${spaceId}/insights`,
+    RESEARCH: (spaceId: string) => `/spaces/${spaceId}/research`,
   },
   AUTH: {
     LOGIN: "/login",

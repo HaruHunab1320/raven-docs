@@ -92,6 +92,7 @@ export class ResearchJobService {
         repoTargets: input.repoTargets
           ? (sql`${JSON.stringify(input.repoTargets)}::jsonb` as any)
           : null,
+        reportPageId: input.reportPageId || null,
       })
       .returning([
         'id',
@@ -203,12 +204,12 @@ export class ResearchJobService {
         .where('id', '=', jobId)
         .execute();
 
-      const logPageId =
-        job.logPageId ||
-        (await this.createLogPage(job as ResearchJobRecord, job.creatorId));
       const reportPageId =
         job.reportPageId ||
         (await this.createReportPage(job as ResearchJobRecord, job.creatorId));
+      const logPageId =
+        job.logPageId ||
+        (await this.createLogPage(job as ResearchJobRecord, job.creatorId, reportPageId));
 
       await this.db
         .updateTable('researchJobs')
@@ -451,6 +452,7 @@ export class ResearchJobService {
   private async createLogPage(
     job: ResearchJobRecord,
     userId: string,
+    parentPageId?: string,
   ): Promise<string> {
     const title = `Research Log ${job.topic}`.slice(0, 80);
     const page = await this.pageService.create(
@@ -459,6 +461,7 @@ export class ResearchJobService {
       {
         title,
         spaceId: job.spaceId,
+        parentPageId: parentPageId || undefined,
         content: JSON.stringify({
           type: 'doc',
           content: [
@@ -487,7 +490,7 @@ export class ResearchJobService {
     job: ResearchJobRecord,
     userId: string,
   ): Promise<string> {
-    const title = `Research Report ${job.topic}`.slice(0, 80);
+    const title = `Research: ${job.topic}`.slice(0, 80);
     const page = await this.pageService.create(
       userId,
       job.workspaceId,
@@ -500,7 +503,7 @@ export class ResearchJobService {
             {
               type: 'heading',
               attrs: { level: 2 },
-              content: [{ type: 'text', text: `Research Report: ${job.topic}` }],
+              content: [{ type: 'text', text: `Research: ${job.topic}` }],
             },
           ],
         }),

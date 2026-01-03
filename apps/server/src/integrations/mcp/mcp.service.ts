@@ -19,6 +19,7 @@ import { ExportHandler } from './handlers/export.handler';
 import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
+import { ResearchHandler } from './handlers/research.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -67,6 +68,7 @@ export class MCPService {
     private readonly aiHandler: AIHandler,
     private readonly memoryHandler: MemoryHandler,
     private readonly repoHandler: RepoHandler,
+    private readonly researchHandler: ResearchHandler,
   ) {}
 
   /**
@@ -310,6 +312,14 @@ export class MCPService {
               operation,
               request.params,
               user,
+            );
+            break;
+          case 'research':
+            this.logger.debug(`MCPService: Delegating to research handler`);
+            result = await this.handleResearchRequest(
+              operation,
+              request.params,
+              user.id,
             );
             break;
           default:
@@ -598,6 +608,23 @@ export class MCPService {
         return this.repoHandler.readFile(params, user);
       default:
         throw createMethodNotFoundError(`repo.${operation}`);
+    }
+  }
+
+  private async handleResearchRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'create':
+        return this.researchHandler.create(params, userId);
+      case 'list':
+        return this.researchHandler.list(params, userId);
+      case 'info':
+        return this.researchHandler.info(params, userId);
+      default:
+        throw createMethodNotFoundError(`research.${operation}`);
     }
   }
 

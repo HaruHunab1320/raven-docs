@@ -16,6 +16,7 @@ import { useAtom } from "jotai";
 import { mcpSocketAtom } from "../atoms/mcp-socket-atom";
 import { MCPEvent } from "../types/mcp-event.types";
 import { IconEye, IconX, IconRefresh } from "@tabler/icons-react";
+import { mcpLog } from "../utils/mcp-log";
 
 /**
  * Component to debug MCP events
@@ -40,7 +41,7 @@ export function MCPEventDebugger() {
 
     // Event handler for MCP events
     const handleEvent = (event: MCPEvent) => {
-      console.log("[MCP-DEBUG] Event received:", event);
+      mcpLog("[MCP-DEBUG] Event received:", event);
       setEvents((prev) => [event, ...prev].slice(0, 50)); // Keep last 50 events
     };
 

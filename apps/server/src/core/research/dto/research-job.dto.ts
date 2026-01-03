@@ -79,6 +79,10 @@ export class CreateResearchJobDto {
   @ValidateNested({ each: true })
   @Type(() => ResearchRepoTargetDto)
   repoTargets?: ResearchRepoTargetDto[];
+
+  @IsOptional()
+  @IsUUID()
+  reportPageId?: string;
 }
 
 export class ResearchJobQueryDto {

@@ -121,6 +121,7 @@ export function AgentSettingsPanel() {
         allowPageWrites: false,
         allowProjectWrites: false,
         allowGoalWrites: false,
+        allowResearchWrites: false,
         autonomySchedule: {
           dailyEnabled: true,
           dailyHour: 7,
@@ -386,6 +387,12 @@ export function AgentSettingsPanel() {
             label={toLabel("Allow goal writes")}
             checked={currentSettings.allowGoalWrites}
             onChange={handleToggle("allowGoalWrites")}
+            disabled={!isAdmin}
+          />
+          <Switch
+            label={toLabel("Allow research writes")}
+            checked={currentSettings.allowResearchWrites}
+            onChange={handleToggle("allowResearchWrites")}
             disabled={!isAdmin}
           />
         </Stack>

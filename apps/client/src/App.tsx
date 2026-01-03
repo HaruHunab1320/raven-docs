@@ -38,6 +38,7 @@ import { ReviewPage } from "@/features/gtd/pages/review-page";
 import { WaitingPage } from "@/features/gtd/pages/waiting-page";
 import { SomedayPage } from "@/features/gtd/pages/someday-page";
 import { MemoryInsightsPage } from "@/features/agent-memory/pages/memory-insights-page";
+import ResearchPage from "@/features/research/pages/research-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
 import { useEffect } from "react";
 
@@ -488,6 +489,10 @@ export default function App() {
           <Route
             path={"/spaces/:spaceId/insights"}
             element={<MemoryInsightsPage />}
+          />
+          <Route
+            path={"/spaces/:spaceId/research"}
+            element={<ResearchPage />}
           />
           <Route
             path={"/spaces/:spaceId/projects/:projectId/tasks"}

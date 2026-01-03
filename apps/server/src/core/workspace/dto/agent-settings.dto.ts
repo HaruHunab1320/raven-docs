@@ -58,6 +58,10 @@ export class AgentSettingsDto {
   allowGoalWrites?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  allowResearchWrites?: boolean;
+
+  @IsOptional()
   @IsObject()
   policy?: {
     allowAutoApply?: string[];

@@ -27,6 +27,7 @@ import {
   IconSearch,
   IconSettings,
   IconChartDots,
+  IconBulb,
 } from "@tabler/icons-react";
 
 import classes from "./space-sidebar.module.css";
@@ -319,6 +320,22 @@ export function SpaceSidebar() {
                   stroke={2}
                 />
                 <span>{t("Insights")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.RESEARCH(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/research`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconBulb size={18} className={classes.menuItemIcon} stroke={2} />
+                <span>{t("Research")}</span>
               </div>
             </UnstyledButton>
 

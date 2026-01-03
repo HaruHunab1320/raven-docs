@@ -15,6 +15,11 @@ export class StaticModule implements OnModuleInit {
   public async onModuleInit() {
     const httpAdapter = this.httpAdapterHost.httpAdapter;
     const app = httpAdapter.getInstance();
+    const nodeEnv = this.environmentService.getNodeEnv();
+
+    if (nodeEnv !== 'production') {
+      return;
+    }
 
     const clientDistPath = join(
       __dirname,

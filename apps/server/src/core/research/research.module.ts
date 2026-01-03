@@ -29,5 +29,6 @@ import { CaslModule } from '../casl/casl.module';
     RepoBrowseService,
     WebSearchService,
   ],
+  exports: [ResearchJobService],
 })
 export class ResearchModule {}

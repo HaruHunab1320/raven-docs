@@ -85,6 +85,11 @@ export class MCPPermissionGuard implements CanActivate {
     'memory.daily': MCPPermissionLevel.READ,
     'memory.days': MCPPermissionLevel.READ,
 
+    // Research operations
+    'research.create': MCPPermissionLevel.WRITE,
+    'research.list': MCPPermissionLevel.READ,
+    'research.info': MCPPermissionLevel.READ,
+
     // Repo operations
     'repo.listTree': MCPPermissionLevel.READ,
     'repo.readFile': MCPPermissionLevel.READ,

@@ -10,6 +10,7 @@ import {
   IconPrinter,
   IconTrash,
   IconWifiOff,
+  IconBulb,
 } from "@tabler/icons-react";
 import React, { useEffect } from "react";
 import { useAtom } from "jotai";
@@ -34,6 +35,7 @@ import { formattedDate, timeAgo } from "@/lib/time.ts";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import useToggleAside from "@/hooks/use-toggle-aside.tsx";
+import { ResearchJobModal } from "@/features/research/components/research-job-modal";
 
 interface PageHeaderMenuProps {
   readOnly?: boolean;
@@ -90,6 +92,8 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     movePageModalOpened,
     { open: openMovePageModal, close: closeMoveSpaceModal },
   ] = useDisclosure(false);
+  const [researchOpened, { open: openResearchModal, close: closeResearchModal }] =
+    useDisclosure(false);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page.updatedAt);
 
@@ -171,6 +175,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             {t("Export")}
           </Menu.Item>
 
+          {!readOnly && (
+            <Menu.Item
+              leftSection={<IconBulb size={16} />}
+              onClick={openResearchModal}
+            >
+              {t("Run deep research")}
+            </Menu.Item>
+          )}
+
           <Menu.Item
             leftSection={<IconPrinter size={16} />}
             onClick={handlePrint}
@@ -234,6 +247,17 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         open={exportOpened}
         onClose={closeExportModal}
       />
+
+      {page?.workspaceId ? (
+        <ResearchJobModal
+          opened={researchOpened}
+          onClose={closeResearchModal}
+          workspaceId={page.workspaceId}
+          spaceId={page.spaceId}
+          reportPageId={page.id}
+          initialTopic={page.title}
+        />
+      ) : null}
 
       <MovePageModal
         pageId={page.id}

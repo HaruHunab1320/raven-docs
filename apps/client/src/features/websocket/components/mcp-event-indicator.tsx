@@ -8,6 +8,7 @@ import {
   MCPResourceType,
   MCPOperationType,
 } from "../types/mcp-event.types";
+import { mcpError, mcpLog } from "../utils/mcp-log";
 import {
   IconRefresh,
   IconWifi,
@@ -31,20 +32,20 @@ export const MCPEventIndicator: React.FC = () => {
   useEffect(() => {
     if (!socket) return;
 
-    console.log("MCPEventIndicator: Setting up listeners");
+    mcpLog("MCPEventIndicator: Setting up listeners");
 
     const handleConnect = () => {
-      console.log("MCPEventIndicator: Socket connected");
+      mcpLog("MCPEventIndicator: Socket connected");
       setConnected(true);
     };
 
     const handleDisconnect = () => {
-      console.log("MCPEventIndicator: Socket disconnected");
+      mcpLog("MCPEventIndicator: Socket disconnected");
       setConnected(false);
     };
 
     const handleEvent = (event: MCPEvent) => {
-      console.log("MCPEventIndicator: Event received", event);
+      mcpLog("MCPEventIndicator: Event received", event);
       setLastEvent(event);
       setEventCount((prev) => prev + 1);
 
@@ -57,7 +58,7 @@ export const MCPEventIndicator: React.FC = () => {
       resourceType: MCPResourceType;
       resourceId: string;
     }) => {
-      console.log("MCPEventIndicator: Subscription added", data);
+      mcpLog("MCPEventIndicator: Subscription added", data);
       const subKey = `${data.resourceType}:${data.resourceId}`;
       setSubscriptions((prev) => [...prev, subKey]);
     };
@@ -105,7 +106,7 @@ export const MCPEventIndicator: React.FC = () => {
     }
 
     try {
-      console.log(
+      mcpLog(
         "Sending test event directly to server to debug real-time updates"
       );
 
@@ -131,9 +132,9 @@ export const MCPEventIndicator: React.FC = () => {
       setIsFlashing(true);
       setTimeout(() => setIsFlashing(false), 500);
 
-      console.log("Test event sent:", testEvent);
+      mcpLog("Test event sent:", testEvent);
     } catch (error) {
-      console.error("Error sending test event:", error);
+      mcpError("Error sending test event:", error);
       alert("Failed to send test event: " + (error as Error).message);
     }
   };
