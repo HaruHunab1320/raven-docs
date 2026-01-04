@@ -48,6 +48,10 @@ Workflow map of REST endpoints and MCP tools.
 
 Production readiness checklist with pass/fail steps.
 
+### 0.10 [Agentic Roadmap + Project Playbook](./Agentic_Roadmap.md)
+
+State-of-the-art agentic behavior, memory intelligence, and delivery playbooks.
+
 ### 1. [Codebase Review](../CodebaseReview.md)
 
 A high-level overview of the entire codebase, focusing on:

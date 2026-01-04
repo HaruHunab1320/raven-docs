@@ -375,9 +375,19 @@ export function TodayPage() {
 
       <Group mt="xl" mb="sm" justify="space-between">
         <Title order={3}>{t("Journal")}</Title>
-        <Text size="xs" c="dimmed">
-          {t("Capture thoughts into Inbox")}
-        </Text>
+        <Group gap="xs">
+          <Text size="xs" c="dimmed">
+            {t("Capture thoughts into Inbox")}
+          </Text>
+          <Button
+            size="xs"
+            variant="subtle"
+            component={Link}
+            to={APP_ROUTE.SPACE.JOURNAL(spaceId)}
+          >
+            {t("Open Journal")}
+          </Button>
+        </Group>
       </Group>
       <JournalCapture spaceId={spaceId} />
       {workspace?.id ? (

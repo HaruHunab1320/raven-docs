@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
+import { UserRole } from '../../common/helpers/types/permission';
 import {
   MemoryDailyDto,
   MemoryDaysDto,
@@ -19,14 +20,19 @@ import {
   MemoryGraphDto,
   MemoryIngestDto,
   MemoryLinksDto,
+  MemoryProfileDistillDto,
   MemoryQueryDto,
 } from './dto/memory.dto';
 import { AgentMemoryService } from './agent-memory.service';
+import { AgentProfileService } from './agent-profile.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('memory')
 export class AgentMemoryController {
-  constructor(private readonly memoryService: AgentMemoryService) {}
+  constructor(
+    private readonly memoryService: AgentMemoryService,
+    private readonly profileService: AgentProfileService,
+  ) {}
 
   @HttpCode(HttpStatus.OK)
   @Post('ingest')
@@ -189,5 +195,35 @@ export class AgentMemoryController {
       goalIds: dto.goalIds,
       limit: dto.limit,
     });
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('profile/distill')
+  async distillProfile(
+    @Body() dto: MemoryProfileDistillDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    if (dto.workspaceId !== workspace.id) {
+      throw new ForbiddenException('Workspace mismatch');
+    }
+    if (!dto.spaceId) {
+      throw new ForbiddenException('Missing space');
+    }
+
+    if (dto.userId && dto.userId !== user.id) {
+      const role = user.role as UserRole | null;
+      if (role !== UserRole.ADMIN && role !== UserRole.OWNER) {
+        throw new ForbiddenException('Admin role required');
+      }
+    }
+
+    if (dto.userId) {
+      await this.profileService.distillForUser(dto.spaceId, workspace, dto.userId);
+    } else {
+      await this.profileService.distillForSpace(dto.spaceId, workspace);
+    }
+
+    return { status: 'completed' };
   }
 }

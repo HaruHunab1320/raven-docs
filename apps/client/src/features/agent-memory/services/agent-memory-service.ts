@@ -11,6 +11,7 @@ import {
   MemoryDailyParams,
   MemoryDaysParams,
   MemoryIngestParams,
+  MemoryProfileDistillParams,
   MemoryQueryParams,
 } from "@/features/agent-memory/types";
 
@@ -54,6 +55,11 @@ export const agentMemoryService = {
 
   async links(params: MemoryLinksParams): Promise<MemoryLinksResponse> {
     const { data } = await api.post(`${MEMORY_ENDPOINT}/links`, params);
+    return data;
+  },
+
+  async distillProfile(params: MemoryProfileDistillParams): Promise<{ status: string }> {
+    const { data } = await api.post(`${MEMORY_ENDPOINT}/profile/distill`, params);
     return data;
   },
 };

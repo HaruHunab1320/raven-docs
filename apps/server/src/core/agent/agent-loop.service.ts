@@ -155,6 +155,15 @@ export class AgentLoopService {
     return { goals, memories };
   }
 
+  private formatProfileContext(memory?: any) {
+    if (!memory) return '';
+    const content = memory.content as { profile?: any } | undefined;
+    const profile = content?.profile;
+    if (profile?.summary) return String(profile.summary);
+    if (memory.summary) return String(memory.summary);
+    return '';
+  }
+
   private buildPrompt(context: {
     spaceName: string;
     goals: Array<{ id: string; name: string; horizon: string; keywords?: unknown }>;
@@ -241,6 +250,16 @@ export class AgentLoopService {
         };
 
     const { goals, memories } = await this.buildContext(spaceId, workspace.id);
+    const profileMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: workspace.id,
+        spaceId,
+        tags: ['user-profile'],
+        limit: 1,
+      },
+      undefined,
+    );
+    const profileContext = this.formatProfileContext(profileMemories[0]);
     const sanitizedGoals = goals.map((goal) => ({
       ...goal,
       keywords: Array.isArray(goal.keywords) ? goal.keywords : [],
@@ -264,6 +283,9 @@ export class AgentLoopService {
         ? `${triageSummary}, goalFocus=${goalFocusSummary}`
         : triageSummary,
     });
+    const promptWithProfile = profileContext
+      ? `${prompt}\nUser profile: ${profileContext}`
+      : prompt;
 
     let plan: AgentLoopPlan = { summary: 'No actions proposed.', actions: [] };
     let rawResponse = '';
@@ -276,7 +298,7 @@ export class AgentLoopService {
       try {
         const response = await this.aiService.generateContent({
           model: this.getAgentModel(),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          contents: [{ role: 'user', parts: [{ text: promptWithProfile }] }],
         });
         const text =
           response?.candidates?.[0]?.content?.parts?.[0]?.text || '';

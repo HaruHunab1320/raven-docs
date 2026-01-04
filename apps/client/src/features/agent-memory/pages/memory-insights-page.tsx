@@ -27,7 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "react-router-dom";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
 import { useAtom } from "jotai";
-import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
+import { userAtom, workspaceAtom } from "@/features/user/atoms/current-user-atom";
 import { createGoal, listGoals } from "@/features/goal/services/goal-service";
 import { runAgentLoop } from "@/features/agent/services/agent-service";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +37,8 @@ import { getProjectsArray } from "@/features/project/utils/project-data";
 import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronRight, IconDotsVertical } from "@tabler/icons-react";
 import { markdownToHtml } from "@raven-docs/editor-ext";
+import { getOrCreateUserProfilePage } from "@/features/agent-memory/utils/user-profile";
+import { UserProfileMetrics } from "@/features/agent-memory/components/user-profile-metrics";
 import classes from "./memory-insights-page.module.css";
 
 function renderMemoryContent(content: unknown) {
@@ -101,6 +103,7 @@ function formatLastSeen(lastSeen?: string | null) {
 export function MemoryInsightsPage() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const [workspace] = useAtom(workspaceAtom);
+  const [currentUser] = useAtom(userAtom);
   const queryClient = useQueryClient();
   const theme = useMantineTheme();
   const navigate = useNavigate();
@@ -157,6 +160,28 @@ export function MemoryInsightsPage() {
     queryFn: () => agentMemoryService.query(memoryParams),
     enabled: !!workspace?.id && !!spaceId,
   });
+
+  const profileQuery = useQuery({
+    queryKey: ["memory-profile", workspace?.id, spaceId, currentUser?.id],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspace?.id || "",
+        spaceId: spaceId || "",
+        tags: currentUser?.id ? [`user:${currentUser.id}`] : ["user-profile"],
+        limit: 1,
+      }),
+    enabled: !!workspace?.id && !!spaceId,
+  });
+
+  const profileUpdatedLabel = useMemo(() => {
+    const raw = profileQuery.data?.[0]?.timestamp;
+    if (!raw) return "Updated when profile distillation runs";
+    const date = raw instanceof Date ? raw : new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return "Updated when profile distillation runs";
+    }
+    return `Updated ${date.toLocaleDateString()}`;
+  }, [profileQuery.data]);
 
   const signalsQuery = useQuery({
     queryKey: ["memory-signals", workspace?.id, spaceId],
@@ -910,21 +935,124 @@ export function MemoryInsightsPage() {
     },
   });
 
+  const openProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!spaceId) return null;
+      return getOrCreateUserProfilePage({
+        spaceId,
+        userName: currentUser?.name,
+      });
+    },
+    onSuccess: (page) => {
+      if (!page?.slugId) return;
+      navigate(`/p/${page.slugId}`);
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to open user profile",
+        color: "red",
+      });
+    },
+  });
+
+  const distillProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!workspace?.id || !spaceId) return;
+      return agentMemoryService.distillProfile({
+        workspaceId: workspace.id,
+        spaceId,
+        userId: currentUser?.id,
+      });
+    },
+    onSuccess: () => {
+      notifications.show({
+        title: "Profile update queued",
+        message: "Profile distillation completed.",
+        color: "green",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["memory-profile", workspace?.id, spaceId, currentUser?.id],
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to queue profile distillation",
+        color: "red",
+      });
+    },
+  });
+
   return (
     <Container size="lg" py="xl">
       <Group justify="space-between" mb="md">
         <Title order={2}>Insights</Title>
-        <Button
-          variant="light"
-          onClick={() => loopMutation.mutate()}
-          loading={loopMutation.isPending}
-          disabled={!spaceId}
-        >
-          Run autonomy cycle
-        </Button>
+        <Group>
+          <Button
+            variant="light"
+            onClick={() => openProfileMutation.mutate()}
+            loading={openProfileMutation.isPending}
+            disabled={!spaceId}
+          >
+            Open user profile
+          </Button>
+          <Button
+            variant="light"
+            onClick={() => distillProfileMutation.mutate()}
+            loading={distillProfileMutation.isPending}
+            disabled={!spaceId || !workspace?.id}
+          >
+            Run profile distillation
+          </Button>
+          <Button
+            variant="light"
+            onClick={() => loopMutation.mutate()}
+            loading={loopMutation.isPending}
+            disabled={!spaceId}
+          >
+            Run autonomy cycle
+          </Button>
+        </Group>
       </Group>
 
       <Stack gap="md">
+        <UserProfileMetrics
+          traits={
+            (() => {
+              const record = profileQuery.data?.[0]?.content as
+                | { profile?: Record<string, any> }
+                | undefined;
+              const traits = record?.profile?.traits as Record<string, number> | undefined;
+              if (!traits) return [];
+              const order = [
+                "focus",
+                "execution",
+                "creativity",
+                "communication",
+                "leadership",
+                "learning",
+                "resilience",
+              ];
+              const labels: Record<string, string> = {
+                focus: "Focus",
+                execution: "Execution",
+                creativity: "Creativity",
+                communication: "Communication",
+                leadership: "Leadership",
+                learning: "Learning",
+                resilience: "Resilience",
+              };
+              return order.map((key) => ({
+                key,
+                label: labels[key] || key,
+                value: Number(traits[key]),
+              }));
+            })()
+          }
+          title="User traits"
+          subtitle={profileUpdatedLabel}
+        />
         <Card withBorder radius="md" p="md">
           <Group justify="space-between" mb="sm">
             <Title order={4}>Filters</Title>

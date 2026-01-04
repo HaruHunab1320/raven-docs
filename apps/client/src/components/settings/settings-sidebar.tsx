@@ -12,6 +12,7 @@ import {
   IconLock,
   IconKey,
   IconApi,
+  IconChartDots,
 } from "@tabler/icons-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -65,6 +66,12 @@ const groupedData: DataGroup[] = [
         label: "Members",
         icon: IconUsers,
         path: "/settings/members",
+      },
+      {
+        label: "People Insights",
+        icon: IconChartDots,
+        path: "/settings/people-insights",
+        isAdmin: true,
       },
       {
         label: "Billing",

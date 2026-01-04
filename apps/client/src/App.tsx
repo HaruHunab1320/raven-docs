@@ -6,6 +6,7 @@ import Page from "@/pages/page/page";
 import AccountSettings from "@/pages/settings/account/account-settings";
 import WorkspaceMembers from "@/pages/settings/workspace/workspace-members";
 import WorkspaceSettings from "@/pages/settings/workspace/workspace-settings";
+import PeopleInsights from "@/pages/settings/workspace/people-insights";
 import Groups from "@/pages/settings/group/groups";
 import GroupInfo from "./pages/settings/group/group-info";
 import Spaces from "@/pages/settings/space/spaces.tsx";
@@ -37,6 +38,7 @@ import { TriagePage } from "@/features/gtd/pages/triage-page";
 import { ReviewPage } from "@/features/gtd/pages/review-page";
 import { WaitingPage } from "@/features/gtd/pages/waiting-page";
 import { SomedayPage } from "@/features/gtd/pages/someday-page";
+import { JournalPage } from "@/features/gtd/pages/journal-page";
 import { MemoryInsightsPage } from "@/features/agent-memory/pages/memory-insights-page";
 import ResearchPage from "@/features/research/pages/research-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
@@ -486,6 +488,7 @@ export default function App() {
           <Route path={"/spaces/:spaceId/review"} element={<ReviewPage />} />
           <Route path={"/spaces/:spaceId/waiting"} element={<WaitingPage />} />
           <Route path={"/spaces/:spaceId/someday"} element={<SomedayPage />} />
+          <Route path={"/spaces/:spaceId/journal"} element={<JournalPage />} />
           <Route
             path={"/spaces/:spaceId/insights"}
             element={<MemoryInsightsPage />}
@@ -510,6 +513,10 @@ export default function App() {
           />
           <Route path={"/settings/workspace"} element={<WorkspaceSettings />} />
           <Route path={"/settings/members"} element={<WorkspaceMembers />} />
+          <Route
+            path={"/settings/people-insights"}
+            element={<PeopleInsights />}
+          />
           <Route path={"/settings/groups"} element={<Groups />} />
           <Route path={"/settings/groups/:groupId"} element={<GroupInfo />} />
           <Route path={"/settings/spaces"} element={<Spaces />} />

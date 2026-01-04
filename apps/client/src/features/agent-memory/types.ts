@@ -108,3 +108,9 @@ export interface MemoryLinksResponse {
   taskLinks: Record<string, Array<{ entityId: string; entityName?: string }>>;
   goalLinks: Record<string, Array<{ entityId: string; entityName?: string }>>;
 }
+
+export interface MemoryProfileDistillParams {
+  workspaceId: string;
+  spaceId: string;
+  userId?: string;
+}

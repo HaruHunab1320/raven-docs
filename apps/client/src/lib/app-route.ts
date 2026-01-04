@@ -13,6 +13,7 @@ const APP_ROUTE = {
     REVIEW: (spaceId: string) => `/spaces/${spaceId}/review`,
     WAITING: (spaceId: string) => `/spaces/${spaceId}/waiting`,
     SOMEDAY: (spaceId: string) => `/spaces/${spaceId}/someday`,
+    JOURNAL: (spaceId: string) => `/spaces/${spaceId}/journal`,
     INSIGHTS: (spaceId: string) => `/spaces/${spaceId}/insights`,
     RESEARCH: (spaceId: string) => `/spaces/${spaceId}/research`,
   },

@@ -28,6 +28,7 @@ import {
   IconSettings,
   IconChartDots,
   IconBulb,
+  IconNotebook,
 } from "@tabler/icons-react";
 
 import classes from "./space-sidebar.module.css";
@@ -300,6 +301,26 @@ export function SpaceSidebar() {
                   stroke={2}
                 />
                 <span>{t("Weekly Review")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.JOURNAL(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/journal`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconNotebook
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Journal")}</span>
               </div>
             </UnstyledButton>
 

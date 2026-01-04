@@ -43,6 +43,15 @@ export class AgentService {
     }
   }
 
+  private formatProfileContext(memory?: any) {
+    if (!memory) return '';
+    const content = memory.content as { profile?: any } | undefined;
+    const profile = content?.profile;
+    if (profile?.summary) return String(profile.summary);
+    if (memory.summary) return String(memory.summary);
+    return '';
+  }
+
   async chat(dto: AgentChatDto, user: User, workspace: Workspace) {
     const agentSettings = resolveAgentSettings(workspace.settings);
     if (!agentSettings.enabled || !agentSettings.allowAgentChat) {
@@ -91,6 +100,16 @@ export class AgentService {
       },
       undefined,
     );
+    const profileMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: workspace.id,
+        spaceId: dto.spaceId,
+        tags: ['user-profile'],
+        limit: 1,
+      },
+      undefined,
+    );
+    const profileContext = this.formatProfileContext(profileMemories[0]);
 
     const memoryContext = recentMemories
       .map((memory) => `- ${memory.summary}`)
@@ -112,6 +131,7 @@ export class AgentService {
       `Overdue: ${triage.overdue.map((task) => task.title).join(', ') || 'none'}.`,
       `Due today: ${triage.dueToday.map((task) => task.title).join(', ') || 'none'}.`,
       goalFocusSummary ? `Goal focus: ${goalFocusSummary}.` : null,
+      profileContext ? `User profile: ${profileContext}.` : null,
       `User message: ${dto.message}`,
       `Respond with next steps, optional questions, and suggest time blocks if relevant.`,
     ]

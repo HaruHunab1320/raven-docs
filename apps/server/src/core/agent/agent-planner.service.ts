@@ -54,6 +54,15 @@ export class AgentPlannerService {
     return { goals, memories };
   }
 
+  private formatProfileContext(memory?: any) {
+    if (!memory) return '';
+    const content = memory.content as { profile?: any } | undefined;
+    const profile = content?.profile;
+    if (profile?.summary) return String(profile.summary);
+    if (memory.summary) return String(memory.summary);
+    return '';
+  }
+
   async generatePlanForSpace(space: {
     id: string;
     name: string;
@@ -84,6 +93,17 @@ export class AgentPlannerService {
       space.workspaceId,
     );
 
+    const profileMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: space.workspaceId,
+        spaceId: space.id,
+        tags: ['user-profile'],
+        limit: 1,
+      },
+      undefined,
+    );
+    const profileContext = this.formatProfileContext(profileMemories[0]);
+
     const goalSummary = goals
       .map((goal) => `${goal.name} (${goal.horizon})`)
       .slice(0, 10)
@@ -109,6 +129,7 @@ export class AgentPlannerService {
       goalFocusSummary ? `Goal focus: ${goalFocusSummary}.` : null,
       `Goals: ${goalSummary || 'none'}.`,
       `Recent context: ${memorySummary || 'none'}.`,
+      profileContext ? `User profile: ${profileContext}.` : null,
       `Return markdown with sections: Focus, Plan, Next Actions, Timebox, Risks.`,
     ]
       .filter(Boolean)
