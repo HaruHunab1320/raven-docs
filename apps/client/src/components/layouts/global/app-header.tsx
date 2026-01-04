@@ -1,4 +1,12 @@
-import { ActionIcon, Badge, Group, Menu, Text, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Group,
+  Menu,
+  Stack,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import classes from "./app-header.module.css";
 import React, { useEffect } from "react";
 import TopMenu from "@/components/layouts/global/top-menu.tsx";
@@ -19,9 +27,10 @@ import { ThemeSwitcher } from "@/features/user/components/theme-switcher";
 import { QuickCapture } from "@/features/gtd/components/quick-capture";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
+import { modals } from "@mantine/modals";
 import {
   IconBrush,
-  IconKeyboard,
+  IconHelpCircle,
   IconLogout,
   IconMenu2,
   IconMessageChatbot,
@@ -60,9 +69,6 @@ export function AppHeader() {
   const captureShortcut = isMac ? "Cmd+K" : "Ctrl+K";
   const triageShortcut = isMac ? "Cmd+Shift+K" : "Ctrl+Shift+K";
   const chatShortcut = isMac ? "Cmd+Shift+A" : "Ctrl+Shift+A";
-  const shortcutLabel = t("Shortcuts: {{items}}", {
-    items: `${captureShortcut} capture, ${triageShortcut} triage, ${chatShortcut} agent chat`,
-  });
 
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const spaceIdFromPath =
@@ -90,6 +96,32 @@ export function AppHeader() {
   ));
 
   const toggleAgentChat = () => setAgentChatOpened((opened) => !opened);
+  const openShortcutsModal = () => {
+    modals.open({
+      title: t("Keyboard shortcuts"),
+      size: "sm",
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+      withCloseButton: true,
+      overlayProps: { opacity: 0.45 },
+      children: (
+        <Stack gap="xs">
+          <Group justify="space-between" wrap="nowrap">
+            <Text>{t("Quick capture")}</Text>
+            <Text fw={600}>{captureShortcut}</Text>
+          </Group>
+          <Group justify="space-between" wrap="nowrap">
+            <Text>{t("Triage")}</Text>
+            <Text fw={600}>{triageShortcut}</Text>
+          </Group>
+          <Group justify="space-between" wrap="nowrap">
+            <Text>{t("Agent chat")}</Text>
+            <Text fw={600}>{chatShortcut}</Text>
+          </Group>
+        </Stack>
+      ),
+    });
+  };
   const { logout } = useAuth();
   const [currentUser] = useAtom(currentUserAtom);
   const user = currentUser?.user;
@@ -270,13 +302,14 @@ export function AppHeader() {
             </Badge>
           )}
           <div className={classes.desktopOnly}>
-            <Tooltip label={shortcutLabel} withArrow position="bottom">
+            <Tooltip label={t("Help & shortcuts")} withArrow position="bottom">
               <ActionIcon
                 variant="subtle"
                 size={30}
-                aria-label={shortcutLabel}
+                aria-label={t("Help & shortcuts")}
+                onClick={openShortcutsModal}
               >
-                <IconKeyboard size={16} />
+                <IconHelpCircle size={16} />
               </ActionIcon>
             </Tooltip>
           </div>
