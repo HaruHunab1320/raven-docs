@@ -1,6 +1,6 @@
 import { AppShell, Container } from "@mantine/core";
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import SettingsSidebar from "@/components/settings/settings-sidebar.tsx";
 import { useAtom } from "jotai";
 import {
@@ -10,7 +10,6 @@ import {
   sidebarWidthAtom,
 } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
 import { SpaceSidebar } from "@/features/space/components/sidebar/space-sidebar.tsx";
-import { ProjectSidebar } from "@/features/project/components/project-sidebar";
 import { AppHeader } from "@/components/layouts/global/app-header.tsx";
 import Aside from "@/components/layouts/global/aside.tsx";
 import classes from "./app-shell.module.css";
@@ -32,7 +31,6 @@ export default function GlobalAppShell({
   const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef(null);
-  const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 48em)");
 
   const startResizing = React.useCallback((mouseDownEvent) => {
@@ -84,7 +82,6 @@ export default function GlobalAppShell({
     location.pathname.startsWith("/s/") ||
     location.pathname.startsWith("/spaces/") ||
     hasFilesSpaceId;
-  const isProjectRoute = location.pathname.includes("/projects");
   const isHomeRoute = location.pathname.startsWith("/home");
   const isPageRoute = location.pathname.includes("/p/");
 
@@ -133,22 +130,7 @@ export default function GlobalAppShell({
           ref={sidebarRef}
         >
           <div className={classes.resizeHandle} onMouseDown={startResizing} />
-          {isSpaceRoute && !isProjectRoute && <SpaceSidebar />}
-          {isProjectRoute && (
-            <ProjectSidebar
-              spaceId={location.pathname.split("/")[2]}
-              activeProjectId={
-                location.search.includes("projectId=")
-                  ? new URLSearchParams(location.search).get("projectId")
-                  : null
-              }
-              onSelectProject={(project) => {
-                navigate(
-                  `/spaces/${location.pathname.split("/")[2]}/projects?projectId=${project.id}`
-                );
-              }}
-            />
-          )}
+          {isSpaceRoute && <SpaceSidebar />}
           {isSettingsRoute && <SettingsSidebar />}
         </AppShell.Navbar>
       )}
