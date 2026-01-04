@@ -28,6 +28,25 @@ export function PageTabsBar() {
   }
 
   const activePath = location.pathname;
+  const handleClearTabs = () => {
+    clearTabs();
+    const pageMatch = activePath.match(/^\/s\/([^/]+)\/p\//);
+    if (pageMatch) {
+      navigate(`/s/${pageMatch[1]}/home`);
+      return;
+    }
+
+    const spaceProjectsMatch = activePath.match(/^\/s\/([^/]+)\/projects/);
+    if (spaceProjectsMatch) {
+      navigate(`/spaces/${spaceProjectsMatch[1]}/inbox`);
+      return;
+    }
+
+    const spaceIdMatch = activePath.match(/^\/spaces\/([^/]+)/);
+    if (spaceIdMatch) {
+      navigate(`/spaces/${spaceIdMatch[1]}/inbox`);
+    }
+  };
 
   return (
     <div className={classes.tabsBar} ref={barRef}>
@@ -73,7 +92,7 @@ export function PageTabsBar() {
           <ActionIcon
             size="sm"
             variant="subtle"
-            onClick={clearTabs}
+            onClick={handleClearTabs}
             aria-label="Close all tabs"
           >
             <IconX size={14} />

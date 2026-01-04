@@ -81,8 +81,10 @@ export function ProjectSidebar({
   ] = useDisclosure(false);
   const [settingsOpened, { open: openSettings, close: closeSettings }] =
     useDisclosure(false);
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
-  const [spacePagesExpanded, setSpacePagesExpanded] = useState(false);
+  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [spacePagesExpanded, setSpacePagesExpanded] = useState(true);
   const [tree] = useAtom(treeApiAtom);
 
   const projects: Project[] = getProjectsArray(projectsData);
@@ -98,6 +100,34 @@ export function ProjectSidebar({
       prev[activeProjectId] ? prev : { ...prev, [activeProjectId]: true }
     );
   }, [activeProjectId]);
+
+  const storageKey = `raven.projectSidebar:${space?.id || spaceId}`;
+
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as {
+        expandedProjects?: Record<string, boolean>;
+        spacePagesExpanded?: boolean;
+      };
+      if (parsed.expandedProjects) {
+        setExpandedProjects(parsed.expandedProjects);
+      }
+      if (typeof parsed.spacePagesExpanded === "boolean") {
+        setSpacePagesExpanded(parsed.spacePagesExpanded);
+      }
+    } catch {
+      localStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ expandedProjects, spacePagesExpanded })
+    );
+  }, [expandedProjects, spacePagesExpanded, storageKey]);
 
   const handleDeleteProject = (project: Project) => {
     modals.openConfirmModal({
@@ -432,7 +462,7 @@ export function ProjectSidebar({
         </div>
 
         {/* Projects List Section */}
-        <div className={clsx(classes.section, classes.sectionPages)}>
+        <div className={clsx(classes.section, classes.sectionProjects)}>
           <Group className={classes.pagesHeader} justify="space-between">
             <Text size="xs" fw={500} c="dimmed">
               {t("Projects")}
@@ -449,12 +479,7 @@ export function ProjectSidebar({
             </Tooltip>
           </Group>
 
-          <ScrollArea
-            h="calc(100vh - 300px)"
-            type="auto"
-            offsetScrollbars
-            className={classes.pages}
-          >
+          <ScrollArea type="auto" offsetScrollbars className={classes.pages}>
             <Stack gap="xs">
               {isLoading ? (
                 <Text size="sm" c="dimmed">
@@ -578,7 +603,7 @@ export function ProjectSidebar({
                 )}
               </ActionIcon>
               <Text size="xs" fw={500} c="dimmed">
-                {t("Space pages")}
+                {t("Pages")}
               </Text>
             </Group>
 

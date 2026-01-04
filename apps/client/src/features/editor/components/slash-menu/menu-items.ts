@@ -18,6 +18,7 @@ import {
   IconTypography,
   IconMenu4,
   IconCalendar,
+  IconBulb,
 } from "@tabler/icons-react";
 import {
   CommandProps,
@@ -265,6 +266,20 @@ const CommandGroups: SlashMenuGroupedItemsType = {
       icon: IconInfoCircle,
       command: ({ editor, range }: CommandProps) =>
         editor.chain().focus().deleteRange(range).toggleCallout().run(),
+    },
+    {
+      title: "Research block",
+      description: "Run deep research and append findings here.",
+      searchTerms: ["research", "deep", "analysis", "investigate"],
+      icon: IconBulb,
+      command: ({ editor, range }: CommandProps) => {
+        editor.chain().focus().deleteRange(range).run();
+        window.dispatchEvent(
+          new CustomEvent("OPEN_RESEARCH_BLOCK", {
+            detail: { pageId: editor?.storage?.pageId || null },
+          }),
+        );
+      },
     },
     {
       title: "Math inline",

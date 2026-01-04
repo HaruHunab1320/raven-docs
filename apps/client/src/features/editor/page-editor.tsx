@@ -45,7 +45,7 @@ import LinkMenu from "@/features/editor/components/link/link-menu.tsx";
 import ExcalidrawMenu from "./components/excalidraw/excalidraw-menu";
 import DrawioMenu from "./components/drawio/drawio-menu";
 import { useCollabToken } from "@/features/auth/queries/auth-query.tsx";
-import { useDebouncedCallback, useDocumentVisibility } from "@mantine/hooks";
+import { useDebouncedCallback, useDocumentVisibility, useDisclosure } from "@mantine/hooks";
 import { useIdle } from "@/hooks/use-idle.ts";
 import { queryClient } from "@/main.tsx";
 import { IPage } from "@/features/page/types/page.types.ts";
@@ -53,6 +53,8 @@ import { useParams } from "react-router-dom";
 import { extractPageSlugId } from "@/lib";
 import { FIVE_MINUTES } from "@/lib/constants.ts";
 import { jwtDecode } from "jwt-decode";
+import { usePageQuery } from "@/features/page/queries/page-query";
+import { ResearchJobModal } from "@/features/research/components/research-job-modal";
 
 interface PageEditorProps {
   pageId: string;
@@ -117,6 +119,12 @@ function PageEditorInner({
   const { pageSlug } = useParams();
   const slugId = extractPageSlugId(pageSlug);
   const isMountedRef = useRef(false);
+  const { data: page } = usePageQuery({ pageId });
+  const [
+    researchOpened,
+    { open: openResearchModal, close: closeResearchModal },
+  ] = useDisclosure(false);
+  const researchInsertPosRef = useRef<number | null>(null);
 
   const localProvider = useMemo(() => {
     return new IndexeddbPersistence(documentName, ydoc);
@@ -266,6 +274,23 @@ function PageEditorInner({
     };
   }, [editor, pageId]);
 
+  useEffect(() => {
+    const handleResearchBlock = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as
+        | { pageId?: string | null }
+        | undefined;
+      if (detail?.pageId && detail.pageId !== pageId) return;
+      if (!editor || !editable) return;
+      researchInsertPosRef.current = editor.state.selection.from;
+      openResearchModal();
+    };
+
+    window.addEventListener("OPEN_RESEARCH_BLOCK", handleResearchBlock);
+    return () => {
+      window.removeEventListener("OPEN_RESEARCH_BLOCK", handleResearchBlock);
+    };
+  }, [editor, pageId, editable, openResearchModal]);
+
   const debouncedUpdateContent = useDebouncedCallback((newContent: any) => {
     const pageData = queryClient.getQueryData<IPage>(["pages", slugId]);
 
@@ -337,6 +362,41 @@ function PageEditorInner({
   }, [isIdle, documentState, remoteProvider]);
 
   const isSynced = isLocalSynced && isRemoteSynced;
+  const handleResearchCreated = (job?: { topic?: string; id?: string }) => {
+    if (!editor) return;
+    const topic = job?.topic || page?.title || "Research";
+    const block = {
+      type: "callout",
+      attrs: { type: "info" },
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: `Research in progress: ${topic}` },
+            job?.id
+              ? { type: "text", text: ` (Job ${job.id})` }
+              : null,
+          ].filter(Boolean),
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "Findings will append to this page as they complete.",
+            },
+          ],
+        },
+      ],
+    };
+    const insertAt = researchInsertPosRef.current;
+    if (typeof insertAt === "number") {
+      editor.chain().focus().insertContentAt(insertAt, block).run();
+    } else {
+      editor.chain().focus().insertContent(block).run();
+    }
+    researchInsertPosRef.current = null;
+  };
 
   useEffect(() => {
     const collabReadyTimeout = setTimeout(() => {
@@ -379,6 +439,21 @@ function PageEditorInner({
         )}
 
         {showCommentPopup && <CommentDialog editor={editor} pageId={pageId} />}
+
+        {page?.workspaceId && page?.spaceId ? (
+          <ResearchJobModal
+            opened={researchOpened}
+            onClose={() => {
+              researchInsertPosRef.current = null;
+              closeResearchModal();
+            }}
+            workspaceId={page.workspaceId}
+            spaceId={page.spaceId}
+            reportPageId={page.id || pageId}
+            initialTopic={page.title}
+            onCreated={handleResearchCreated}
+          />
+        ) : null}
       </div>
 
       <div

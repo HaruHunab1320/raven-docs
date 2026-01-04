@@ -8,6 +8,10 @@ These extensions enable AI assistants to interact directly with Raven Docs, allo
 
 ## Available Documentation
 
+### Current Focus
+
+- See `docs/Agentic_Roadmap.md` for active tasks and next steps.
+
 ### 0. [Architecture Overview](./ArchitectureOverview.md)
 
 System map, module breakdown, data flows, and MCP integration summary.

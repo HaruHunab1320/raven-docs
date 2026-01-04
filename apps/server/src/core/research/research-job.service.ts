@@ -59,6 +59,54 @@ const buildDocParagraphs = (text: string) =>
       content: [{ type: 'text', text: paragraph }],
     }));
 
+const normalizeDocContent = (rawContent: any) => {
+  if (!rawContent) {
+    return { type: 'doc', content: [] as any[] };
+  }
+  if (typeof rawContent === 'object') {
+    const doc = rawContent as { type?: string; content?: any[] };
+    if (!Array.isArray(doc.content)) {
+      doc.content = [];
+    }
+    if (!doc.type) {
+      doc.type = 'doc';
+    }
+    return doc;
+  }
+  if (typeof rawContent === 'string') {
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (parsed && typeof parsed === 'object') {
+        return normalizeDocContent(parsed);
+      }
+    } catch {
+      // fall through to text handling
+    }
+    return {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: rawContent }],
+        },
+      ],
+    };
+  }
+  return { type: 'doc', content: [] as any[] };
+};
+
+const buildReportSection = (topic: string, reportText: string) => ({
+  type: 'doc',
+  content: [
+    {
+      type: 'heading',
+      attrs: { level: 2 },
+      content: [{ type: 'text', text: `Research Report: ${topic}` }],
+    },
+    ...buildDocParagraphs(reportText || 'No report generated.'),
+  ],
+});
+
 @Injectable()
 export class ResearchJobService {
   private readonly logger = new Logger(ResearchJobService.name);
@@ -371,24 +419,28 @@ export class ResearchJobService {
         reportText = `Report generation failed: ${error?.message || 'unknown error'}`;
       }
 
-      const reportDoc = {
-        type: 'doc',
-        content: [
+      const reportDoc = buildReportSection(job.topic, reportText);
+      const appendToExisting = !!job.reportPageId;
+      if (appendToExisting) {
+        const page = await this.pageRepo.findById(reportPageId, {
+          includeContent: true,
+        });
+        const normalized = normalizeDocContent(page?.content);
+        normalized.content = [...normalized.content, ...reportDoc.content];
+        await this.pageRepo.updatePage(
           {
-            type: 'heading',
-            attrs: { level: 2 },
-            content: [{ type: 'text', text: `Research Report: ${job.topic}` }],
+            content: JSON.stringify(normalized),
           },
-          ...buildDocParagraphs(reportText || 'No report generated.'),
-        ],
-      };
-
-      await this.pageRepo.updatePage(
-        {
-          content: JSON.stringify(reportDoc),
-        },
-        reportPageId,
-      );
+          reportPageId,
+        );
+      } else {
+        await this.pageRepo.updatePage(
+          {
+            content: JSON.stringify(reportDoc),
+          },
+          reportPageId,
+        );
+      }
 
       await this.pageRepo.updatePage(
         {
@@ -420,8 +472,19 @@ export class ResearchJobService {
         spaceId: job.spaceId,
         source: 'research-job',
         summary: `Research completed: ${job.topic}`,
-        content: reportText,
-        tags: ['research', 'report'],
+        content: {
+          text: reportText,
+          jobId: job.id,
+          topic: job.topic,
+          reportPageId,
+          logPageId,
+        },
+        tags: [
+          'research',
+          'report',
+          `research:${job.id}`,
+          reportPageId ? `page:${reportPageId}` : undefined,
+        ].filter(Boolean) as string[],
       });
 
       await this.db
@@ -486,10 +549,56 @@ export class ResearchJobService {
     return page.id;
   }
 
+  private async getOrCreateResearchRootPage(
+    job: ResearchJobRecord,
+    userId: string,
+  ): Promise<string> {
+    const existing = await this.db
+      .selectFrom('pages')
+      .select(['id'])
+      .where('spaceId', '=', job.spaceId)
+      .where('workspaceId', '=', job.workspaceId)
+      .where('parentPageId', 'is', null)
+      .where('title', '=', 'Research')
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+
+    if (existing?.id) {
+      return existing.id;
+    }
+
+    const page = await this.pageService.create(userId, job.workspaceId, {
+      title: 'Research',
+      spaceId: job.spaceId,
+      content: JSON.stringify({
+        type: 'doc',
+        content: [
+          {
+            type: 'heading',
+            attrs: { level: 2 },
+            content: [{ type: 'text', text: 'Research' }],
+          },
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Auto-generated space for research reports.',
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    return page.id;
+  }
+
   private async createReportPage(
     job: ResearchJobRecord,
     userId: string,
   ): Promise<string> {
+    const parentPageId = await this.getOrCreateResearchRootPage(job, userId);
     const title = `Research: ${job.topic}`.slice(0, 80);
     const page = await this.pageService.create(
       userId,
@@ -497,6 +606,7 @@ export class ResearchJobService {
       {
         title,
         spaceId: job.spaceId,
+        parentPageId,
         content: JSON.stringify({
           type: 'doc',
           content: [

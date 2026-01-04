@@ -62,6 +62,7 @@ export class PageService {
     if (createPageDto.parentPageId) {
       const parentPage = await this.pageRepo.findById(
         createPageDto.parentPageId,
+        { trx },
       );
 
       if (!parentPage || parentPage.spaceId !== createPageDto.spaceId) {

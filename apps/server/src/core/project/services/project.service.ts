@@ -14,18 +14,123 @@ import { executeTx } from '@raven-docs/db/utils';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { AgentMemoryService } from '../../agent-memory/agent-memory.service';
+import { TaskService } from './task.service';
 
 @Injectable()
 export class ProjectService {
-  private buildProjectOverviewContent(project: Project) {
+  private buildPlaybookPageContent(title: string, summary: string, bullets: string[]) {
     return JSON.stringify({
       type: 'doc',
       content: [
         {
           type: 'heading',
-          attrs: { level: 1 },
-          content: [{ type: 'text', text: `${project.name} Overview` }],
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: title }],
         },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: summary }],
+        },
+        {
+          type: 'bulletList',
+          content: bullets.map((text) => ({
+            type: 'listItem',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text }],
+              },
+            ],
+          })),
+        },
+      ],
+    });
+  }
+
+  private async createPlaybookPages(
+    userId: string,
+    workspaceId: string,
+    project: Project,
+    parentPageId: string,
+    trx?: any,
+  ) {
+    const playbookRoot = await this.pageService.create(
+      userId,
+      workspaceId,
+      {
+        title: 'Playbook',
+        spaceId: project.spaceId,
+        parentPageId,
+        content: JSON.stringify({
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Use the pages below to capture scope, architecture, risks, and delivery planning.',
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      trx,
+    );
+
+    const templates = [
+      {
+        title: 'Project Brief',
+        summary: 'Problem statement, success criteria, and constraints.',
+        bullets: ['Problem', 'Success criteria', 'Stakeholders', 'Constraints'],
+      },
+      {
+        title: 'Architecture',
+        summary: 'System design, data flows, integrations, and NFRs.',
+        bullets: ['System diagram', 'Data model', 'Integrations', 'Non-functional requirements'],
+      },
+      {
+        title: 'Delivery Plan',
+        summary: 'Phases, milestones, and schedule assumptions.',
+        bullets: ['Phases', 'Milestones', 'Dependencies', 'Timeline'],
+      },
+      {
+        title: 'Backlog',
+        summary: 'Epics, stories, and prioritized tasks.',
+        bullets: ['Epics', 'Stories', 'Definition of done', 'Definition of ready'],
+      },
+      {
+        title: 'Risks & Assumptions',
+        summary: 'Unknowns, blockers, and mitigation steps.',
+        bullets: ['Risks', 'Assumptions', 'Mitigations', 'Open questions'],
+      },
+    ];
+
+    for (const template of templates) {
+      await this.pageService.create(
+        userId,
+        workspaceId,
+        {
+          title: template.title,
+          spaceId: project.spaceId,
+          parentPageId: playbookRoot.id,
+          content: this.buildPlaybookPageContent(
+            template.title,
+            template.summary,
+            template.bullets,
+          ),
+        },
+        trx,
+      );
+    }
+
+    return playbookRoot.id;
+  }
+  private buildProjectOverviewContent(project: Project) {
+    return JSON.stringify({
+      type: 'doc',
+      content: [
         {
           type: 'paragraph',
           content: [
@@ -46,7 +151,10 @@ export class ProjectService {
             {
               type: 'listItem',
               content: [
-                { type: 'paragraph', content: [{ type: 'text', text: '' }] },
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Add primary goals here.' }],
+                },
               ],
             },
           ],
@@ -86,7 +194,7 @@ export class ProjectService {
         },
         {
           type: 'paragraph',
-          content: [{ type: 'text', text: '' }],
+          content: [{ type: 'text', text: 'Add notes, updates, and decisions.' }],
         },
       ],
     });
@@ -98,6 +206,7 @@ export class ProjectService {
     private readonly pageService: PageService,
     @InjectKysely() private readonly db: KyselyDB,
     private readonly agentMemoryService: AgentMemoryService,
+    private readonly taskService: TaskService,
   ) {}
 
   async findById(
@@ -196,6 +305,13 @@ export class ProjectService {
         },
         trx,
       );
+      await this.createPlaybookPages(
+        userId,
+        workspaceId,
+        project,
+        projectPage.id,
+        trx,
+      );
       const updatedProject = await this.projectRepo.update(
         project.id,
         { homePageId: projectPage.id },
@@ -204,6 +320,25 @@ export class ProjectService {
 
       return updatedProject ?? project;
     });
+
+    try {
+      const phaseTasks = [
+        'Discovery phase',
+        'Architecture phase',
+        'Planning phase',
+        'Execution phase',
+        'Review phase',
+      ];
+      for (const title of phaseTasks) {
+        await this.taskService.create(userId, workspaceId, {
+          title,
+          projectId: result.id,
+          spaceId: result.spaceId,
+        });
+      }
+    } catch {
+      // Task creation should not block project creation.
+    }
 
     try {
       await this.agentMemoryService.ingestMemory({

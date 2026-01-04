@@ -52,6 +52,13 @@ export class AgentService {
     return '';
   }
 
+  private formatMemorySummary(memories: any[]) {
+    if (!memories.length) return '- none';
+    return memories
+      .map((memory) => `- ${memory.summary || 'memory'}`)
+      .join('\n');
+  }
+
   async chat(dto: AgentChatDto, user: User, workspace: Workspace) {
     const agentSettings = resolveAgentSettings(workspace.settings);
     if (!agentSettings.enabled || !agentSettings.allowAgentChat) {
@@ -100,20 +107,41 @@ export class AgentService {
       },
       undefined,
     );
+    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const shortTermMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: workspace.id,
+        spaceId: dto.spaceId,
+        from: shortTermSince,
+        limit: 8,
+      },
+      undefined,
+    );
+    const topicQuery = page?.title || dto.message;
+    const topicMemories = topicQuery
+      ? await this.memoryService.queryMemories(
+          {
+            workspaceId: workspace.id,
+            spaceId: dto.spaceId,
+            limit: 6,
+          },
+          topicQuery,
+        )
+      : [];
     const profileMemories = await this.memoryService.queryMemories(
       {
         workspaceId: workspace.id,
         spaceId: dto.spaceId,
-        tags: ['user-profile'],
+        tags: [`user:${user.id}`],
         limit: 1,
       },
       undefined,
     );
     const profileContext = this.formatProfileContext(profileMemories[0]);
 
-    const memoryContext = recentMemories
-      .map((memory) => `- ${memory.summary}`)
-      .join('\n');
+    const memoryContext = this.formatMemorySummary(recentMemories);
+    const shortTermContext = this.formatMemorySummary(shortTermMemories);
+    const topicContext = this.formatMemorySummary(topicMemories);
 
     const goalFocusSummary = Array.isArray((triage as any).goalFocus)
       ? (triage as any).goalFocus
@@ -125,8 +153,11 @@ export class AgentService {
       `You are Raven Docs' agent. Provide clear, concise guidance.`,
       `Space: ${space.name}`,
       page?.title ? `Page: ${page.title}` : null,
-      `Recent memories:`,
-      memoryContext || '- none',
+      `Recent chat memories:`,
+      memoryContext,
+      `Recent activity (14d):`,
+      shortTermContext,
+      topicContext !== '- none' ? `Topic signals:\n${topicContext}` : null,
       `Triage: inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}.`,
       `Overdue: ${triage.overdue.map((task) => task.title).join(', ') || 'none'}.`,
       `Due today: ${triage.dueToday.map((task) => task.title).join(', ') || 'none'}.`,

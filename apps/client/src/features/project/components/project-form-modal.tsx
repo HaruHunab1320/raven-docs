@@ -48,8 +48,8 @@ const ProjectFormModal = memo(function ProjectFormModal({
       description: "",
       icon: "",
       color: "",
-      startDate: null as Date | null,
-      endDate: null as Date | null,
+      startDate: "",
+      endDate: "",
     },
     validate: {
       name: (value) =>
@@ -79,8 +79,12 @@ const ProjectFormModal = memo(function ProjectFormModal({
           description: project.description || "",
           icon: project.icon || "",
           color: project.color || "",
-          startDate: project.startDate ? new Date(project.startDate) : null,
-          endDate: project.endDate ? new Date(project.endDate) : null,
+          startDate: project.startDate
+            ? new Date(project.startDate).toISOString().slice(0, 10)
+            : "",
+          endDate: project.endDate
+            ? new Date(project.endDate).toISOString().slice(0, 10)
+            : "",
         });
       } else {
         form.reset();
@@ -102,8 +106,12 @@ const ProjectFormModal = memo(function ProjectFormModal({
           description: project.description || "",
           icon: project.icon || "",
           color: project.color || "",
-          startDate: project.startDate ? new Date(project.startDate) : null,
-          endDate: project.endDate ? new Date(project.endDate) : null,
+          startDate: project.startDate
+            ? new Date(project.startDate).toISOString().slice(0, 10)
+            : "",
+          endDate: project.endDate
+            ? new Date(project.endDate).toISOString().slice(0, 10)
+            : "",
         });
       }
       projectRef.current = project;
@@ -111,11 +119,15 @@ const ProjectFormModal = memo(function ProjectFormModal({
   }, [project, form, opened]);
 
   const handleSubmit = form.onSubmit((values) => {
+    const startDate = values.startDate ? new Date(values.startDate) : undefined;
+    const endDate = values.endDate ? new Date(values.endDate) : undefined;
     if (isEditing && project) {
       updateProjectMutation.mutate(
         {
           projectId: project.id,
           ...values,
+          startDate,
+          endDate,
         },
         {
           onSuccess: () => {
@@ -128,6 +140,8 @@ const ProjectFormModal = memo(function ProjectFormModal({
         {
           ...values,
           spaceId,
+          startDate,
+          endDate,
         },
         {
           onSuccess: () => {

@@ -1477,6 +1477,67 @@ export class MCPStandardService {
         },
       },
 
+      // Research
+      {
+        name: 'research_create',
+        description: 'Create a deep research job',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'ID of the space' },
+            topic: { type: 'string', description: 'Research topic' },
+            goal: { type: 'string', description: 'Optional research goal' },
+            timeBudgetMinutes: {
+              type: 'number',
+              description: 'Time budget in minutes',
+            },
+            outputMode: {
+              type: 'string',
+              description: 'Report length',
+              enum: ['longform', 'brief'],
+            },
+            sources: {
+              type: 'object',
+              description: 'Sources to include',
+            },
+            repoTargets: {
+              type: 'array',
+              description: 'Repository targets',
+            },
+            reportPageId: {
+              type: 'string',
+              description: 'Optional page ID to write the report into',
+            },
+          },
+          required: ['workspaceId', 'spaceId', 'topic'],
+        },
+      },
+      {
+        name: 'research_list',
+        description: 'List research jobs for a space',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'ID of the space' },
+          },
+          required: ['workspaceId', 'spaceId'],
+        },
+      },
+      {
+        name: 'research_info',
+        description: 'Get a research job by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            jobId: { type: 'string', description: 'Research job ID' },
+          },
+          required: ['workspaceId', 'jobId'],
+        },
+      },
+
       // Navigation
       {
         name: 'ui_navigate',
@@ -1678,6 +1739,9 @@ export class MCPStandardService {
       'memory_query': 'memory.query',
       'memory_daily': 'memory.daily',
       'memory_days': 'memory.days',
+      'research_create': 'research.create',
+      'research_list': 'research.list',
+      'research_info': 'research.info',
       'ui_navigate': 'ui.navigate',
       'system_list_methods': 'system.listMethods',
       'system_get_method_schema': 'system.getMethodSchema',

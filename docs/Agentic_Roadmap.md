@@ -217,6 +217,28 @@ Add a dedicated Journal page with:
 - Risk monitoring + alerts.
 - Repo actions behind approvals.
 
+## Status + Task List
+
+### Completed
+- Journal daily pages + capture UI.
+- Profile distillation job -> User Profile page.
+- Insights trait radar (user + people admin view).
+- MCP Standard research tools + report appends to host page.
+- Inline research block (slash command + page-attached research runs).
+- Research outputs organized under a space-level Research page + enriched tags.
+- Project Playbook MVP (brief/architecture/delivery/backlog/risk pages + phase tasks).
+
+### In Progress
+- Memory profile distillation coverage across users/spaces.
+ 
+
+### Next Up
+- Multi-layer memory retrieval (short-term + long-term + topic-specific).
+- Research JSON-RPC handlers + deep research UI surface.
+- Inline research block that writes back to the current page.
+- Agent-initiated research projects with structured storage.
+- Project Playbook MVP (brief -> architecture -> backlog -> phases).
+
 ## Success Metrics
 
 - Users can create a project and receive a full delivery plan in minutes.
@@ -230,4 +252,3 @@ Add a dedicated Journal page with:
 - How much automation is acceptable by default?
 - What is the best default sprint length?
 - How should we visualize the user model and allow edits?
-

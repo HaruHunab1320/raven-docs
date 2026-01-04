@@ -133,26 +133,16 @@ export class AgentLoopService {
   }
 
   private async buildContext(spaceId: string, workspaceId: string) {
-    const [goals, memories] = await Promise.all([
-      this.db
-        .selectFrom('goals')
-        .select(['id', 'name', 'horizon', 'keywords'])
-        .where('workspaceId', '=', workspaceId)
-        .where((eb) => eb('spaceId', '=', spaceId).or('spaceId', 'is', null))
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .execute(),
-      this.db
-        .selectFrom('agentMemories')
-        .select(['summary', 'source', 'createdAt'])
-        .where('workspaceId', '=', workspaceId)
-        .where('spaceId', '=', spaceId)
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .execute(),
-    ]);
+    const goals = await this.db
+      .selectFrom('goals')
+      .select(['id', 'name', 'horizon', 'keywords'])
+      .where('workspaceId', '=', workspaceId)
+      .where((eb) => eb('spaceId', '=', spaceId).or('spaceId', 'is', null))
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .execute();
 
-    return { goals, memories };
+    return { goals };
   }
 
   private formatProfileContext(memory?: any) {
@@ -162,6 +152,14 @@ export class AgentLoopService {
     if (profile?.summary) return String(profile.summary);
     if (memory.summary) return String(memory.summary);
     return '';
+  }
+
+  private formatMemorySummary(memories: any[]) {
+    if (!memories.length) return 'none';
+    return memories
+      .map((memory) => memory.summary)
+      .filter(Boolean)
+      .join('; ');
   }
 
   private buildPrompt(context: {
@@ -249,13 +247,23 @@ export class AgentLoopService {
           counts: { inbox: 0, waiting: 0, someday: 0 },
         };
 
-    const { goals, memories } = await this.buildContext(spaceId, workspace.id);
+    const { goals } = await this.buildContext(spaceId, workspace.id);
     const profileMemories = await this.memoryService.queryMemories(
       {
         workspaceId: workspace.id,
         spaceId,
-        tags: ['user-profile'],
+        tags: [`user:${user.id}`],
         limit: 1,
+      },
+      undefined,
+    );
+    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const shortTermMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: workspace.id,
+        spaceId,
+        from: shortTermSince,
+        limit: 10,
       },
       undefined,
     );
@@ -264,10 +272,7 @@ export class AgentLoopService {
       ...goal,
       keywords: Array.isArray(goal.keywords) ? goal.keywords : [],
     }));
-    const memorySummary = memories
-      .map((memory) => memory.summary)
-      .filter(Boolean)
-      .join('; ');
+    const memorySummary = this.formatMemorySummary(shortTermMemories);
     const triageSummary = `inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}, overdue=${triage.overdue.length}, dueToday=${triage.dueToday.length}`;
     const goalFocusSummary = Array.isArray((triage as any).goalFocus)
       ? (triage as any).goalFocus
