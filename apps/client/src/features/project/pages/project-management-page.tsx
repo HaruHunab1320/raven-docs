@@ -262,7 +262,7 @@ export function ProjectManagementPage() {
     <>
       {/* Breadcrumbs provide navigation between workspace, space, project list, and current project */}
       {renderBreadcrumbs()}
-      <Container size="xl" mt={0} mb="xl">
+      <Container size="xl" mt={0} mb="xl" pt="sm">
         {renderContent()}
 
         {/* Use memoized modal */}
