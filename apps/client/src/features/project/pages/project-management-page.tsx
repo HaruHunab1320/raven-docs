@@ -252,7 +252,7 @@ export function ProjectManagementPage() {
   // Return early if data is missing
   if (!spaceId || !spaceData || !workspaceData) {
     return (
-      <Container my="xl">
+      <Container mt={0} mb="xl">
         <Text>{t("Loading...")}</Text>
       </Container>
     );
@@ -260,10 +260,9 @@ export function ProjectManagementPage() {
 
   return (
     <>
-      <Container size="xl" my="xl">
-        {/* Breadcrumbs provide navigation between workspace, space, project list, and current project */}
-        {renderBreadcrumbs()}
-
+      {/* Breadcrumbs provide navigation between workspace, space, project list, and current project */}
+      {renderBreadcrumbs()}
+      <Container size="xl" mt={0} mb="xl">
         {renderContent()}
 
         {/* Use memoized modal */}

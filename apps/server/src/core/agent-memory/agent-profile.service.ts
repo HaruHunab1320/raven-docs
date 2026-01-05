@@ -314,16 +314,6 @@ export class AgentProfileService {
       type: 'doc',
       content: [
         {
-          type: 'heading',
-          attrs: { level: 2 },
-          content: [
-            {
-              type: 'text',
-              text: `User Profile${userName ? ` - ${userName}` : ''} (${spaceName})`,
-            },
-          ],
-        },
-        {
           type: 'paragraph',
           content: [
             {

@@ -11,6 +11,7 @@ import {
   Box,
   Loader,
 } from "@mantine/core";
+import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import {
   useCreateProjectMutation,
@@ -48,8 +49,8 @@ const ProjectFormModal = memo(function ProjectFormModal({
       description: "",
       icon: "",
       color: "",
-      startDate: "",
-      endDate: "",
+      startDate: null as Date | null,
+      endDate: null as Date | null,
     },
     validate: {
       name: (value) =>
@@ -80,11 +81,11 @@ const ProjectFormModal = memo(function ProjectFormModal({
           icon: project.icon || "",
           color: project.color || "",
           startDate: project.startDate
-            ? new Date(project.startDate).toISOString().slice(0, 10)
-            : "",
+            ? new Date(project.startDate)
+            : null,
           endDate: project.endDate
-            ? new Date(project.endDate).toISOString().slice(0, 10)
-            : "",
+            ? new Date(project.endDate)
+            : null,
         });
       } else {
         form.reset();
@@ -107,11 +108,11 @@ const ProjectFormModal = memo(function ProjectFormModal({
           icon: project.icon || "",
           color: project.color || "",
           startDate: project.startDate
-            ? new Date(project.startDate).toISOString().slice(0, 10)
-            : "",
+            ? new Date(project.startDate)
+            : null,
           endDate: project.endDate
-            ? new Date(project.endDate).toISOString().slice(0, 10)
-            : "",
+            ? new Date(project.endDate)
+            : null,
         });
       }
       projectRef.current = project;
@@ -220,14 +221,14 @@ const ProjectFormModal = memo(function ProjectFormModal({
           </div>
 
           <Group grow>
-            <TextInput
+            <DateInput
               label={t("Start Date")}
-              placeholder={t("YYYY-MM-DD")}
+              placeholder={t("Pick a date")}
               {...form.getInputProps("startDate")}
             />
-            <TextInput
+            <DateInput
               label={t("End Date")}
-              placeholder={t("YYYY-MM-DD")}
+              placeholder={t("Pick a date")}
               {...form.getInputProps("endDate")}
             />
           </Group>

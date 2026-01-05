@@ -20,11 +20,6 @@ export async function getOrCreateUserProfilePage(params: {
     type: "doc",
     content: [
       {
-        type: "heading",
-        attrs: { level: 2 },
-        content: [{ type: "text", text: title }],
-      },
-      {
         type: "paragraph",
         content: [
           {

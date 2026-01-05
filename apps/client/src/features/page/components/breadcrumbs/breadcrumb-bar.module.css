@@ -1,10 +1,10 @@
 .bar {
     height: 45px;
     background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
-    padding-left: var(--mantine-spacing-md);
-    padding-right: var(--mantine-spacing-md);
-    margin-left: calc(var(--mantine-spacing-md) * -1);
-    margin-right: calc(var(--mantine-spacing-md) * -1);
+    padding-left: 12px;
+    padding-right: 10px;
+    margin-left: calc(var(--app-shell-padding, var(--mantine-spacing-md)) * -1);
+    margin-right: calc(var(--app-shell-padding, var(--mantine-spacing-md)) * -1);
     position: sticky;
     top: 0;
     z-index: 99;
@@ -24,7 +24,8 @@
     justify-content: flex-end;
     align-items: center;
     height: 32px;
-    padding-inline: var(--mantine-spacing-md);
+    padding-inline: 10px;
+    margin-inline: calc(var(--app-shell-padding, var(--mantine-spacing-md)) * -1);
     background-color: transparent;
 }
 
