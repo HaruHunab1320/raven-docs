@@ -15,6 +15,10 @@ import {
   UpdateProjectDto,
   ProjectListDto,
   ProjectArchiveDto,
+  ProjectTrashDto,
+  ProjectPlaybookDraftDto,
+  ProjectPlaybookChatDraftDto,
+  ProjectPlaybookChatSummaryDto,
 } from './dto/project.dto';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -222,8 +226,48 @@ export class ProjectController {
       throw new ForbiddenException();
     }
 
-    await this.projectService.delete(dto.projectId);
+    await this.projectService.delete(dto.projectId, user.id);
     return { success: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/trash')
+  async getDeletedProjects(
+    @Body() dto: ProjectTrashDto,
+    @AuthUser() user: User,
+  ) {
+    const ability = await this.spaceAbility.createForUser(user, dto.spaceId);
+    if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.projectService.listDeleted(dto.spaceId);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/restore')
+  async restoreProject(@Body() dto: ProjectIdDto, @AuthUser() user: User) {
+    const project = await this.projectService.findById(dto.projectId, {
+      includeDeleted: true,
+    });
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      project.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    const restored = await this.projectService.restore(dto.projectId, user.id);
+    if (!restored) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return restored;
   }
 
   @HttpCode(HttpStatus.OK)
@@ -247,5 +291,84 @@ export class ProjectController {
     } else {
       return this.projectService.unarchive(dto.projectId);
     }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/playbook/draft')
+  async generatePlaybookDraft(
+    @Body() dto: ProjectPlaybookDraftDto,
+    @AuthUser() user: User,
+  ) {
+    const project = await this.projectService.findById(dto.projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      project.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.projectService.generatePlaybookDraft(
+      dto.projectId,
+      dto.brief,
+      user.id,
+    );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/playbook/draft-from-chat')
+  async generatePlaybookDraftFromChat(
+    @Body() dto: ProjectPlaybookChatDraftDto,
+    @AuthUser() user: User,
+  ) {
+    const project = await this.projectService.findById(dto.projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      project.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.projectService.generatePlaybookDraftFromChat(
+      dto.projectId,
+      dto.pageId,
+      dto.sessionId,
+      user.id,
+    );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/playbook/chat-summary')
+  async summarizePlaybookChat(
+    @Body() dto: ProjectPlaybookChatSummaryDto,
+    @AuthUser() user: User,
+  ) {
+    const project = await this.projectService.findById(dto.projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      project.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.projectService.summarizePlaybookChat(
+      dto.projectId,
+      dto.pageId,
+      dto.sessionId,
+    );
   }
 }

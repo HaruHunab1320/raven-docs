@@ -41,6 +41,7 @@ import { SomedayPage } from "@/features/gtd/pages/someday-page";
 import { JournalPage } from "@/features/gtd/pages/journal-page";
 import { MemoryInsightsPage } from "@/features/agent-memory/pages/memory-insights-page";
 import ResearchPage from "@/features/research/pages/research-page";
+import { TrashPage } from "@/features/space/pages/trash-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
 import { useEffect } from "react";
 
@@ -493,6 +494,7 @@ export default function App() {
             path={"/spaces/:spaceId/insights"}
             element={<MemoryInsightsPage />}
           />
+          <Route path={"/spaces/:spaceId/trash"} element={<TrashPage />} />
           <Route
             path={"/spaces/:spaceId/research"}
             element={<ResearchPage />}

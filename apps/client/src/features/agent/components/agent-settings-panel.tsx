@@ -122,6 +122,7 @@ export function AgentSettingsPanel() {
         allowProjectWrites: false,
         allowGoalWrites: false,
         allowResearchWrites: false,
+        chatDraftLimit: 300,
         autonomySchedule: {
           dailyEnabled: true,
           dailyHour: 7,
@@ -359,6 +360,21 @@ export function AgentSettingsPanel() {
             checked={currentSettings.allowAgentChat}
             onChange={handleToggle("allowAgentChat")}
             disabled={!isAdmin}
+          />
+          <NumberInput
+            label={toLabel("Chat draft message limit")}
+            value={currentSettings.chatDraftLimit}
+            min={50}
+            max={2000}
+            step={25}
+            onChange={(value) =>
+              mutation.mutate({
+                chatDraftLimit:
+                  typeof value === "number" ? value : currentSettings.chatDraftLimit,
+              })
+            }
+            disabled={!isAdmin}
+            description="Max messages used for playbook drafts from chat."
           />
           <Group mt="xs">
             <Text size="xs" c="dimmed">

@@ -14,6 +14,9 @@ import { SpaceRepo } from '@raven-docs/db/repos/space/space.repo';
 import { PageRepo } from '@raven-docs/db/repos/page/page.repo';
 import { AgentSuggestionsDto } from './agent-suggestions.dto';
 import { TaskBucket, TaskStatus } from '../project/constants/task-enums';
+import { MCPService } from '../../integrations/mcp/mcp.service';
+import { MCPSchemaService } from '../../integrations/mcp/services/mcp-schema.service';
+import { MCPErrorCode } from '../../integrations/mcp/utils/error.utils';
 
 @Injectable()
 export class AgentService {
@@ -26,6 +29,8 @@ export class AgentService {
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
     private readonly pageRepo: PageRepo,
+    private readonly mcpService: MCPService,
+    private readonly mcpSchemaService: MCPSchemaService,
   ) {}
 
   private getAgentModel() {
@@ -41,6 +46,19 @@ export class AgentService {
     } catch {
       return null;
     }
+  }
+
+  private formatToolList() {
+    const schemas = this.mcpSchemaService.getAllMethodSchemas();
+    return schemas.map((schema) => {
+      const required = Object.entries(schema.parameters || {})
+        .filter(([, param]) => param?.required)
+        .map(([name]) => name);
+      const requiredText = required.length
+        ? `Required: ${required.join(', ')}`
+        : 'Required: none';
+      return `${schema.name} - ${schema.description} (${requiredText})`;
+    });
   }
 
   private formatProfileContext(memory?: any) {
@@ -97,7 +115,13 @@ export class AgentService {
           counts: { inbox: 0, waiting: 0, someday: 0 },
         };
 
-    const chatTag = dto.pageId ? `agent-chat-page:${dto.pageId}` : 'agent-chat';
+    const pageChatTag = dto.pageId
+      ? `agent-chat-page:${dto.pageId}`
+      : 'agent-chat';
+    const sessionChatTag = dto.sessionId
+      ? `agent-chat-session:${dto.sessionId}`
+      : null;
+    const chatTag = sessionChatTag || pageChatTag;
     const recentMemories = await this.memoryService.queryMemories(
       {
         workspaceId: workspace.id,
@@ -149,6 +173,8 @@ export class AgentService {
           .join(', ')
       : '';
 
+    const toolList = this.formatToolList();
+
     const prompt = [
       `You are Raven Docs' agent. Provide clear, concise guidance.`,
       `Space: ${space.name}`,
@@ -164,26 +190,148 @@ export class AgentService {
       goalFocusSummary ? `Goal focus: ${goalFocusSummary}.` : null,
       profileContext ? `User profile: ${profileContext}.` : null,
       `User message: ${dto.message}`,
-      `Respond with next steps, optional questions, and suggest time blocks if relevant.`,
+      `Available tools (use these when needed):`,
+      ...toolList,
+      `When you need a tool, include it in "actions" with method + params.`,
+      `Always include spaceId and pageId when relevant to the tool.`,
+      `Return JSON only with keys: reply (string), actions (array).`,
+      `actions items: { "method": string, "params": object }.`,
+      `If no tools are needed, set actions to [].`,
+      `End your reply with two lines:`,
+      `Draft readiness: ready|not-ready`,
+      `Confidence: high|medium|low`,
     ]
       .filter(Boolean)
       .join('\n');
 
     let replyText = 'Agent response unavailable.';
+    let actions: Array<{ method: string; params?: any }> = [];
     try {
       const response = await this.aiService.generateContent({
         model: this.getAgentModel(),
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            reply: { type: 'string' },
+            actions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  method: { type: 'string' },
+                  params: { type: 'object' },
+                },
+                required: ['method'],
+              },
+            },
+          },
+          required: ['reply', 'actions'],
+        },
       });
-      replyText =
-        response?.candidates?.[0]?.content?.parts?.[0]?.text || replyText;
+      const rawText =
+        response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const jsonText = rawText.trim().startsWith('{')
+        ? rawText.trim()
+        : rawText.match(/\{[\s\S]*\}/)?.[0] || '';
+      if (jsonText) {
+        const parsed = JSON.parse(jsonText);
+        replyText = parsed.reply || replyText;
+        actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+      } else if (rawText) {
+        replyText = rawText;
+      }
     } catch (error: any) {
       this.logger.warn(
         `Agent chat failed: ${error?.message || String(error)}`,
       );
     }
 
-    const tags = dto.pageId ? ['agent-chat', chatTag] : ['agent-chat'];
+    const autoApprove = dto.autoApprove === true;
+    const actionSummaries: string[] = [];
+    const approvalItems: Array<{ token: string; method: string; params?: any }> =
+      [];
+
+    for (const action of actions) {
+      if (!action?.method) continue;
+      const params = {
+        ...(action.params || {}),
+        spaceId: action.params?.spaceId || dto.spaceId,
+        pageId: action.params?.pageId || dto.pageId,
+      };
+
+      const response = await this.mcpService.processRequest(
+        {
+          jsonrpc: '2.0',
+          method: action.method,
+          params,
+          id: Date.now(),
+        },
+        user,
+      );
+
+      if (!response.error) {
+        actionSummaries.push(`- ${action.method}: applied`);
+        continue;
+      }
+
+      if (
+        response.error.code === MCPErrorCode.APPROVAL_REQUIRED &&
+        autoApprove &&
+        response.error.data?.approvalToken
+      ) {
+        const retryResponse = await this.mcpService.processRequest(
+          {
+            jsonrpc: '2.0',
+            method: action.method,
+            params: {
+              ...params,
+              approvalToken: response.error.data.approvalToken,
+            },
+            id: Date.now() + 1,
+          },
+          user,
+        );
+
+        if (!retryResponse.error) {
+          actionSummaries.push(`- ${action.method}: approved & applied`);
+          continue;
+        }
+
+        actionSummaries.push(
+          `- ${action.method}: failed (${retryResponse.error.message})`,
+        );
+        continue;
+      }
+
+      if (response.error.code === MCPErrorCode.APPROVAL_REQUIRED) {
+        if (response.error.data?.approvalToken) {
+          approvalItems.push({
+            token: response.error.data.approvalToken,
+            method: action.method,
+            params,
+          });
+        }
+        actionSummaries.push(
+          `- ${action.method}: approval required (${response.error.data?.approvalToken || 'pending'})`,
+        );
+        continue;
+      }
+
+      actionSummaries.push(
+        `- ${action.method}: failed (${response.error.message})`,
+      );
+    }
+
+    if (actionSummaries.length) {
+      replyText = `${replyText}\n\nTool results:\n${actionSummaries.join('\n')}`;
+    }
+
+    const tags = dto.pageId ? ['agent-chat', pageChatTag] : ['agent-chat'];
+    if (sessionChatTag) {
+      tags.push(sessionChatTag);
+    }
 
     await this.memoryService.ingestMemory({
       workspaceId: workspace.id,
@@ -205,6 +353,8 @@ export class AgentService {
 
     return {
       reply: replyText,
+      approvalsRequired: approvalItems.length > 0,
+      approvalItems,
     };
   }
 

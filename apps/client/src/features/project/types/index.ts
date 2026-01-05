@@ -47,8 +47,10 @@ export interface Project {
   spaceId: string;
   workspaceId: string;
   creatorId?: string;
+  homePageId?: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   creator?: IUser;
 }
 

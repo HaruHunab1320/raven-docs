@@ -23,3 +23,12 @@ export const asideStateAtom = atom<AsideStateType>({
 export const sidebarWidthAtom = atomWithWebStorage<number>('sidebarWidth', 300);
 
 export const agentChatDrawerAtom = atom<boolean>(false);
+
+export type AgentChatContext = {
+  spaceId?: string;
+  pageId?: string;
+  contextLabel?: string;
+  sessionId?: string;
+} | null;
+
+export const agentChatContextAtom = atom<AgentChatContext>(null);

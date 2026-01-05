@@ -50,6 +50,22 @@ export class PageService {
     });
   }
 
+  async getPageTree(pageId: string, includeDeleted = false): Promise<Page[]> {
+    return this.pageRepo.getPageAndDescendants(pageId, {
+      includeDeleted,
+    });
+  }
+
+  async updateContent(pageId: string, content: string, userId: string): Promise<void> {
+    await this.pageRepo.updatePage(
+      {
+        content,
+        lastUpdatedById: userId,
+      },
+      pageId,
+    );
+  }
+
   async create(
     userId: string,
     workspaceId: string,
@@ -137,6 +153,7 @@ export class PageService {
       .selectFrom('pages')
       .select(['position'])
       .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is', null)
       .orderBy('position', 'desc')
       .limit(1);
 
@@ -245,6 +262,7 @@ export class PageService {
           .as('count'),
       )
       .whereRef('child.parentPageId', '=', 'pages.id')
+      .where('child.deletedAt', 'is', null)
       .limit(1)
       .as('hasChildren');
   }
@@ -268,7 +286,8 @@ export class PageService {
       ])
       .select((eb) => this.withHasChildren(eb))
       .orderBy('position', 'asc')
-      .where('spaceId', '=', spaceId);
+      .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is', null);
 
     if (pageId) {
       query = query.where('parentPageId', '=', pageId);
@@ -361,6 +380,7 @@ export class PageService {
           ])
           .select((eb) => this.withHasChildren(eb))
           .where('id', '=', childPageId)
+          .where('deletedAt', 'is', null)
           .unionAll((exp) =>
             exp
               .selectFrom('pages as p')
@@ -386,11 +406,13 @@ export class PageService {
                       .as('count'),
                   )
                   .whereRef('child.parentPageId', '=', 'id')
+                  .where('child.deletedAt', 'is', null)
                   .limit(1)
                   .as('hasChildren'),
               )
               //.select((eb) => this.withHasChildren(eb))
-              .innerJoin('page_ancestors as pa', 'pa.parentPageId', 'p.id'),
+              .innerJoin('page_ancestors as pa', 'pa.parentPageId', 'p.id')
+              .where('p.deletedAt', 'is', null),
           ),
       )
       .selectFrom('page_ancestors')
@@ -414,7 +436,138 @@ export class PageService {
     return await this.pageRepo.getRecentPages(userId, pagination);
   }
 
+  async getDeletedPagesInSpace(
+    spaceId: string,
+    pagination: PaginationOptions,
+  ): Promise<PaginationResult<Page>> {
+    return await this.pageRepo.getDeletedPagesInSpace(spaceId, pagination);
+  }
+
   async forceDelete(pageId: string): Promise<void> {
     await this.pageRepo.deletePage(pageId);
+  }
+
+  async softDelete(pageId: string, deletedById?: string): Promise<void> {
+    await this.pageRepo.softDeletePage(pageId, deletedById);
+  }
+
+  async forceDeleteTree(pageId: string): Promise<void> {
+    const pages = await this.pageRepo.getPageAndDescendants(pageId, {
+      includeDeleted: true,
+    });
+    if (!pages.length) {
+      return;
+    }
+
+    const pageIds = pages.map((page) => page.id).reverse();
+    await executeTx(this.db, async (trx) => {
+      for (const id of pageIds) {
+        await this.pageRepo.deletePage(id, trx);
+      }
+    });
+  }
+
+  async softDeleteTree(pageId: string, deletedById?: string): Promise<void> {
+    const pages = await this.pageRepo.getPageAndDescendants(pageId, {
+      includeDeleted: true,
+    });
+    if (!pages.length) {
+      return;
+    }
+
+    const pageIds = pages.map((page) => page.id);
+    await executeTx(this.db, async (trx) => {
+      await this.pageRepo.updatePages(
+        {
+          deletedAt: new Date(),
+          deletedById: deletedById || null,
+        },
+        pageIds,
+        trx,
+      );
+    });
+  }
+
+  async restoreTree(pageId: string, restoredById?: string): Promise<void> {
+    const rootPage = await this.pageRepo.findById(pageId, {
+      includeDeleted: true,
+    });
+    if (!rootPage) {
+      throw new NotFoundException('Page not found');
+    }
+
+    const pages = await this.pageRepo.getPageAndDescendants(pageId, {
+      includeDeleted: true,
+    });
+    if (!pages.length) {
+      return;
+    }
+
+    await executeTx(this.db, async (trx) => {
+      if (rootPage.parentPageId) {
+        const parent = await this.pageRepo.findById(rootPage.parentPageId, {
+          includeDeleted: true,
+          trx,
+        });
+        if (parent?.deletedAt) {
+          const nextPosition = await this.nextPagePosition(
+            rootPage.spaceId,
+            undefined,
+            trx,
+          );
+          await this.pageRepo.updatePage(
+            { parentPageId: null, position: nextPosition },
+            rootPage.id,
+            trx,
+          );
+        }
+      }
+
+      const pageIds = pages.map((page) => page.id);
+      await this.pageRepo.updatePages(
+        {
+          deletedAt: null,
+          deletedById: null,
+          lastUpdatedById: restoredById || null,
+        },
+        pageIds,
+        trx,
+      );
+    });
+  }
+
+  async restoreSingle(pageId: string, restoredById?: string): Promise<void> {
+    const page = await this.pageRepo.findById(pageId, { includeDeleted: true });
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    await executeTx(this.db, async (trx) => {
+      let parentPageId = page.parentPageId;
+      let position = page.position;
+
+      if (parentPageId) {
+        const parent = await this.pageRepo.findById(parentPageId, {
+          includeDeleted: true,
+          trx,
+        });
+        if (parent?.deletedAt) {
+          parentPageId = null;
+          position = await this.nextPagePosition(page.spaceId, undefined, trx);
+        }
+      }
+
+      await this.pageRepo.updatePage(
+        {
+          deletedAt: null,
+          deletedById: null,
+          lastUpdatedById: restoredById || null,
+          parentPageId,
+          position,
+        },
+        page.id,
+        trx,
+      );
+    });
   }
 }

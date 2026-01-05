@@ -13,7 +13,12 @@ import { PageService } from './services/page.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { MovePageDto, MovePageToSpaceDto } from './dto/move-page.dto';
-import { PageHistoryIdDto, PageIdDto, PageInfoDto } from './dto/page.dto';
+import {
+  PageHistoryIdDto,
+  PageIdDto,
+  PageInfoDto,
+  SpaceIdDto,
+} from './dto/page.dto';
 import { PageHistoryService } from './services/page-history.service';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -48,6 +53,7 @@ export class PageController {
       includeCreator: true,
       includeLastUpdatedBy: true,
       includeContributors: true,
+      includeDeleted: dto.includeDeleted,
     });
 
     if (!page) {
@@ -110,7 +116,65 @@ export class PageController {
     if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Page)) {
       throw new ForbiddenException();
     }
-    await this.pageService.forceDelete(pageIdDto.pageId);
+    await this.pageService.softDeleteTree(pageIdDto.pageId, user.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('trash')
+  async getTrashPages(
+    @Body() dto: SpaceIdDto,
+    @Body() pagination: PaginationOptions,
+    @AuthUser() user: User,
+  ) {
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      dto.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.pageService.getDeletedPagesInSpace(dto.spaceId, pagination);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('restore')
+  async restore(@Body() pageIdDto: PageIdDto, @AuthUser() user: User) {
+    const page = await this.pageRepo.findById(pageIdDto.pageId, {
+      includeDeleted: true,
+    });
+
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(user, page.spaceId);
+    if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    await this.pageService.restoreTree(pageIdDto.pageId, user.id);
+    return { success: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('restore-single')
+  async restoreSingle(@Body() pageIdDto: PageIdDto, @AuthUser() user: User) {
+    const page = await this.pageRepo.findById(pageIdDto.pageId, {
+      includeDeleted: true,
+    });
+
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(user, page.spaceId);
+    if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    await this.pageService.restoreSingle(pageIdDto.pageId, user.id);
+    return { success: true };
   }
 
   @HttpCode(HttpStatus.OK)

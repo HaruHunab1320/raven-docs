@@ -30,4 +30,8 @@ export class PageInfoDto extends PageIdDto {
   @IsOptional()
   @IsBoolean()
   includeContent: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  includeDeleted: boolean;
 }

@@ -60,6 +60,7 @@ export interface IPageInput {
   icon: string;
   coverPhoto: string;
   position: string;
+  includeDeleted?: boolean;
 }
 
 export interface IExportPageParams {

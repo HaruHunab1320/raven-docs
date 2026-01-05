@@ -1,6 +1,6 @@
 import { Group, Center, Text } from "@mantine/core";
 import { Spotlight } from "@mantine/spotlight";
-import { IconSearch } from "@tabler/icons-react";
+import { IconSearch, IconTrash } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedValue } from "@mantine/hooks";
@@ -109,6 +109,31 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
     </Spotlight.Action>
   ));
 
+  const showTrashAction =
+    !!spaceId &&
+    (query.length === 0 ||
+      query.toLowerCase().includes("trash") ||
+      query.toLowerCase().includes("delete"));
+
+  const trashAction = showTrashAction ? (
+    <Spotlight.Action
+      key="trash-action"
+      onClick={() => navigate(`/spaces/${spaceId}/trash`)}
+    >
+      <Group wrap="nowrap" w="100%">
+        <Center>
+          <IconTrash size={16} />
+        </Center>
+        <div style={{ flex: 1 }}>
+          <Text>{t("Trash")}</Text>
+          <Text opacity={0.6} size="xs">
+            {t("Restore deleted pages and projects")}
+          </Text>
+        </div>
+      </Group>
+    </Spotlight.Action>
+  ) : null;
+
   return (
     <>
       <Spotlight.Root
@@ -124,17 +149,19 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
           leftSection={<IconSearch size={20} stroke={1.5} />}
         />
         <Spotlight.ActionsList>
-          {query.length === 0 && pages.length === 0 && (
+          {query.length === 0 && pages.length === 0 && !trashAction && (
             <Spotlight.Empty>{t("Start typing to search...")}</Spotlight.Empty>
           )}
 
           {query.length > 0 &&
             pages.length === 0 &&
             tasks.length === 0 &&
-            memories.length === 0 && (
+            memories.length === 0 &&
+            !trashAction && (
             <Spotlight.Empty>{t("No results found...")}</Spotlight.Empty>
           )}
 
+          {trashAction}
           {pages.length > 0 && pages}
           {tasks.length > 0 && tasks}
           {memories.length > 0 && memories}

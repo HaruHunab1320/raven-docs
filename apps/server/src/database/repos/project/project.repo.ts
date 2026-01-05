@@ -20,14 +20,18 @@ export class ProjectRepo {
     projectId: string,
     options?: {
       includeCreator?: boolean;
+      includeDeleted?: boolean;
     },
     trx?: Transaction<DB>,
   ): Promise<Project | undefined> {
     let query = dbOrTx(this.db, trx)
       .selectFrom('projects')
       .selectAll('projects')
-      .where('projects.id', '=', projectId)
-      .where('projects.deletedAt', 'is', null);
+      .where('projects.id', '=', projectId);
+
+    if (!options?.includeDeleted) {
+      query = query.where('projects.deletedAt', 'is', null);
+    }
 
     if (options?.includeCreator) {
       query = query
@@ -188,6 +192,44 @@ export class ProjectRepo {
       .where('id', '=', projectId)
       .where('deletedAt', 'is', null)
       .execute();
+  }
+
+  async restore(
+    projectId: string,
+    trx?: Transaction<DB>,
+  ): Promise<Project | undefined> {
+    const project = await dbOrTx(this.db, trx)
+      .updateTable('projects')
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where('id', '=', projectId)
+      .returningAll()
+      .executeTakeFirst();
+
+    return project as Project | undefined;
+  }
+
+  async findDeletedBySpaceId(spaceId: string): Promise<Project[]> {
+    const projects = await this.db
+      .selectFrom('projects')
+      .selectAll()
+      .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is not', null)
+      .orderBy('deletedAt', 'desc')
+      .execute();
+
+    return projects as Project[];
+  }
+
+  async deleteDeletedBefore(
+    cutoff: Date,
+    trx?: Transaction<DB>,
+  ): Promise<number> {
+    const result = await dbOrTx(this.db, trx)
+      .deleteFrom('projects')
+      .where('deletedAt', '<', cutoff)
+      .executeTakeFirst();
+
+    return Number(result?.numDeletedRows || 0);
   }
 
   async forceDelete(projectId: string, trx?: Transaction<DB>): Promise<void> {

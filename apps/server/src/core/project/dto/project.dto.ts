@@ -105,3 +105,43 @@ export class ProjectArchiveDto {
   @IsBoolean()
   isArchived: boolean;
 }
+
+export class ProjectTrashDto extends PaginationOptionsDto {
+  @IsUUID()
+  spaceId: string;
+}
+
+export class ProjectPlaybookDraftDto {
+  @IsUUID()
+  projectId: string;
+
+  @IsString()
+  @MaxLength(10000)
+  brief: string;
+}
+
+export class ProjectPlaybookChatDraftDto {
+  @IsUUID()
+  projectId: string;
+
+  @IsOptional()
+  @IsString()
+  pageId?: string;
+
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+}
+
+export class ProjectPlaybookChatSummaryDto {
+  @IsUUID()
+  projectId: string;
+
+  @IsOptional()
+  @IsString()
+  pageId?: string;
+
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+}

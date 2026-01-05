@@ -19,6 +19,7 @@ export interface AgentSettings {
   allowProjectWrites: boolean;
   allowGoalWrites: boolean;
   allowResearchWrites: boolean;
+  chatDraftLimit: number;
   autonomySchedule: {
     dailyEnabled: boolean;
     dailyHour: number;
@@ -52,4 +53,8 @@ export interface AgentSettings {
 
 export interface AgentChatResponse {
   reply: string;
+  actions?: Array<{ method: string; status?: string }>;
+  approvalsRequired?: boolean;
+  approvalTokens?: string[];
+  approvalItems?: Array<{ token: string; method: string; params?: any }>;
 }

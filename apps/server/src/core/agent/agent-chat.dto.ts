@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class AgentChatDto {
   @IsUUID()
@@ -10,4 +10,12 @@ export class AgentChatDto {
   @IsOptional()
   @IsString()
   pageId?: string;
+
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoApprove?: boolean;
 }

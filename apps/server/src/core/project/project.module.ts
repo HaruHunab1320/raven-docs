@@ -2,12 +2,14 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ProjectController } from './project.controller';
 import { ProjectService } from './services/project.service';
 import { TaskService } from './services/task.service';
+import { TrashRetentionService } from './services/trash-retention.service';
 import { TaskController } from './task.controller';
 import { DatabaseModule } from '../../database/database.module';
 import { CaslModule } from '../casl/casl.module';
 import { PageModule } from '../page/page.module';
 import { GoalModule } from '../goal/goal.module';
 import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
+import { AIModule } from '../../integrations/ai/ai.module';
 
 @Module({
   imports: [
@@ -16,9 +18,10 @@ import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
     forwardRef(() => PageModule),
     GoalModule,
     AgentMemoryModule,
+    AIModule,
   ],
   controllers: [ProjectController, TaskController],
-  providers: [ProjectService, TaskService],
+  providers: [ProjectService, TaskService, TrashRetentionService],
   exports: [ProjectService, TaskService],
 })
 export class ProjectModule {}

@@ -280,7 +280,7 @@ export class ProjectHandler {
         );
       }
 
-      await this.projectService.delete(params.projectId);
+      await this.projectService.delete(params.projectId, userId);
 
       this.mcpEventService.createDeletedEvent(
         MCPResourceType.PROJECT,

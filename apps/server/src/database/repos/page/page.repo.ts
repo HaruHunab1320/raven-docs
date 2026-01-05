@@ -52,6 +52,7 @@ export class PageRepo {
       includeContributors?: boolean;
       withLock?: boolean;
       trx?: KyselyTransaction;
+      includeDeleted?: boolean;
     },
   ): Promise<Page> {
     const db = dbOrTx(this.db, opts?.trx);
@@ -86,6 +87,10 @@ export class PageRepo {
       query = query.where('id', '=', pageId);
     } else {
       query = query.where('slugId', '=', pageId);
+    }
+
+    if (!opts?.includeDeleted) {
+      query = query.where('deletedAt', 'is', null);
     }
 
     return query.executeTakeFirst();
@@ -127,8 +132,9 @@ export class PageRepo {
       .executeTakeFirst();
   }
 
-  async deletePage(pageId: string): Promise<void> {
-    let query = this.db.deleteFrom('pages');
+  async deletePage(pageId: string, trx?: KyselyTransaction): Promise<void> {
+    const db = dbOrTx(this.db, trx);
+    let query = db.deleteFrom('pages');
 
     if (isValidUUID(pageId)) {
       query = query.where('id', '=', pageId);
@@ -139,12 +145,36 @@ export class PageRepo {
     await query.execute();
   }
 
+  async softDeletePage(
+    pageId: string,
+    deletedById?: string,
+    trx?: KyselyTransaction,
+  ): Promise<void> {
+    const db = dbOrTx(this.db, trx);
+    let query = db
+      .updateTable('pages')
+      .set({
+        deletedAt: new Date(),
+        deletedById: deletedById || null,
+        updatedAt: new Date(),
+      });
+
+    if (isValidUUID(pageId)) {
+      query = query.where('id', '=', pageId);
+    } else {
+      query = query.where('slugId', '=', pageId);
+    }
+
+    await query.where('deletedAt', 'is', null).execute();
+  }
+
   async getRecentPagesInSpace(spaceId: string, pagination: PaginationOptions) {
     const query = this.db
       .selectFrom('pages')
       .select(this.baseFields)
       .select((eb) => this.withSpace(eb))
       .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is', null)
       .orderBy('updatedAt', 'desc');
 
     const result = executeWithPagination(query, {
@@ -163,6 +193,7 @@ export class PageRepo {
       .select(this.baseFields)
       .select((eb) => this.withSpace(eb))
       .where('spaceId', 'in', userSpaceIds)
+      .where('deletedAt', 'is', null)
       .orderBy('updatedAt', 'desc');
 
     const hasEmptyIds = userSpaceIds.length === 0;
@@ -173,6 +204,34 @@ export class PageRepo {
     });
 
     return result;
+  }
+
+  async getDeletedPagesInSpace(
+    spaceId: string,
+    pagination: PaginationOptions,
+  ) {
+    const query = this.db
+      .selectFrom('pages')
+      .select(this.baseFields)
+      .select((eb) => this.withSpace(eb))
+      .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is not', null)
+      .orderBy('deletedAt', 'desc');
+
+    return executeWithPagination(query, {
+      page: pagination.page,
+      perPage: pagination.limit,
+    });
+  }
+
+  async deleteDeletedBefore(cutoff: Date, trx?: KyselyTransaction) {
+    const db = dbOrTx(this.db, trx);
+    const result = await db
+      .deleteFrom('pages')
+      .where('deletedAt', '<', cutoff)
+      .executeTakeFirst();
+
+    return Number(result?.numDeletedRows || 0);
   }
 
   withSpace(eb: ExpressionBuilder<DB, 'pages'>) {
@@ -211,7 +270,10 @@ export class PageRepo {
     ).as('contributors');
   }
 
-  async getPageAndDescendants(parentPageId: string) {
+  async getPageAndDescendants(
+    parentPageId: string,
+    opts?: { includeDeleted?: boolean },
+  ) {
     return this.db
       .withRecursive('page_hierarchy', (db) =>
         db
@@ -227,6 +289,9 @@ export class PageRepo {
             'workspaceId',
           ])
           .where('id', '=', parentPageId)
+          .$if(!opts?.includeDeleted, (qb) =>
+            qb.where('deletedAt', 'is', null),
+          )
           .unionAll((exp) =>
             exp
               .selectFrom('pages as p')
@@ -240,7 +305,10 @@ export class PageRepo {
                 'p.spaceId',
                 'p.workspaceId',
               ])
-              .innerJoin('page_hierarchy as ph', 'p.parentPageId', 'ph.id'),
+              .innerJoin('page_hierarchy as ph', 'p.parentPageId', 'ph.id')
+              .$if(!opts?.includeDeleted, (qb) =>
+                qb.where('p.deletedAt', 'is', null),
+              ),
           ),
       )
       .selectFrom('page_hierarchy')

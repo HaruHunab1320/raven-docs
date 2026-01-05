@@ -1,4 +1,4 @@
-import { IsBoolean, IsObject, IsOptional } from 'class-validator';
+import { IsBoolean, IsInt, IsObject, IsOptional, Max, Min } from 'class-validator';
 
 export class AgentSettingsDto {
   @IsOptional()
@@ -60,6 +60,12 @@ export class AgentSettingsDto {
   @IsOptional()
   @IsBoolean()
   allowResearchWrites?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(50)
+  @Max(2000)
+  chatDraftLimit?: number;
 
   @IsOptional()
   @IsObject()

@@ -29,6 +29,7 @@ import {
   IconChartDots,
   IconBulb,
   IconNotebook,
+  IconTrash,
 } from "@tabler/icons-react";
 
 import classes from "./space-sidebar.module.css";
@@ -437,6 +438,26 @@ export function SpaceSidebar() {
                   stroke={2}
                 />
                 <span>{t("Projects")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.TRASH(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/trash`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconTrash
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Trash")}</span>
               </div>
             </UnstyledButton>
 

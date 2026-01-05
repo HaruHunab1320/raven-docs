@@ -17,6 +17,8 @@ export async function sendAgentChat(params: {
   spaceId: string;
   message: string;
   pageId?: string;
+  sessionId?: string;
+  autoApprove?: boolean;
 }): Promise<AgentChatResponse> {
   const req = await api.post<AgentChatResponse>("/agent/chat", params);
   return req.data;

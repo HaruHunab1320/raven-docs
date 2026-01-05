@@ -8,6 +8,8 @@ export interface GeminiGenerateRequest {
   safetySettings?: Array<Record<string, any>>;
   tools?: Array<Record<string, any>>;
   toolConfig?: Record<string, any>;
+  responseMimeType?: string;
+  responseSchema?: Record<string, any>;
 }
 
 export interface GeminiEmbedRequest {
@@ -67,9 +69,17 @@ export class AIService {
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${request.model}:generateContent?key=${apiKey}`;
+    const generationConfig = {
+      ...(request.generationConfig || {}),
+      ...(request.responseMimeType
+        ? { responseMimeType: request.responseMimeType }
+        : {}),
+      ...(request.responseSchema ? { responseSchema: request.responseSchema } : {}),
+    };
+
     const body = {
       contents: request.contents,
-      generationConfig: request.generationConfig,
+      generationConfig,
       safetySettings: request.safetySettings,
       tools: request.tools,
       toolConfig: request.toolConfig,

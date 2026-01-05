@@ -159,6 +159,18 @@ export const projectService = {
     return data;
   },
 
+  async listDeletedProjects(spaceId: string): Promise<Project[]> {
+    const { data } = await api.post(`${PROJECTS_ENDPOINT}/trash`, { spaceId });
+    return data;
+  },
+
+  async restoreProject(projectId: string): Promise<Project> {
+    const { data } = await api.post(`${PROJECTS_ENDPOINT}/restore`, {
+      projectId,
+    });
+    return data;
+  },
+
   async archiveProject(
     projectId: string,
     isArchived: boolean
@@ -167,6 +179,51 @@ export const projectService = {
       projectId,
       isArchived,
     });
+    return data;
+  },
+
+  async generatePlaybookDraft(projectId: string, brief: string): Promise<any> {
+    const { data } = await api.post(`${PROJECTS_ENDPOINT}/playbook/draft`, {
+      projectId,
+      brief,
+    });
+    return data;
+  },
+
+  async generatePlaybookDraftFromChat(
+    projectId: string,
+    pageId?: string,
+    sessionId?: string
+  ): Promise<any> {
+    const { data } = await api.post(
+      `${PROJECTS_ENDPOINT}/playbook/draft-from-chat`,
+      {
+        projectId,
+        pageId,
+        sessionId,
+      }
+    );
+    return data;
+  },
+
+  async summarizePlaybookChat(
+    projectId: string,
+    pageId?: string,
+    sessionId?: string
+  ): Promise<{
+    summary: string;
+    missingInfo: string[];
+    readiness: "ready" | "not-ready";
+    confidence: "low" | "medium" | "high";
+  }> {
+    const { data } = await api.post(
+      `${PROJECTS_ENDPOINT}/playbook/chat-summary`,
+      {
+        projectId,
+        pageId,
+        sessionId,
+      }
+    );
     return data;
   },
 
