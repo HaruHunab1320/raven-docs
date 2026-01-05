@@ -119,6 +119,9 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
   ] = useDisclosure(false);
   const [researchOpened, { open: openResearchModal, close: closeResearchModal }] =
     useDisclosure(false);
+  const isUserProfilePage = page?.title
+    ? page.title.toLowerCase().startsWith("user profile")
+    : false;
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page.updatedAt);
 
@@ -216,7 +219,7 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             {t("Print PDF")}
           </Menu.Item>
 
-          {!readOnly && (
+          {!readOnly && !isUserProfilePage && (
             <>
               <Menu.Divider />
               <Menu.Item
@@ -235,7 +238,7 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             <Group px="sm" wrap="nowrap" style={{ cursor: "pointer" }}>
               <Tooltip
                 label={t("Edited by {{name}} {{time}}", {
-                  name: page.lastUpdatedBy.name,
+                  name: page.lastUpdatedBy?.name || t("Unknown"),
                   time: pageUpdatedAt,
                 })}
                 position="left-start"

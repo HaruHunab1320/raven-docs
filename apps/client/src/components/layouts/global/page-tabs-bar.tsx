@@ -28,24 +28,27 @@ export function PageTabsBar() {
   }
 
   const activePath = location.pathname;
-  const handleClearTabs = () => {
-    clearTabs();
+  const resolveFallback = () => {
     const pageMatch = activePath.match(/^\/s\/([^/]+)\/p\//);
     if (pageMatch) {
-      navigate(`/s/${pageMatch[1]}/home`);
-      return;
+      return `/s/${pageMatch[1]}/home`;
     }
 
     const spaceProjectsMatch = activePath.match(/^\/s\/([^/]+)\/projects/);
     if (spaceProjectsMatch) {
-      navigate(`/spaces/${spaceProjectsMatch[1]}/inbox`);
-      return;
+      return `/spaces/${spaceProjectsMatch[1]}/inbox`;
     }
 
     const spaceIdMatch = activePath.match(/^\/spaces\/([^/]+)/);
     if (spaceIdMatch) {
-      navigate(`/spaces/${spaceIdMatch[1]}/inbox`);
+      return `/spaces/${spaceIdMatch[1]}/inbox`;
     }
+
+    return "/dashboard";
+  };
+  const handleClearTabs = () => {
+    clearTabs();
+    navigate(resolveFallback());
   };
 
   return (
@@ -77,7 +80,20 @@ export function PageTabsBar() {
                 className={classes.tabClose}
                 onClick={(event) => {
                   event.stopPropagation();
+                  const remainingTabs = tabs.filter(
+                    (item) => item.id !== tab.id
+                  );
                   closeTab(tab.id);
+                  if (isActive) {
+                    const index = tabs.findIndex((item) => item.id === tab.id);
+                    const nextTab =
+                      remainingTabs[index - 1] || remainingTabs[index] || null;
+                    if (nextTab) {
+                      navigate(nextTab.url);
+                    } else {
+                      navigate(resolveFallback());
+                    }
+                  }
                 }}
                 aria-label="Close tab"
               >

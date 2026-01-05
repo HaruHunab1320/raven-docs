@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -50,7 +51,24 @@ export class PageService {
     });
   }
 
-  async getPageTree(pageId: string, includeDeleted = false): Promise<Page[]> {
+  async getPageTree(
+    pageId: string,
+    includeDeleted = false,
+  ): Promise<
+    Array<
+      Pick<
+        Page,
+        | 'id'
+        | 'slugId'
+        | 'title'
+        | 'icon'
+        | 'content'
+        | 'parentPageId'
+        | 'spaceId'
+        | 'workspaceId'
+      >
+    >
+  > {
     return this.pageRepo.getPageAndDescendants(pageId, {
       includeDeleted,
     });
@@ -443,15 +461,33 @@ export class PageService {
     return await this.pageRepo.getDeletedPagesInSpace(spaceId, pagination);
   }
 
+  private isProtectedPageTitle(title?: string | null) {
+    return (title || '').toLowerCase().startsWith('user profile');
+  }
+
+  private ensureDeletable(page?: Page | null) {
+    if (this.isProtectedPageTitle(page?.title)) {
+      throw new ForbiddenException('User profile pages cannot be deleted');
+    }
+  }
+
   async forceDelete(pageId: string): Promise<void> {
+    const page = await this.pageRepo.findById(pageId, { includeDeleted: true });
+    this.ensureDeletable(page);
     await this.pageRepo.deletePage(pageId);
   }
 
   async softDelete(pageId: string, deletedById?: string): Promise<void> {
+    const page = await this.pageRepo.findById(pageId);
+    this.ensureDeletable(page);
     await this.pageRepo.softDeletePage(pageId, deletedById);
   }
 
   async forceDeleteTree(pageId: string): Promise<void> {
+    const rootPage = await this.pageRepo.findById(pageId, {
+      includeDeleted: true,
+    });
+    this.ensureDeletable(rootPage);
     const pages = await this.pageRepo.getPageAndDescendants(pageId, {
       includeDeleted: true,
     });
@@ -468,6 +504,10 @@ export class PageService {
   }
 
   async softDeleteTree(pageId: string, deletedById?: string): Promise<void> {
+    const rootPage = await this.pageRepo.findById(pageId, {
+      includeDeleted: true,
+    });
+    this.ensureDeletable(rootPage);
     const pages = await this.pageRepo.getPageAndDescendants(pageId, {
       includeDeleted: true,
     });

@@ -28,8 +28,12 @@ export class TrashRetentionService {
       this.logger.log(
         `Purged trash older than ${retentionDays} days (pages: ${deletedPages}, projects: ${deletedProjects}).`,
       );
-    } catch (error) {
-      this.logger.error('Failed to purge trash', error?.stack || error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.logger.error('Failed to purge trash', error.stack || error.message);
+      } else {
+        this.logger.error('Failed to purge trash', String(error));
+      }
     }
   }
 }
