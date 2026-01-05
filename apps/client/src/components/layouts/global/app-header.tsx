@@ -31,9 +31,9 @@ import { modals } from "@mantine/modals";
 import {
   IconBrush,
   IconHelpCircle,
+  IconLayoutSidebarRight,
   IconLogout,
   IconMenu2,
-  IconMessageChatbot,
   IconSettings,
   IconUserCircle,
   IconUsers,
@@ -275,7 +275,7 @@ export function AppHeader() {
 
               <Menu.Item
                 onClick={toggleAgentChat}
-                leftSection={<IconMessageChatbot size={16} />}
+                leftSection={<IconLayoutSidebarRight size={16} />}
               >
                 {t("Agent chat")}
               </Menu.Item>
@@ -314,6 +314,13 @@ export function AppHeader() {
             </Tooltip>
           </div>
           <div className={classes.desktopOnly}>
+            <ThemeSwitcher />
+          </div>
+          {/* <MCPEventIndicator /> */}
+          <div className={classes.desktopOnly}>
+            <TopMenu />
+          </div>
+          <div className={classes.desktopOnly}>
             <Tooltip label={t("Agent chat")} withArrow position="bottom">
               <ActionIcon
                 variant="subtle"
@@ -321,16 +328,9 @@ export function AppHeader() {
                 aria-label={t("Agent chat")}
                 onClick={toggleAgentChat}
               >
-                <IconMessageChatbot size={16} />
+                <IconLayoutSidebarRight size={16} />
               </ActionIcon>
             </Tooltip>
-          </div>
-          <div className={classes.desktopOnly}>
-            <ThemeSwitcher />
-          </div>
-          {/* <MCPEventIndicator /> */}
-          <div className={classes.desktopOnly}>
-            <TopMenu />
           </div>
         </Group>
       </Group>

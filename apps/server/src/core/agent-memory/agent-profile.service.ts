@@ -24,6 +24,18 @@ type ProfileModel = {
   focusAreas?: string[];
   recommendations?: string[];
   traits?: Record<string, number>;
+  confidence?: {
+    summary?: string;
+    traits?: string;
+    preferences?: string;
+    goals?: string;
+  };
+  evidence?: {
+    summary?: string[];
+    traits?: string[];
+    preferences?: string[];
+    goals?: string[];
+  };
 };
 
 const TRAIT_KEYS = [
@@ -85,6 +97,87 @@ export class AgentProfileService {
       .join('\n');
   }
 
+  private async getRecentMemories(
+    spaceId: string,
+    since: Date,
+    userId?: string,
+    sources?: string[],
+  ) {
+    let query = this.db
+      .selectFrom('agentMemories')
+      .select(['id', 'summary', 'content', 'tags', 'source', 'createdAt', 'creatorId'])
+      .where('spaceId', '=', spaceId)
+      .where('createdAt', '>=', since)
+      .orderBy('createdAt', 'desc')
+      .limit(400);
+
+    if (userId) {
+      query = query.where('creatorId', '=', userId);
+    }
+
+    if (sources?.length) {
+      query = query.where('source', 'in', sources);
+    }
+
+    return query.execute();
+  }
+
+  private normalizeTags(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.map((tag) => String(tag)).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed.map((tag) => String(tag)).filter(Boolean);
+        }
+      } catch {
+        return value
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
+    }
+    return [];
+  }
+
+  private extractMemoryText(row: {
+    summary?: string | null;
+    content?: any;
+  }) {
+    if (typeof row.content === 'string') {
+      return row.content;
+    }
+    if (row.content && typeof row.content === 'object' && 'text' in row.content) {
+      return (row.content as { text?: string }).text || row.summary || '';
+    }
+    return row.summary || '';
+  }
+
+  private buildEvidenceLog(
+    entries: Array<{
+      summary?: string | null;
+      content?: any;
+      source?: string | null;
+      tags?: unknown;
+      createdAt: Date;
+    }>,
+    maxItems: number,
+  ) {
+    return entries
+      .slice(0, maxItems)
+      .map((row) => {
+        const date = row.createdAt.toISOString().slice(0, 10);
+        const source = row.source ? `source=${row.source}` : 'source=unknown';
+        const tags = this.normalizeTags(row.tags);
+        const tagText = tags.length ? `tags=${tags.slice(0, 3).join('|')}` : '';
+        const text = this.extractMemoryText(row);
+        return `- [${date}] (${source}${tagText ? `, ${tagText}` : ''}) ${text}`;
+      })
+      .join('\n');
+  }
+
   private extractJson(text: string): ProfileModel | null {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
@@ -127,6 +220,18 @@ export class AgentProfileService {
       focusAreas: this.normalizeList(profile.focusAreas),
       recommendations: this.normalizeList(profile.recommendations),
       traits: this.normalizeTraits(profile.traits),
+      confidence: {
+        summary: profile.confidence?.summary,
+        traits: profile.confidence?.traits,
+        preferences: profile.confidence?.preferences,
+        goals: profile.confidence?.goals,
+      },
+      evidence: {
+        summary: this.normalizeList(profile.evidence?.summary),
+        traits: this.normalizeList(profile.evidence?.traits),
+        preferences: this.normalizeList(profile.evidence?.preferences),
+        goals: this.normalizeList(profile.evidence?.goals),
+      },
       goals: {
         shortTerm: this.normalizeList(profile.goals?.shortTerm),
         midTerm: this.normalizeList(profile.goals?.midTerm),
@@ -174,6 +279,36 @@ export class AgentProfileService {
         return `${label}: ${value}/10`;
       },
     );
+    const confidenceItems = [
+      profile.confidence?.summary
+        ? `Summary: ${profile.confidence.summary}`
+        : 'Summary: low',
+      profile.confidence?.traits
+        ? `Traits: ${profile.confidence.traits}`
+        : 'Traits: low',
+      profile.confidence?.preferences
+        ? `Preferences: ${profile.confidence.preferences}`
+        : 'Preferences: low',
+      profile.confidence?.goals ? `Goals: ${profile.confidence.goals}` : 'Goals: low',
+    ];
+    const buildEvidenceSection = (items?: string[]) =>
+      items?.length
+        ? {
+            type: 'bulletList',
+            content: items.map((item) => ({
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: item }],
+                },
+              ],
+            })),
+          }
+        : {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'No evidence captured yet.' }],
+          };
 
     return {
       type: 'doc',
@@ -200,11 +335,28 @@ export class AgentProfileService {
           ],
         },
         {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: `Traits confidence: ${
+                profile.confidence?.traits || 'low'
+              }`,
+            },
+          ],
+        },
+        {
           type: 'heading',
           attrs: { level: 3 },
           content: [{ type: 'text', text: 'Trait Signals' }],
         },
         buildList(traitItems),
+        {
+          type: 'heading',
+          attrs: { level: 3 },
+          content: [{ type: 'text', text: 'Confidence' }],
+        },
+        buildList(confidenceItems),
         {
           type: 'heading',
           attrs: { level: 3 },
@@ -265,6 +417,35 @@ export class AgentProfileService {
           content: [{ type: 'text', text: 'Recommendations' }],
         },
         buildList(profile.recommendations),
+        {
+          type: 'heading',
+          attrs: { level: 3 },
+          content: [{ type: 'text', text: 'Evidence' }],
+        },
+        {
+          type: 'heading',
+          attrs: { level: 4 },
+          content: [{ type: 'text', text: 'Summary Evidence' }],
+        },
+        buildEvidenceSection(profile.evidence?.summary),
+        {
+          type: 'heading',
+          attrs: { level: 4 },
+          content: [{ type: 'text', text: 'Traits Evidence' }],
+        },
+        buildEvidenceSection(profile.evidence?.traits),
+        {
+          type: 'heading',
+          attrs: { level: 4 },
+          content: [{ type: 'text', text: 'Preferences Evidence' }],
+        },
+        buildEvidenceSection(profile.evidence?.preferences),
+        {
+          type: 'heading',
+          attrs: { level: 4 },
+          content: [{ type: 'text', text: 'Goals Evidence' }],
+        },
+        buildEvidenceSection(profile.evidence?.goals),
       ],
     };
   }
@@ -318,18 +499,38 @@ export class AgentProfileService {
     return { id: page.id, slugId: page.slugId, title: page.title };
   }
 
-  private buildPrompt(spaceName: string, memoryText: string, priorProfile?: ProfileModel) {
+  private buildPrompt(
+    spaceName: string,
+    generalLog: string,
+    journalLog: string,
+    stats: {
+      signalCount: number;
+      journalCount: number;
+      signalSpanDays: number;
+      distinctDays: number;
+      allowTraits: boolean;
+      allowPreferences: boolean;
+    },
+    priorProfile?: ProfileModel,
+  ) {
     const prior = priorProfile ? JSON.stringify(priorProfile) : 'none';
     return [
       `You are Raven Docs' profile analyst.`,
       `Create a concise user profile JSON based on recent memories.`,
       `Focus on strengths, challenges, preferences, constraints, goals, risks, focus areas, recommendations, and trait signals.`,
       `Include traits with scores 0-10 for keys: ${TRAIT_KEYS.join(', ')}.`,
-      `Return ONLY JSON with keys: summary, strengths, challenges, preferences, constraints, goals{shortTerm,midTerm,longTerm}, risks, focusAreas, recommendations, traits.`,
+      `Return ONLY JSON with keys: summary, strengths, challenges, preferences, constraints, goals{shortTerm,midTerm,longTerm}, risks, focusAreas, recommendations, traits, confidence, evidence.`,
+      `Confidence must include keys: summary, traits, preferences, goals with values low|medium|high.`,
+      `Evidence must include keys: summary, traits, preferences, goals with 1-5 bullet strings each.`,
       `Space: ${spaceName}`,
+      `Signal stats: total=${stats.signalCount}, journal=${stats.journalCount}, spanDays=${stats.signalSpanDays}, distinctDays=${stats.distinctDays}.`,
+      `Only provide traits if allowTraits=true. Only provide preferences/goals if allowPreferences=true.`,
+      `If not allowed, set those arrays empty, traits empty, and confidence low.`,
       `Previous profile (if any): ${prior}`,
-      `Memory log:`,
-      memoryText,
+      `General memory log:`,
+      generalLog || 'none',
+      `Journal memory log (for preferences/goals only):`,
+      journalLog || 'none',
     ].join('\n');
   }
 
@@ -347,13 +548,72 @@ export class AgentProfileService {
       return;
     }
 
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const memoryText = await this.getRecentMemoryText(
+    const now = Date.now();
+    const primarySince = new Date(now - 90 * 24 * 60 * 60 * 1000);
+    const extendedSince = new Date(now - 365 * 24 * 60 * 60 * 1000);
+    const allowedSources = [
+      'agent-chat',
+      'agent-insight',
+      'activity-digest',
+      'agent-summary',
+      'approval-event',
+      'project.created',
+      'project.updated',
+      'comment.created',
+      'comment.updated',
+      'page.created',
+      'page.updated',
+      'research-job',
+    ];
+
+    let memories = await this.getRecentMemories(
       space.id,
-      since,
+      primarySince,
       user.id,
+      allowedSources,
     );
-    if (!memoryText) return;
+    if (memories.length < 12) {
+      const extended = await this.getRecentMemories(
+        space.id,
+        extendedSince,
+        user.id,
+        allowedSources,
+      );
+      const byId = new Map<string, (typeof memories)[number]>();
+      for (const entry of memories) byId.set(entry.id, entry);
+      for (const entry of extended) byId.set(entry.id, entry);
+      memories = Array.from(byId.values()).sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      );
+    }
+
+    if (!memories.length) return;
+
+    const journalTags = new Set(['journal', 'daily-summary']);
+    const journalMemories = memories.filter((entry) =>
+      this.normalizeTags(entry.tags).some((tag) => journalTags.has(tag)),
+    );
+
+    const signalDates = memories.map((entry) => entry.createdAt);
+    const latest = signalDates[0];
+    const earliest = signalDates[signalDates.length - 1];
+    const spanDays = latest && earliest
+      ? Math.max(
+          1,
+          Math.round(
+            (latest.getTime() - earliest.getTime()) / (24 * 60 * 60 * 1000),
+          ),
+        )
+      : 0;
+    const distinctDays = new Set(
+      signalDates.map((date) => date.toISOString().slice(0, 10)),
+    ).size;
+
+    const allowTraits = memories.length >= 12 && spanDays >= 30 && distinctDays >= 10;
+    const allowPreferences = journalMemories.length >= 5;
+
+    const generalLog = this.buildEvidenceLog(memories, 120);
+    const journalLog = this.buildEvidenceLog(journalMemories, 60);
 
     const existingProfiles = await this.memoryService.queryMemories(
       {
@@ -376,10 +636,65 @@ export class AgentProfileService {
       process.env.google_api_key
     ) {
       try {
-        const prompt = this.buildPrompt(space.name, memoryText, priorProfile);
+        const prompt = this.buildPrompt(
+          space.name,
+          generalLog,
+          journalLog,
+          {
+            signalCount: memories.length,
+            journalCount: journalMemories.length,
+            signalSpanDays: spanDays,
+            distinctDays,
+            allowTraits,
+            allowPreferences,
+          },
+          priorProfile,
+        );
         const response = await this.aiService.generateContent({
           model: this.getAgentModel(),
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: {
+              summary: { type: 'string' },
+              strengths: { type: 'array', items: { type: 'string' } },
+              challenges: { type: 'array', items: { type: 'string' } },
+              preferences: { type: 'array', items: { type: 'string' } },
+              constraints: { type: 'array', items: { type: 'string' } },
+              risks: { type: 'array', items: { type: 'string' } },
+              focusAreas: { type: 'array', items: { type: 'string' } },
+              recommendations: { type: 'array', items: { type: 'string' } },
+              traits: { type: 'object' },
+              goals: {
+                type: 'object',
+                properties: {
+                  shortTerm: { type: 'array', items: { type: 'string' } },
+                  midTerm: { type: 'array', items: { type: 'string' } },
+                  longTerm: { type: 'array', items: { type: 'string' } },
+                },
+              },
+              confidence: {
+                type: 'object',
+                properties: {
+                  summary: { type: 'string' },
+                  traits: { type: 'string' },
+                  preferences: { type: 'string' },
+                  goals: { type: 'string' },
+                },
+              },
+              evidence: {
+                type: 'object',
+                properties: {
+                  summary: { type: 'array', items: { type: 'string' } },
+                  traits: { type: 'array', items: { type: 'string' } },
+                  preferences: { type: 'array', items: { type: 'string' } },
+                  goals: { type: 'array', items: { type: 'string' } },
+                },
+              },
+            },
+            required: ['summary', 'strengths', 'challenges', 'preferences', 'constraints', 'risks', 'focusAreas', 'recommendations', 'traits', 'goals', 'confidence', 'evidence'],
+          },
         });
         const text =
           response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -392,6 +707,43 @@ export class AgentProfileService {
     }
 
     const normalized = this.normalizeProfile(profile);
+    if (!allowTraits) {
+      normalized.traits = {};
+      normalized.confidence = {
+        ...normalized.confidence,
+        traits: 'low',
+      };
+      normalized.evidence = {
+        ...normalized.evidence,
+        traits: [],
+      };
+    }
+    if (!allowPreferences) {
+      normalized.preferences = [];
+      normalized.goals = { shortTerm: [], midTerm: [], longTerm: [] };
+      normalized.confidence = {
+        ...normalized.confidence,
+        preferences: 'low',
+        goals: 'low',
+      };
+      normalized.evidence = {
+        ...normalized.evidence,
+        preferences: [],
+        goals: [],
+      };
+    }
+    if (memories.length < 3) {
+      normalized.summary =
+        'Not enough data yet. Add journal entries and project activity to build your profile.';
+      normalized.confidence = {
+        ...normalized.confidence,
+        summary: 'low',
+      };
+      normalized.evidence = {
+        ...normalized.evidence,
+        summary: [],
+      };
+    }
     const profilePage = await this.getOrCreateProfilePage(
       space.id,
       space.workspaceId,

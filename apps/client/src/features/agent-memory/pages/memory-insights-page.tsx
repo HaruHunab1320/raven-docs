@@ -183,6 +183,10 @@ export function MemoryInsightsPage() {
     return `Updated ${date.toLocaleDateString()}`;
   }, [profileQuery.data]);
 
+  const profileRecord = useMemo(() => {
+    return profileQuery.data?.[0]?.content as { profile?: Record<string, any> } | undefined;
+  }, [profileQuery.data]);
+
   const signalsQuery = useQuery({
     queryKey: ["memory-signals", workspace?.id, spaceId],
     queryFn: () =>
@@ -1020,10 +1024,9 @@ export function MemoryInsightsPage() {
         <UserProfileMetrics
           traits={
             (() => {
-              const record = profileQuery.data?.[0]?.content as
-                | { profile?: Record<string, any> }
+              const traits = profileRecord?.profile?.traits as
+                | Record<string, number>
                 | undefined;
-              const traits = record?.profile?.traits as Record<string, number> | undefined;
               if (!traits) return [];
               const order = [
                 "focus",
@@ -1052,6 +1055,13 @@ export function MemoryInsightsPage() {
           }
           title="User traits"
           subtitle={profileUpdatedLabel}
+          confidence={
+            profileRecord?.profile?.confidence?.traits as
+              | "low"
+              | "medium"
+              | "high"
+              | undefined
+          }
         />
         <Card withBorder radius="md" p="md">
           <Group justify="space-between" mb="sm">

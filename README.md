@@ -1,130 +1,99 @@
-<div align="center">
-    <h1><b>Raven Docs</b></h1>
-    <p>
-        A second-brain workspace for docs, projects, and GTD-style planning.
-        <br />
-        <a href="https://github.com/raven-docs/raven-docs"><strong>Upstream Raven Docs</strong></a>
-    </p>
-</div>
-<br />
+# Raven Docs
 
-## Getting started
+A second-brain workspace for docs, projects, and GTD-style planning, with agentic workflows powered by MCP.
 
-To get started with Raven Docs, see `README-NEW.md` for setup and use the upstream Raven Docs docs for baseline reference.
+## Quick start
+
+### Prerequisites
+- Docker + Docker Compose
+- Node.js 18+ (for development)
+- PostgreSQL 15+ and Redis (if not using Docker)
+
+### One-command setup
+
+```bash
+./scripts/setup.sh
+```
+
+This will create config files, start services, run migrations, and launch the app at `http://localhost:3000`.
+
+### Manual setup (Docker)
+
+```bash
+cp .env.example .env
+openssl rand -hex 32 # set APP_SECRET in .env
+
+docker-compose up -d
+docker-compose exec raven-docs pnpm migration:latest
+```
+
+Open `http://localhost:3000` and complete `/auth/setup`.
+
+### Manual setup (local dev)
+
+```bash
+pnpm install
+pnpm dev
+```
+
+## Features
+
+- Real-time collaboration
+- Spaces, pages, comments, attachments, and page history
+- Diagrams (Draw.io, Excalidraw, Mermaid)
+- Projects and task management (GTD: Inbox, Triage, Waiting, Someday, Weekly Review)
+- Journal capture and daily notes
+- AI integration via Model Context Protocol (MCP)
+
+## Agent + MCP integration
+
+Raven Docs exposes an MCP-standard endpoint for tool access:
+
+```
+http://localhost:3000/api/mcp-standard
+```
+
+Create an API key in **Workspace Settings → API Keys** and configure clients (Cursor, etc.) to connect.
+
+The in-app agent can use MCP tools with approval controls. Approvals are surfaced in chat and the approvals center.
+
+## Documentation
+
+- Architecture: `docs/ArchitectureOverview.md`
+- System status: `docs/SystemStatus.md`
+- MCP canonical: `docs/MCP.md`
+- Engineering standards: `docs/EngineeringStandards.md`
+- Workflows: `docs/Workflows.md`
+- Autonomy quickstart: `docs/AutonomyQuickstart.md`
+- System risks: `docs/SystemRisks.md`
+- UI audit routes: `docs/UIAudit_RouteChecks.md`
+- Testing matrix: `docs/TestingMatrix.md`
+- Manual test runbook: `docs/ManualTest_Runbook.md`
+- GTD + second brain UI: `docs/GTD_SecondBrain_UI.md`
+- GTD agent automations: `docs/GTD_Agent_Automations.md`
+- Project management: `docs/ProjectManagement.md`
+- Product vision: `docs/ProductVision.md`
+
+## Repository structure
+
+```
+raven-docs/
+├── apps/
+│   ├── client/        # React frontend
+│   └── server/        # NestJS backend
+├── packages/          # Shared packages
+├── scripts/           # Utility scripts
+└── docker-compose.yml # Docker config
+```
 
 ## Origin
 
 Raven Docs is built on the Docmost codebase and continues to evolve with its own product direction.
 
-## Features
+## License
 
-- Real-time collaboration
-- Diagrams (Draw.io, Excalidraw and Mermaid)
-- Spaces
-- Permissions management
-- Groups
-- Comments
-- Page history
-- Search
-- File attachments
-- Embeds (Airtable, Loom, Miro and more)
-- Translations (10+ languages)
-- Projects and task management
-- GTD-style Inbox, Triage, Waiting, Someday, and Weekly Review views
-- Daily notes and journal capture
-- AI Integration via Model Context Protocol (MCP) *(HaruHunab1320 extension)*
+Raven Docs inherits the Raven Docs core licensed under AGPL 3.0. Enterprise features are under `packages/ee/License`.
 
-## API Integrations (HaruHunab1320 Extensions)
+## Contributing
 
-> **Note**: The following API integrations are extensions developed by HaruHunab1320 and are not part of the upstream Raven Docs project.
-
-### Master Control API (Internal)
-
-Raven Docs includes a JSON-RPC 2.0 API that powers the MCP standard service internally. It is not intended as a public endpoint. The MCP standard interface exposes the supported capabilities.
-
-- Managing spaces, pages, and comments
-- User and workspace administration
-- Group management
-- File uploads and attachments
-- UI navigation and control
-
-The MCP Standard API is the supported public interface for agents and automation tools.
-
-### Model Context Protocol (MCP) Integration
-
-This extension implements a bridge between Raven Docs and AI assistants using the Model Context Protocol.
-
-Raven Docs integrates with AI assistants through the [Model Context Protocol](https://modelcontextprotocol.ai/), allowing AI models to:
-
-- Create, read, update, and delete content
-- Get contextual information about workspaces, spaces, and pages
-- Interact with comments
-- Navigate the UI
-- Perform user management tasks
-
-This integration enables seamless AI-assisted workflows within your documentation and knowledge base.
-
-#### Using with Cursor
-
-Raven Docs exposes the standard MCP protocol directly at `/api/mcp-standard`, so no separate bridge process is required:
-
-1. Configure your Cursor settings to use the built-in MCP server:
-   ```json
-   {
-     "mcpServers": {
-       "raven-docs": {
-         "url": "http://localhost:3000/api/mcp-standard",
-         "apiKey": "your_api_key_here"
-       }
-     }
-   }
-   ```
-
-2. Create an API key for your Raven Docs server:
-   ```sh
-   ./register-mcp-api-key.sh "Cursor MCP"
-   ```
-
-3. Use the generated API key in your Cursor configuration.
-
-4. Start using tools directly from Cursor to interact with your Raven Docs content!
-
-#### Available MCP Tools
-
-The MCP Standard service provides the following tool categories:
-
-**Content Management**
-- `space_create`, `space_list`, `space_update`, `space_delete`: Manage spaces
-- `page_create`, `page_list`, `page_update`, `page_delete`, `page_move`: Manage pages
-- `comment_create`, `comment_list`, `comment_update`, `comment_delete`: Manage comments
-- `attachment_upload`, `attachment_list`, `attachment_get`, `attachment_download`, `attachment_delete`: Manage file attachments
-
-**User Management**
-- `user_list`, `user_get`, `user_update`: Manage users
-- `group_create`, `group_list`, `group_update`, `group_delete`, `group_addMember`, `group_removeMember`: Manage groups
-- `workspace_create`, `workspace_list`, `workspace_update`, `workspace_delete`, `workspace_addMember`, `workspace_removeMember`: Manage workspaces
-
-**UI Control**
-- `ui_navigate`: Navigate to specific destinations in the Raven Docs interface
-
-Each tool accepts specific parameters and can be called directly from AI assistants that support the Model Context Protocol.
-
-### Screenshots
-
-<p align="center">
-<img alt="home" src="https://raven-docs.local/screenshots/home.png" width="70%">
-<img alt="editor" src="https://raven-docs.local/screenshots/editor.png" width="70%">
-</p>
-
-### License
-Raven Docs inherits the Raven Docs core licensed under the open-source AGPL 3.0 license.  
-Enterprise features are available under an enterprise license (Enterprise Edition).  
-
-All files in the following directories are licensed under the Raven Docs Enterprise license defined in `packages/ee/License`.
-  - apps/server/src/ee
-  - apps/client/src/ee
-  - packages/ee
-
-### Contributing
-
-See the upstream [development documentation](https://raven-docs.local/docs/self-hosting/development)
+See `CONTRIBUTING.md` if present, and the docs above for architecture and workflows.

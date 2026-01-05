@@ -1,4 +1,4 @@
-import { Card, Group, Stack, Text } from "@mantine/core";
+import { Badge, Card, Group, Stack, Text } from "@mantine/core";
 
 type TraitMetric = {
   key: string;
@@ -10,6 +10,7 @@ type UserProfileMetricsProps = {
   traits: TraitMetric[];
   title?: string;
   subtitle?: string;
+  confidence?: "low" | "medium" | "high";
 };
 
 const MAX_SCORE = 10;
@@ -116,6 +117,7 @@ export function UserProfileMetrics({
   traits,
   title = "User traits",
   subtitle,
+  confidence,
 }: UserProfileMetricsProps) {
   const normalized = traits
     .map((trait) => ({ ...trait, value: clamp(trait.value) }))
@@ -125,7 +127,14 @@ export function UserProfileMetrics({
     <Card withBorder radius="md" p="md">
       <Stack gap="sm">
         <Stack gap={2}>
-          <Text fw={600}>{title}</Text>
+          <Group justify="space-between" align="center">
+            <Text fw={600}>{title}</Text>
+            {confidence ? (
+              <Badge color="gray" variant="light">
+                {confidence} confidence
+              </Badge>
+            ) : null}
+          </Group>
           {subtitle ? (
             <Text size="xs" c="dimmed">
               {subtitle}
