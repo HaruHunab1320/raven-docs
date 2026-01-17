@@ -2,6 +2,10 @@ import { useMemo } from "react";
 import { Card, Group, Stack, Text, Title, Badge } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
+import {
+  buildActivityStats,
+  formatDuration,
+} from "@/features/agent-memory/utils/activity-metrics";
 
 interface AgentMemoryInsightsProps {
   workspaceId: string;
@@ -26,6 +30,19 @@ export function AgentMemoryInsights({
         workspaceId,
         spaceId,
         from: since,
+        limit: 200,
+      }),
+    enabled: !!workspaceId,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ["memory-activity", workspaceId, spaceId, since],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId,
+        spaceId,
+        from: since,
+        sources: ["page.view", "project.view", "activity.view"],
         limit: 200,
       }),
     enabled: !!workspaceId,
@@ -59,6 +76,10 @@ export function AgentMemoryInsights({
         : "No memories captured this week.",
     };
   }, [memoriesQuery.data]);
+
+  const activityStats = useMemo(() => {
+    return buildActivityStats(activityQuery.data);
+  }, [activityQuery.data]);
 
   return (
     <Card withBorder radius="md" p="md">
@@ -98,6 +119,21 @@ export function AgentMemoryInsights({
         <Text size="sm" c="dimmed">
           {stats.summaryText}
         </Text>
+        <Stack gap={6}>
+          <Text size="xs" c="dimmed">
+            Active time
+          </Text>
+          <Group gap="xs">
+            <Badge variant="light" size="sm">
+              {formatDuration(activityStats.totalDurationMs)}
+            </Badge>
+            <Text size="xs" c="dimmed">
+              {activityStats.sessionCount
+                ? `${activityStats.sessionCount} sessions`
+                : "No activity yet"}
+            </Text>
+          </Group>
+        </Stack>
         <Stack gap={6}>
           <Text size="xs" c="dimmed">
             Top tags

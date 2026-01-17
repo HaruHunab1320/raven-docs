@@ -123,3 +123,15 @@ export interface MemoryProfileDistillParams {
   spaceId: string;
   userId?: string;
 }
+
+export interface MemoryActivityParams {
+  workspaceId: string;
+  spaceId?: string;
+  pageId?: string;
+  projectId?: string;
+  title?: string;
+  route?: string;
+  durationMs: number;
+  startedAt: string;
+  endedAt: string;
+}

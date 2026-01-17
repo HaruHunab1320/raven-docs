@@ -23,6 +23,10 @@ import { Task } from "../../../types";
 import { calculateMetrics } from "../metrics-utils";
 import { TaskStatusChart } from "./task-status-chart";
 import { MetricCard } from "./metric-card";
+import {
+  ActivityStats,
+  formatDuration,
+} from "@/features/agent-memory/utils/activity-metrics";
 
 // Define status and priority colors
 const statusColors = {
@@ -43,9 +47,16 @@ const priorityColors = {
 interface ProjectMetricsViewProps {
   tasks: Task[];
   users: any[];
+  activityStats?: ActivityStats;
+  activityStats7d?: ActivityStats;
 }
 
-export function ProjectMetricsView({ tasks, users }: ProjectMetricsViewProps) {
+export function ProjectMetricsView({
+  tasks,
+  users,
+  activityStats,
+  activityStats7d,
+}: ProjectMetricsViewProps) {
   const { t } = useTranslation();
 
   // Calculate metrics using the utility function
@@ -184,6 +195,27 @@ export function ProjectMetricsView({ tasks, users }: ProjectMetricsViewProps) {
           </Group>
 
           <Stack mt="md" gap="md">
+            {activityStats ? (
+              <div>
+                <Text>{t("Active time")}</Text>
+                <Group justify="space-between" mt={4}>
+                  <Text size="sm" c="dimmed">
+                    {t("Last 30 days")}
+                  </Text>
+                  <Badge color="indigo">
+                    {formatDuration(activityStats.totalDurationMs)}
+                  </Badge>
+                </Group>
+                <Group justify="space-between" mt={4}>
+                  <Text size="sm" c="dimmed">
+                    {t("Last 7 days")}
+                  </Text>
+                  <Badge color="indigo" variant="light">
+                    {formatDuration(activityStats7d?.totalDurationMs || 0)}
+                  </Badge>
+                </Group>
+              </div>
+            ) : null}
             <Group justify="space-between">
               <Text>{t("Completion Rate")}</Text>
               <Text fw={700} size="xl">

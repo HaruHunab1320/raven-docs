@@ -10,7 +10,7 @@ import {
   StorageDriver,
   StorageOption,
 } from '../interfaces';
-import { LocalDriver, S3Driver } from '../drivers';
+import { GcsDriver, LocalDriver, S3Driver } from '../drivers';
 import * as process from 'node:process';
 import { LOCAL_STORAGE_PATH } from '../../../common/helpers';
 import path from 'path';
@@ -21,6 +21,8 @@ function createStorageDriver(disk: StorageConfig): StorageDriver {
       return new LocalDriver(disk.config as LocalStorageConfig);
     case StorageOption.S3:
       return new S3Driver(disk.config as S3StorageConfig);
+    case StorageOption.GCS:
+      return new GcsDriver(disk.config);
     default:
       throw new Error(`Unknown storage driver`);
   }
@@ -69,6 +71,32 @@ export const storageDriverConfigProvider = {
         }
 
         return s3Config; }
+
+      case StorageOption.GCS: {
+        const keyFilename = environmentService.getGcsKeyFile();
+        const clientEmail = environmentService.getGcsClientEmail();
+        const rawPrivateKey = environmentService.getGcsPrivateKey();
+        const privateKey = rawPrivateKey?.replace(/\\n/g, '\n');
+
+        const gcsConfig = {
+          driver,
+          config: {
+            projectId: environmentService.getGcsProjectId(),
+            bucket: environmentService.getGcsBucket(),
+            baseUrl: environmentService.getGcsBaseUrl(),
+            keyFilename: keyFilename || undefined,
+            credentials:
+              !keyFilename && clientEmail && privateKey
+                ? {
+                    client_email: clientEmail,
+                    private_key: privateKey,
+                  }
+                : undefined,
+          },
+        };
+
+        return gcsConfig;
+      }
 
       default:
         throw new Error(`Unknown storage driver: ${driver}`);

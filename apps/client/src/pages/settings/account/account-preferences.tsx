@@ -1,6 +1,7 @@
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import AccountLanguage from "@/features/user/components/account-language.tsx";
 import AccountTheme from "@/features/user/components/account-theme.tsx";
+import ActivityTrackingPref from "@/features/user/components/activity-tracking-pref.tsx";
 import PageWidthPref from "@/features/user/components/page-width-pref.tsx";
 import { getAppName } from "@/lib/config.ts";
 import { Divider } from "@mantine/core";
@@ -28,6 +29,10 @@ export default function AccountPreferences() {
       <Divider my={"md"} />
 
       <PageWidthPref />
+
+      <Divider my={"md"} />
+
+      <ActivityTrackingPref />
     </>
   );
 }

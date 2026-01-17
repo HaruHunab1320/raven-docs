@@ -277,3 +277,42 @@ export class MemoryProfileDistillDto {
   @IsOptional()
   userId?: string;
 }
+
+export class MemoryActivityDto {
+  @IsUUID()
+  workspaceId: string;
+
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  pageId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  projectId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  route?: string;
+
+  @IsInt()
+  @Min(1)
+  durationMs: number;
+
+  @Type(() => Date)
+  @IsDate()
+  startedAt: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  endedAt: Date;
+}

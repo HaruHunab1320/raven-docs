@@ -52,8 +52,27 @@ export class EnvironmentVariables {
   RESEND_API_KEY: string;
 
   @IsOptional()
-  @IsIn(['local', 's3'])
+  @IsIn(['local', 's3', 'gcs'])
   STORAGE_DRIVER: string;
+
+  @ValidateIf((obj) => obj.STORAGE_DRIVER === 'gcs')
+  @IsNotEmpty()
+  GCS_BUCKET: string;
+
+  @IsOptional()
+  GCS_PROJECT_ID: string;
+
+  @IsOptional()
+  GCS_CLIENT_EMAIL: string;
+
+  @IsOptional()
+  GCS_PRIVATE_KEY: string;
+
+  @IsOptional()
+  GCS_KEY_FILE: string;
+
+  @IsOptional()
+  GCS_BASE_URL: string;
 
   @IsOptional()
   @ValidateIf((obj) => obj.COLLAB_URL != '' && obj.COLLAB_URL != null)

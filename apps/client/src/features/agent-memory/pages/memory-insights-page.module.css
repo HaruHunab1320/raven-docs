@@ -23,3 +23,78 @@
 .markdown :where(*:last-child) {
   margin-bottom: 0;
 }
+
+.planGraph {
+  position: relative;
+  padding: 0.75rem 0.25rem 0.25rem;
+}
+
+.planGraphLine {
+  position: absolute;
+  top: 1rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 1px;
+  background: var(--mantine-color-gray-3);
+}
+
+.planGraphNodes {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.planGraphNode {
+  display: flex;
+  flex: 1 1 0%;
+  min-width: 140px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.planGraphNode:hover .planGraphDot {
+  box-shadow: 0 0 0 3px var(--mantine-color-gray-2);
+}
+
+.planHistoryHighlight {
+  animation: planHistoryPulse 1.2s ease-out;
+}
+
+@keyframes planHistoryPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(66, 153, 225, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 153, 225, 0);
+  }
+}
+
+.planGraphDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 999px;
+  border: 2px solid var(--mantine-color-gray-3);
+  background: var(--mantine-color-gray-1);
+}
+
+.planGraphDot[data-status="pending"] {
+  border-color: var(--mantine-color-yellow-5);
+  background: var(--mantine-color-yellow-2);
+}
+
+.planGraphDot[data-status="rejected"] {
+  border-color: var(--mantine-color-red-5);
+  background: var(--mantine-color-red-2);
+}
+
+.planGraphDot[data-status="active"] {
+  border-color: var(--mantine-color-green-5);
+  background: var(--mantine-color-green-2);
+}

@@ -256,6 +256,10 @@ export class UserHandler {
         updateUserDto.fullPageWidth = params.fullPageWidth;
       }
 
+      if (params.enableActivityTracking !== undefined) {
+        updateUserDto.enableActivityTracking = params.enableActivityTracking;
+      }
+
       // Handle themeId preference
       if (params.themeId !== undefined) {
         updateUserDto.themeId = params.themeId;

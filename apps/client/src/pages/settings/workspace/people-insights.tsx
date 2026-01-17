@@ -21,6 +21,11 @@ import { getSpaces, getSpaceMembers } from "@/features/space/services/space-serv
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
 import { ISpaceMember } from "@/features/space/types/space.types";
 import { notifications } from "@mantine/notifications";
+import {
+  buildActivityStats,
+  formatDuration,
+  ActivityStats,
+} from "@/features/agent-memory/utils/activity-metrics";
 
 type TraitMetric = {
   key: string;
@@ -194,6 +199,31 @@ export default function PeopleInsights() {
     enabled: !!workspace?.id && !!spaceId,
   });
 
+  const activityRange = useMemo(() => {
+    const now = new Date();
+    const from30 = new Date(now);
+    from30.setDate(from30.getDate() - 30);
+    const from7 = new Date(now);
+    from7.setDate(from7.getDate() - 7);
+    return {
+      from30: from30.toISOString(),
+      from7: from7.toISOString(),
+    };
+  }, []);
+
+  const activityQuery = useQuery({
+    queryKey: ["space-activity", workspace?.id, spaceId],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspace?.id || "",
+        spaceId: spaceId || undefined,
+        sources: ["page.view", "project.view", "activity.view"],
+        from: activityRange.from30,
+        limit: 1000,
+      }),
+    enabled: !!workspace?.id && !!spaceId,
+  });
+
   useEffect(() => {
     if (spaceId) return;
     const fallback =
@@ -218,6 +248,52 @@ export default function PeopleInsights() {
     });
     return map;
   }, [profilesQuery.data]);
+
+  const activityStatsByUser = useMemo(() => {
+    const entries = activityQuery.data || [];
+    const map = new Map<string, ActivityStats>();
+    const grouped = new Map<string, typeof entries>();
+
+    entries.forEach((entry) => {
+      entry.tags?.forEach((tag) => {
+        if (!tag.startsWith("user:")) return;
+        const userId = tag.slice("user:".length);
+        const list = grouped.get(userId) || [];
+        list.push(entry);
+        grouped.set(userId, list);
+      });
+    });
+
+    grouped.forEach((userEntries, userId) => {
+      map.set(userId, buildActivityStats(userEntries));
+    });
+
+    return map;
+  }, [activityQuery.data]);
+
+  const activityStatsByUser7d = useMemo(() => {
+    const entries = activityQuery.data || [];
+    const cutoff = Date.parse(activityRange.from7);
+    const grouped = new Map<string, typeof entries>();
+
+    entries.forEach((entry) => {
+      const ts = new Date(entry.timestamp || 0).getTime();
+      if (!Number.isFinite(ts) || ts < cutoff) return;
+      entry.tags?.forEach((tag) => {
+        if (!tag.startsWith("user:")) return;
+        const userId = tag.slice("user:".length);
+        const list = grouped.get(userId) || [];
+        list.push(entry);
+        grouped.set(userId, list);
+      });
+    });
+
+    const map = new Map<string, ActivityStats>();
+    grouped.forEach((userEntries, userId) => {
+      map.set(userId, buildActivityStats(userEntries));
+    });
+    return map;
+  }, [activityQuery.data, activityRange.from7]);
 
   const members = ((membersQuery.data?.items || []) as ISpaceMember[])
     .filter((member) => member.type === "user")
@@ -277,6 +353,8 @@ export default function PeopleInsights() {
               (profile?.content as Record<string, any> | undefined)?.profile
                 ?.traits,
             );
+            const activityStats = activityStatsByUser.get(member.id);
+            const activityStats7d = activityStatsByUser7d.get(member.id);
             return (
               <Card key={member.id} withBorder radius="md" p="md">
                 <Stack gap="sm">
@@ -346,6 +424,27 @@ export default function PeopleInsights() {
                       {t("No trait signals yet")}
                     </Text>
                   )}
+                  <Stack gap={2}>
+                    <Text size="xs" c="dimmed">
+                      {t("Active time")}
+                    </Text>
+                    <Group justify="space-between">
+                      <Text size="sm" fw={600}>
+                        {formatDuration(activityStats?.totalDurationMs || 0)}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t("Last 30 days")}
+                      </Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="xs" c="dimmed">
+                        {formatDuration(activityStats7d?.totalDurationMs || 0)} {t("last 7 days")}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {activityStats?.sessionCount || 0} {t("sessions")}
+                      </Text>
+                    </Group>
+                  </Stack>
                 </Stack>
               </Card>
             );

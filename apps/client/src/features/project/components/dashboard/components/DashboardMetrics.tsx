@@ -15,9 +15,14 @@ import {
   IconAlertCircle,
   IconCalendarTime,
   IconChevronRight,
+  IconClock,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import {
+  ActivityStats,
+  formatDuration,
+} from "@/features/agent-memory/utils/activity-metrics";
 
 interface TaskStats {
   totalTasks: number;
@@ -36,6 +41,8 @@ interface DashboardMetricsProps {
   projectCount: number;
   spaceId?: string;
   projectId?: string;
+  activityStats?: ActivityStats;
+  activityStats7d?: ActivityStats;
 }
 
 export function DashboardMetrics({
@@ -43,6 +50,8 @@ export function DashboardMetrics({
   projectCount,
   spaceId,
   projectId,
+  activityStats,
+  activityStats7d,
 }: DashboardMetricsProps) {
   const { t } = useTranslation();
   const theme = useMantineTheme();
@@ -212,6 +221,38 @@ export function DashboardMetrics({
           </Text>
         </Box>
       </Card>
+
+      {activityStats ? (
+        <Card withBorder p="md" radius="md">
+          <Group justify="space-between">
+            <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+              {t("Active time")}
+            </Text>
+            <Group gap="xs">
+              <IconClock size={20} color={theme.colors.indigo[6]} />
+            </Group>
+          </Group>
+          <Group justify="space-between" mt="xs">
+            <Text size="xl" fw={700}>
+              {formatDuration(activityStats.totalDurationMs)}
+            </Text>
+            <Badge color="indigo" variant="light">
+              {activityStats.sessionCount} {t("sessions")}
+            </Badge>
+          </Group>
+          <Text size="xs" c="dimmed" mt="md">
+            <span>
+              {formatDuration(activityStats7d?.totalDurationMs || 0)}{" "}
+              {t("last 7 days")}
+            </span>
+          </Text>
+          {activityStats.topProjects[0] ? (
+            <Text size="xs" c="dimmed" mt="xs">
+              {t("Top project")}: {activityStats.topProjects[0].title || t("Untitled")}
+            </Text>
+          ) : null}
+        </Card>
+      ) : null}
     </SimpleGrid>
   );
 }

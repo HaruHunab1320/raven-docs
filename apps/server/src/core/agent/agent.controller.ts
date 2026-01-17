@@ -16,6 +16,7 @@ import { AgentChatDto } from './agent-chat.dto';
 import { AgentService } from './agent.service';
 import { AgentPlannerService } from './agent-planner.service';
 import { AgentPlanDto } from './agent-plan.dto';
+import { AgentPlanDecisionDto } from './agent-plan-decision.dto';
 import { AgentLoopService } from './agent-loop.service';
 import { AgentLoopDto } from './agent-loop.dto';
 import { AgentHandoffDto } from './agent-handoff.dto';
@@ -142,6 +143,47 @@ export class AgentController {
     return this.agentPlannerService.generatePlanForSpaceId(dto.spaceId, {
       id: workspace.id,
       settings: workspace.settings,
+    }, dto.horizon || 'daily');
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('plan/cascade')
+  async planCascade(
+    @Body() dto: AgentPlanDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentPlannerService.runPlanningCascadeForSpaceId(dto.spaceId, {
+      id: workspace.id,
+      settings: workspace.settings,
+    });
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('plan/approve')
+  async approvePlan(
+    @Body() dto: AgentPlanDecisionDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentPlannerService.approvePlan(dto.planId, {
+      workspaceId: workspace.id,
+      spaceId: dto.spaceId,
+      userId: user.id,
+    });
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('plan/reject')
+  async rejectPlan(
+    @Body() dto: AgentPlanDecisionDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentPlannerService.rejectPlan(dto.planId, {
+      workspaceId: workspace.id,
+      spaceId: dto.spaceId,
+      userId: user.id,
+      reason: dto.reason,
     });
   }
 

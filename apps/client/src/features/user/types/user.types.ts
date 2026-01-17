@@ -20,6 +20,7 @@ export interface IUser {
   deletedAt: Date;
   fullPageWidth: boolean; // used for update
   themeId?: string; // used for update
+  enableActivityTracking?: boolean; // used for update
 }
 
 export interface ICurrentUser {
@@ -31,5 +32,6 @@ export interface IUserSettings {
   preferences: {
     fullPageWidth: boolean;
     themeId?: string;
+    enableActivityTracking?: boolean;
   };
 }

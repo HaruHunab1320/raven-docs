@@ -15,6 +15,7 @@ import Aside from "@/components/layouts/global/aside.tsx";
 import classes from "./app-shell.module.css";
 import { useTrialEndAction } from "@/ee/hooks/use-trial-end-action.tsx";
 import { AgentChatDrawer } from "@/features/agent/components/agent-chat-drawer";
+import { ActivityTracker } from "@/features/agent-memory/components/activity-tracker";
 import { PageTabsBar } from "@/components/layouts/global/page-tabs-bar";
 import { useMediaQuery } from "@mantine/hooks";
 import { AttachmentPreviewModal } from "@/features/attachment/components/attachment-preview-modal";
@@ -150,6 +151,7 @@ export default function GlobalAppShell({
         </AppShell.Aside>
       )}
       <AgentChatDrawer />
+      <ActivityTracker />
       <AttachmentPreviewModal />
     </AppShell>
   );

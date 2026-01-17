@@ -8,6 +8,7 @@ export interface AgentSettings {
   enableDailySummary: boolean;
   enableAutoTriage: boolean;
   enableMemoryAutoIngest: boolean;
+  enableActivityTracking: boolean;
   enableGoalAutoLink: boolean;
   enablePlannerLoop: boolean;
   enableProactiveQuestions: boolean;
@@ -50,6 +51,7 @@ export const defaultAgentSettings: AgentSettings = {
   enableDailySummary: true,
   enableAutoTriage: true,
   enableMemoryAutoIngest: true,
+  enableActivityTracking: true,
   enableGoalAutoLink: true,
   enablePlannerLoop: true,
   enableProactiveQuestions: true,

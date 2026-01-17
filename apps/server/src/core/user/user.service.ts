@@ -88,6 +88,14 @@ export class UserService {
       );
     }
 
+    if (typeof updateUserDto.enableActivityTracking !== 'undefined') {
+      return this.userRepo.updatePreference(
+        userId,
+        'enableActivityTracking',
+        updateUserDto.enableActivityTracking,
+      );
+    }
+
     if (updateUserDto.name) {
       user.name = updateUserDto.name;
     }

@@ -111,6 +111,7 @@ export function AgentSettingsPanel() {
         enableDailySummary: true,
         enableAutoTriage: true,
         enableMemoryAutoIngest: true,
+        enableActivityTracking: true,
         enableGoalAutoLink: true,
         enablePlannerLoop: true,
         enableProactiveQuestions: true,
@@ -323,6 +324,12 @@ export function AgentSettingsPanel() {
             label={toLabel("Auto-ingest memories")}
             checked={currentSettings.enableMemoryAutoIngest}
             onChange={handleToggle("enableMemoryAutoIngest")}
+            disabled={!isAdmin}
+          />
+          <Switch
+            label={toLabel("Track active time")}
+            checked={currentSettings.enableActivityTracking}
+            onChange={handleToggle("enableActivityTracking")}
             disabled={!isAdmin}
           />
           <Switch

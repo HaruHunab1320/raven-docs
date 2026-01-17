@@ -6,16 +6,27 @@ import { AIService } from '../../integrations/ai/ai.service';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
 import { TaskService } from '../project/services/task.service';
 import { resolveAgentSettings } from './agent-settings';
+import { AgentReviewPromptsService } from './agent-review-prompts.service';
+
+type PlanHorizon = 'long' | 'mid' | 'short' | 'daily';
 
 @Injectable()
 export class AgentPlannerService {
   private readonly logger = new Logger(AgentPlannerService.name);
+
+  private readonly horizonDays: Record<string, number> = {
+    long: 90,
+    mid: 30,
+    short: 7,
+    daily: 1,
+  };
 
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     private readonly aiService: AIService,
     private readonly memoryService: AgentMemoryService,
     private readonly taskService: TaskService,
+    private readonly reviewPromptService: AgentReviewPromptsService,
   ) {}
 
   private getAgentModel() {
@@ -62,12 +73,165 @@ export class AgentPlannerService {
       .join('; ');
   }
 
+  private getWeekKey(date = new Date()) {
+    const firstDay = new Date(date.getFullYear(), 0, 1);
+    const dayOffset = firstDay.getDay() || 7;
+    const weekStart = new Date(firstDay);
+    weekStart.setDate(firstDay.getDate() + (7 - dayOffset));
+    const diff =
+      date.getTime() -
+      new Date(
+        weekStart.getFullYear(),
+        weekStart.getMonth(),
+        weekStart.getDate(),
+      ).getTime();
+    const weekNumber = Math.ceil((diff / (1000 * 60 * 60 * 24) + 1) / 7);
+    return `${date.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+  }
+
+  private summarizePlanDiff(previousText?: string, nextText?: string) {
+    if (!nextText) {
+      return {
+        summary: 'Plan unavailable.',
+        metrics: { added: 0, removed: 0, changeRatio: 0, significance: 'none' },
+      };
+    }
+
+    if (!previousText) {
+      return {
+        summary: 'New plan generated.',
+        metrics: { added: 0, removed: 0, changeRatio: 1, significance: 'new' },
+      };
+    }
+
+    const normalize = (text: string) =>
+      text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const prevLines = normalize(previousText);
+    const nextLines = normalize(nextText);
+
+    const prevSet = new Set(prevLines);
+    const nextSet = new Set(nextLines);
+
+    const added = nextLines.filter((line) => !prevSet.has(line));
+    const removed = prevLines.filter((line) => !nextSet.has(line));
+    const base = Math.max(prevLines.length, nextLines.length, 1);
+    const changeRatio = (added.length + removed.length) / base;
+    const significance =
+      changeRatio >= 0.35
+        ? 'major'
+        : changeRatio >= 0.15
+          ? 'moderate'
+          : 'minor';
+
+    const summary = `Changes: +${added.length}/-${removed.length} (${significance}).`;
+    return {
+      summary,
+      metrics: {
+        added: added.length,
+        removed: removed.length,
+        changeRatio: Number(changeRatio.toFixed(2)),
+        significance,
+        addedSamples: added.slice(0, 3),
+        removedSamples: removed.slice(0, 3),
+      },
+    };
+  }
+
+  private getHorizonWindowDays(horizon: PlanHorizon) {
+    return this.horizonDays[horizon] || 1;
+  }
+
+  private getHorizonLabel(horizon: PlanHorizon) {
+    switch (horizon) {
+      case 'long':
+        return 'Quarterly';
+      case 'mid':
+        return 'Monthly';
+      case 'short':
+        return 'Weekly';
+      case 'daily':
+      default:
+        return 'Daily';
+    }
+  }
+
+  private async getLatestPlanMemory(
+    workspaceId: string,
+    spaceId: string,
+    horizon: PlanHorizon,
+  ) {
+    const entries = await this.memoryService.queryMemories(
+      {
+        workspaceId,
+        spaceId,
+        tags: [`plan:${horizon}`],
+        sources: ['agent-plan'],
+        limit: 1,
+      },
+      undefined,
+    );
+    return entries[0];
+  }
+
+  private isPlanFresh(memory: any, horizon: PlanHorizon) {
+    if (!memory?.timestamp) return false;
+    const last = new Date(memory.timestamp).getTime();
+    if (!Number.isFinite(last)) return false;
+    const windowDays = this.getHorizonWindowDays(horizon);
+    const maxAge = windowDays * 24 * 60 * 60 * 1000;
+    return Date.now() - last < maxAge;
+  }
+
+  private buildPlanPrompt(context: {
+    spaceName: string;
+    horizon: PlanHorizon;
+    goalsSummary: string;
+    triageSummary: string;
+    memorySummary: string;
+    profileContext?: string;
+    upstreamSummary?: string;
+    priorSummary?: string;
+  }) {
+    const horizonLabel = this.getHorizonLabel(context.horizon);
+    const focusLine =
+      context.horizon === 'long'
+        ? 'Define strategic outcomes, themes, and major milestones for the next quarter.'
+        : context.horizon === 'mid'
+          ? 'Define monthly objectives, milestones, and key risks.'
+          : context.horizon === 'short'
+            ? 'Define weekly priorities, commitments, and sequencing.'
+            : 'Define today’s focus, plan, and timebox.';
+
+    return [
+      `You are Raven Docs' planning agent.`,
+      `Space: ${context.spaceName}`,
+      `${horizonLabel} planning.`,
+      focusLine,
+      `Goals: ${context.goalsSummary || 'none'}.`,
+      `Triage: ${context.triageSummary}.`,
+      `Recent context: ${context.memorySummary || 'none'}.`,
+      context.profileContext ? `User profile: ${context.profileContext}.` : null,
+      context.upstreamSummary
+        ? `Upstream plan summary: ${context.upstreamSummary}.`
+        : null,
+      context.priorSummary
+        ? `Previous ${horizonLabel.toLowerCase()} plan: ${context.priorSummary}.`
+        : null,
+      `Return markdown with sections: Focus, Plan, Next Actions, Timebox, Risks.`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
   async generatePlanForSpace(space: {
     id: string;
     name: string;
     workspaceId: string;
     settings?: any;
-  }) {
+  }, horizon: PlanHorizon = 'daily', options?: { cascadeFrom?: PlanHorizon }) {
     const settings = resolveAgentSettings(space.settings);
     if (!settings.enabled || !settings.enablePlannerLoop) {
       return null;
@@ -125,21 +289,40 @@ export class AgentPlannerService {
           .join(', ')
       : '';
 
-    const planPrompt = [
-      `You are Raven Docs' planning agent.`,
-      `Space: ${space.name}`,
-      `Generate a short plan for today with priorities, next actions, and a timebox suggestion.`,
-      `Triage counts: inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}.`,
-      `Overdue: ${triage.overdue.map((task) => task.title).join(', ') || 'none'}.`,
-      `Due today: ${triage.dueToday.map((task) => task.title).join(', ') || 'none'}.`,
-      goalFocusSummary ? `Goal focus: ${goalFocusSummary}.` : null,
-      `Goals: ${goalSummary || 'none'}.`,
-      `Recent context: ${memorySummary || 'none'}.`,
-      profileContext ? `User profile: ${profileContext}.` : null,
-      `Return markdown with sections: Focus, Plan, Next Actions, Timebox, Risks.`,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    const priorPlanMemory = await this.getLatestPlanMemory(
+      space.workspaceId,
+      space.id,
+      horizon,
+    );
+    const priorPlanText =
+      (priorPlanMemory?.content as { text?: string } | undefined)?.text || '';
+    const priorSummary = priorPlanMemory?.summary
+      ? String(priorPlanMemory.summary).slice(0, 300)
+      : '';
+    const upstreamSummary = options?.cascadeFrom
+      ? String(
+          (
+            await this.getLatestPlanMemory(
+              space.workspaceId,
+              space.id,
+              options.cascadeFrom,
+            )
+          )?.summary || '',
+        ).slice(0, 300)
+      : '';
+
+    const planPrompt = this.buildPlanPrompt({
+      spaceName: space.name,
+      horizon,
+      goalsSummary: goalSummary,
+      triageSummary: `inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}, overdue=${triage.overdue.length}, dueToday=${triage.dueToday.length}${
+        goalFocusSummary ? `, goalFocus=${goalFocusSummary}` : ''
+      }`,
+      memorySummary,
+      profileContext: profileContext || undefined,
+      upstreamSummary: upstreamSummary || undefined,
+      priorSummary: priorSummary || undefined,
+    });
 
     let planText = 'Plan unavailable.';
     try {
@@ -156,16 +339,52 @@ export class AgentPlannerService {
       );
     }
 
-    await this.memoryService.ingestMemory({
+    const horizonLabel = this.getHorizonLabel(horizon);
+    const changeSummary = this.summarizePlanDiff(priorPlanText, planText);
+    const status =
+      horizon === 'long' || horizon === 'mid' ? 'pending' : 'active';
+
+    const planRecord = await this.memoryService.ingestMemory({
       workspaceId: space.workspaceId,
       spaceId: space.id,
       source: 'agent-plan',
-      summary: `Daily plan for ${space.name}`,
-      content: { text: planText },
-      tags: ['agent', 'plan'],
+      summary: `${horizonLabel} plan for ${space.name}`,
+      content: {
+        text: planText,
+        horizon,
+        cascadeFrom: options?.cascadeFrom || null,
+        windowDays: this.getHorizonWindowDays(horizon),
+        status,
+        changeSummary: changeSummary.summary,
+        changeMetrics: changeSummary.metrics,
+        previousPlanId: priorPlanMemory?.id || null,
+      },
+      tags: [
+        'agent',
+        'plan',
+        `plan:${horizon}`,
+        `plan-status:${status}`,
+      ],
     });
 
-    if (settings.enableProactiveQuestions) {
+    if (status === 'pending') {
+      const prompt = `${horizonLabel} plan update for ${space.name}. ${changeSummary.summary} Review and confirm adjustments.`;
+      await this.reviewPromptService.createPrompts({
+        workspaceId: space.workspaceId,
+        spaceId: space.id,
+        weekKey: this.getWeekKey(new Date()),
+        questions: [prompt],
+        source: 'plan-cascade',
+        metadata: {
+          planId: planRecord.id,
+          horizon,
+          status,
+          changeSummary: changeSummary.summary,
+        },
+      });
+    }
+
+    if (settings.enableProactiveQuestions && horizon === 'daily') {
       const questionPrompt = [
         `You are Raven Docs' proactive assistant.`,
         `Suggest 3-5 concise questions to clarify priorities or unblock work.`,
@@ -209,10 +428,157 @@ export class AgentPlannerService {
     return planText;
   }
 
-  async generatePlanForSpaceId(spaceId: string, workspace: {
+  async runPlanningCascade(space: {
     id: string;
+    name: string;
+    workspaceId: string;
     settings?: any;
   }) {
+    const settings = resolveAgentSettings(space.settings);
+    if (!settings.enabled || !settings.enablePlannerLoop) {
+      return null;
+    }
+
+    const horizons: PlanHorizon[] = ['long', 'mid', 'short', 'daily'];
+    const refreshed: Record<PlanHorizon, boolean> = {
+      long: false,
+      mid: false,
+      short: false,
+      daily: false,
+    };
+
+    for (const horizon of horizons) {
+      const latest = await this.getLatestPlanMemory(
+        space.workspaceId,
+        space.id,
+        horizon,
+      );
+      const isFresh = this.isPlanFresh(latest, horizon);
+      const upstream =
+        horizon === 'mid'
+          ? 'long'
+          : horizon === 'short'
+            ? 'mid'
+            : horizon === 'daily'
+              ? 'short'
+              : null;
+      const shouldRefresh =
+        !isFresh ||
+        (upstream && refreshed[upstream as PlanHorizon] === true);
+
+      if (!shouldRefresh) {
+        continue;
+      }
+
+      await this.generatePlanForSpace(space, horizon, {
+        cascadeFrom: upstream as PlanHorizon | undefined,
+      });
+      refreshed[horizon] = true;
+    }
+
+    return refreshed;
+  }
+
+  async approvePlan(
+    planId: string,
+    input: { workspaceId: string; spaceId?: string; userId?: string },
+  ) {
+    const record = await this.memoryService.getMemoryById(
+      input.workspaceId,
+      planId,
+    );
+    if (!record) return null;
+    if (input.spaceId && record.spaceId !== input.spaceId) return null;
+
+    const content = (record.content || {}) as Record<string, any>;
+    const nextContent = {
+      ...content,
+      status: 'active',
+      approvedAt: new Date().toISOString(),
+      approvedBy: input.userId || null,
+    };
+    const tags = (record.tags as string[] | null) || [];
+    const nextTags = [
+      ...tags.filter((tag) => !tag.startsWith('plan-status:')),
+      'plan-status:active',
+    ];
+
+    await this.memoryService.updateMemory({
+      id: planId,
+      workspaceId: input.workspaceId,
+      content: nextContent,
+      tags: nextTags,
+    });
+
+    await this.memoryService.ingestMemory({
+      workspaceId: input.workspaceId,
+      spaceId: record.spaceId || undefined,
+      source: 'plan-approval',
+      summary: `Plan approved`,
+      content: {
+        planId,
+        horizon: content.horizon,
+        status: 'active',
+      },
+      tags: ['agent', 'plan', 'plan-approval'],
+    });
+
+    return { id: planId, status: 'active' };
+  }
+
+  async rejectPlan(
+    planId: string,
+    input: { workspaceId: string; spaceId?: string; userId?: string; reason?: string },
+  ) {
+    const record = await this.memoryService.getMemoryById(
+      input.workspaceId,
+      planId,
+    );
+    if (!record) return null;
+    if (input.spaceId && record.spaceId !== input.spaceId) return null;
+
+    const content = (record.content || {}) as Record<string, any>;
+    const nextContent = {
+      ...content,
+      status: 'rejected',
+      rejectedAt: new Date().toISOString(),
+      rejectedBy: input.userId || null,
+      rejectionReason: input.reason || null,
+    };
+    const tags = (record.tags as string[] | null) || [];
+    const nextTags = [
+      ...tags.filter((tag) => !tag.startsWith('plan-status:')),
+      'plan-status:rejected',
+    ];
+
+    await this.memoryService.updateMemory({
+      id: planId,
+      workspaceId: input.workspaceId,
+      content: nextContent,
+      tags: nextTags,
+    });
+
+    await this.memoryService.ingestMemory({
+      workspaceId: input.workspaceId,
+      spaceId: record.spaceId || undefined,
+      source: 'plan-approval',
+      summary: `Plan rejected`,
+      content: {
+        planId,
+        horizon: content.horizon,
+        status: 'rejected',
+        reason: input.reason || null,
+      },
+      tags: ['agent', 'plan', 'plan-rejection'],
+    });
+
+    return { id: planId, status: 'rejected' };
+  }
+
+  async runPlanningCascadeForSpaceId(
+    spaceId: string,
+    workspace: { id: string; settings?: any },
+  ) {
     const space = await this.db
       .selectFrom('spaces')
       .select(['id', 'name', 'workspaceId'])
@@ -224,12 +590,38 @@ export class AgentPlannerService {
       return null;
     }
 
-    return this.generatePlanForSpace({
+    return this.runPlanningCascade({
       id: space.id,
       name: space.name,
       workspaceId: space.workspaceId,
       settings: workspace.settings,
     });
+  }
+
+  async generatePlanForSpaceId(spaceId: string, workspace: {
+    id: string;
+    settings?: any;
+  }, horizon: PlanHorizon = 'daily') {
+    const space = await this.db
+      .selectFrom('spaces')
+      .select(['id', 'name', 'workspaceId'])
+      .where('id', '=', spaceId)
+      .where('workspaceId', '=', workspace.id)
+      .executeTakeFirst();
+
+    if (!space) {
+      return null;
+    }
+
+    return this.generatePlanForSpace(
+      {
+      id: space.id,
+      name: space.name,
+      workspaceId: space.workspaceId,
+      settings: workspace.settings,
+      },
+      horizon,
+    );
   }
 
   @Cron('0 8,14 * * *')
@@ -259,7 +651,7 @@ export class AgentPlannerService {
 
     for (const space of spaces) {
       try {
-        await this.generatePlanForSpace(space);
+        await this.runPlanningCascade(space);
       } catch (error: any) {
         this.logger.warn(
           `Planner loop failed for space ${space.id}: ${error?.message || String(error)}`,

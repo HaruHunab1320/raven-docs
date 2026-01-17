@@ -20,4 +20,8 @@ export class UpdateUserDto extends PartialType(
   @IsOptional()
   @IsString()
   themeId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enableActivityTracking: boolean;
 }

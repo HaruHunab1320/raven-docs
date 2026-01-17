@@ -210,6 +210,94 @@ export class AgentMemoryService {
     };
   }
 
+  async getMemoryById(workspaceId: string, id: string) {
+    return this.db
+      .selectFrom('agentMemories')
+      .select([
+        'id',
+        'workspaceId',
+        'spaceId',
+        'creatorId',
+        'source',
+        'summary',
+        'content',
+        'tags',
+        'createdAt',
+      ])
+      .where('id', '=', id)
+      .where('workspaceId', '=', workspaceId)
+      .executeTakeFirst();
+  }
+
+  async updateMemory(input: {
+    id: string;
+    workspaceId: string;
+    summary?: string | null;
+    content?: any;
+    tags?: string[];
+  }) {
+    const existing = await this.getMemoryById(input.workspaceId, input.id);
+    if (!existing) return null;
+
+    const nextContent =
+      input.content === undefined ? existing.content : input.content;
+    const nextTags =
+      input.tags === undefined
+        ? (existing.tags as string[] | null) || []
+        : input.tags;
+    const nextSummary =
+      input.summary === undefined ? existing.summary : input.summary;
+
+    const normalizedContent = this.normalizeJsonValue(nextContent);
+    const contentJson =
+      normalizedContent === null
+        ? null
+        : (sql`${this.safeJsonStringify(normalizedContent)}::jsonb` as unknown as any);
+    const tagsJson = sql`${this.safeJsonStringify(nextTags || [])}::jsonb` as unknown as any;
+
+    await this.db
+      .updateTable('agentMemories')
+      .set({
+        summary: nextSummary,
+        content: contentJson,
+        tags: tagsJson,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', input.id)
+      .where('workspaceId', '=', input.workspaceId)
+      .execute();
+
+    const session = this.memgraph.getSession();
+    try {
+      await session.run(
+        `
+        MATCH (m:Memory {id: $id})
+        SET m.tags = $tags,
+            m.summary = $summary
+        `,
+        {
+          id: input.id,
+          tags: nextTags || [],
+          summary: nextSummary || existing.summary || null,
+        },
+      );
+    } finally {
+      await session.close();
+    }
+
+    return {
+      id: existing.id,
+      workspaceId: existing.workspaceId,
+      spaceId: existing.spaceId,
+      creatorId: existing.creatorId,
+      source: existing.source,
+      summary: nextSummary,
+      content: nextContent,
+      tags: nextTags || [],
+      timestamp: existing.createdAt,
+    } as MemoryRecord;
+  }
+
   async deleteMemories(
     filters: MemoryQueryFilters,
     contentPrefixes: string[] = [],

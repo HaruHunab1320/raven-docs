@@ -20,12 +20,14 @@ import {
   MemoryGraphDto,
   MemoryIngestDto,
   MemoryLinksDto,
+  MemoryActivityDto,
   MemoryDeleteDto,
   MemoryProfileDistillDto,
   MemoryQueryDto,
 } from './dto/memory.dto';
 import { AgentMemoryService } from './agent-memory.service';
 import { AgentProfileService } from './agent-profile.service';
+import { resolveAgentSettings } from '../agent/agent-settings';
 
 @UseGuards(JwtAuthGuard)
 @Controller('memory')
@@ -56,6 +58,75 @@ export class AgentMemoryController {
       tags: dto.tags,
       timestamp: dto.timestamp,
       entities: dto.entities,
+    });
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('activity')
+  async activity(
+    @Body() dto: MemoryActivityDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    if (dto.workspaceId !== workspace.id) {
+      throw new ForbiddenException('Workspace mismatch');
+    }
+
+    const agentSettings = resolveAgentSettings(workspace.settings);
+    const userSettings =
+      user.settings && typeof user.settings === 'object'
+        ? (user.settings as { preferences?: { enableActivityTracking?: boolean } })
+        : undefined;
+    const userPref = userSettings?.preferences?.enableActivityTracking;
+    if (
+      !agentSettings.enabled ||
+      !agentSettings.enableActivityTracking ||
+      userPref === false
+    ) {
+      return { status: 'skipped' };
+    }
+
+    if (dto.durationMs < 10_000) {
+      return { status: 'ignored' };
+    }
+
+    const contextLabel = dto.title || dto.pageId || dto.projectId || 'activity';
+    const summary =
+      dto.pageId || dto.projectId
+        ? `Viewed ${contextLabel}`
+        : `Active session: ${contextLabel}`;
+
+    const tags = ['activity', 'view', 'user', `user:${user.id}`];
+    if (dto.pageId) {
+      tags.push('page', `page:${dto.pageId}`);
+    }
+    if (dto.projectId) {
+      tags.push('project', `project:${dto.projectId}`);
+    }
+
+    const source = dto.pageId
+      ? 'page.view'
+      : dto.projectId
+        ? 'project.view'
+        : 'activity.view';
+
+    return this.memoryService.ingestMemory({
+      workspaceId: workspace.id,
+      spaceId: dto.spaceId,
+      creatorId: user.id,
+      source,
+      summary,
+      tags,
+      timestamp: dto.endedAt,
+      content: {
+        pageId: dto.pageId,
+        projectId: dto.projectId,
+        title: dto.title,
+        route: dto.route,
+        durationMs: dto.durationMs,
+        startedAt: dto.startedAt,
+        endedAt: dto.endedAt,
+      },
     });
   }
 

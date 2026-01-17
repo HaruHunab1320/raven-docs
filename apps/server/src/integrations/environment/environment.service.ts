@@ -99,6 +99,30 @@ export class EnvironmentService {
     return this.configService.get<string>('AWS_S3_URL');
   }
 
+  getGcsProjectId(): string {
+    return this.configService.get<string>('GCS_PROJECT_ID');
+  }
+
+  getGcsBucket(): string {
+    return this.configService.get<string>('GCS_BUCKET');
+  }
+
+  getGcsClientEmail(): string {
+    return this.configService.get<string>('GCS_CLIENT_EMAIL');
+  }
+
+  getGcsPrivateKey(): string {
+    return this.configService.get<string>('GCS_PRIVATE_KEY');
+  }
+
+  getGcsKeyFile(): string {
+    return this.configService.get<string>('GCS_KEY_FILE');
+  }
+
+  getGcsBaseUrl(): string {
+    return this.configService.get<string>('GCS_BASE_URL');
+  }
+
   getMailDriver(): string {
     return this.configService.get<string>('MAIL_DRIVER', 'log');
   }

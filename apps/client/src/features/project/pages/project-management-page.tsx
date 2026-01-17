@@ -31,6 +31,12 @@ import APP_ROUTE from "@/lib/app-route";
 import { usePageTabs } from "@/features/page/hooks/use-page-tabs";
 import { BreadcrumbBar } from "@/features/page/components/breadcrumbs/breadcrumb-bar";
 import breadcrumbClasses from "@/features/page/components/breadcrumbs/breadcrumb.module.css";
+import { useQuery } from "@tanstack/react-query";
+import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
+import {
+  buildActivityStats,
+  ActivityStats,
+} from "@/features/agent-memory/utils/activity-metrics";
 
 export function ProjectManagementPage() {
   const { t } = useTranslation();
@@ -71,6 +77,46 @@ export function ProjectManagementPage() {
     taskDistributionByOwner,
     isLoading,
   } = useDashboardData({ spaceId });
+
+  const activityRange = useMemo(() => {
+    const now = new Date();
+    const from30 = new Date(now);
+    from30.setDate(from30.getDate() - 30);
+    const from7 = new Date(now);
+    from7.setDate(from7.getDate() - 7);
+    return {
+      from30: from30.toISOString(),
+      from7: from7.toISOString(),
+    };
+  }, []);
+
+  const spaceActivityQuery = useQuery({
+    queryKey: ["space-activity", workspaceData?.id, spaceId],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspaceData?.id || "",
+        spaceId: spaceId || undefined,
+        sources: ["page.view", "project.view", "activity.view"],
+        from: activityRange.from30,
+        limit: 500,
+      }),
+    enabled: !!workspaceData?.id && !!spaceId,
+  });
+
+  const spaceActivityStats = useMemo<ActivityStats>(
+    () => buildActivityStats(spaceActivityQuery.data),
+    [spaceActivityQuery.data],
+  );
+
+  const spaceActivityStats7d = useMemo<ActivityStats>(() => {
+    const entries = spaceActivityQuery.data || [];
+    const cutoff = Date.parse(activityRange.from7);
+    const filtered = entries.filter((entry) => {
+      const ts = new Date(entry.timestamp || 0).getTime();
+      return Number.isFinite(ts) && ts >= cutoff;
+    });
+    return buildActivityStats(filtered);
+  }, [spaceActivityQuery.data, activityRange.from7]);
 
   // Monitor URL for project ID
   useEffect(() => {
@@ -210,6 +256,8 @@ export function ProjectManagementPage() {
               taskStats={taskStats}
               projectCount={projects.length}
               spaceId={spaceId}
+              activityStats={spaceActivityStats}
+              activityStats7d={spaceActivityStats7d}
             />
           </Box>
           <Box mt="xl">

@@ -46,8 +46,31 @@ export async function getAgentChatContext(params: {
 
 export async function runAgentPlan(params: {
   spaceId: string;
+  horizon?: "daily" | "short" | "mid" | "long";
 }): Promise<{ plan?: string | null }> {
   const req = await api.post("/agent/plan", params);
+  return req.data;
+}
+
+export async function runAgentPlanCascade(params: { spaceId: string }) {
+  const req = await api.post("/agent/plan/cascade", params);
+  return req.data;
+}
+
+export async function approveAgentPlan(params: {
+  spaceId: string;
+  planId: string;
+}) {
+  const req = await api.post("/agent/plan/approve", params);
+  return req.data;
+}
+
+export async function rejectAgentPlan(params: {
+  spaceId: string;
+  planId: string;
+  reason?: string;
+}) {
+  const req = await api.post("/agent/plan/reject", params);
   return req.data;
 }
 
@@ -98,6 +121,22 @@ export async function consumeWeeklyReviewPrompts(params: {
   }>
 > {
   const req = await api.post("/agent/review-prompts/consume", params);
+  return req.data;
+}
+
+export async function listReviewPrompts(params: {
+  spaceId: string;
+  weekKey?: string;
+}): Promise<
+  Array<{
+    id: string;
+    question: string;
+    weekKey: string;
+    createdAt: string;
+    source?: string | null;
+  }>
+> {
+  const req = await api.post("/agent/review-prompts/list", params);
   return req.data;
 }
 

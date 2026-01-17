@@ -8,6 +8,7 @@ export interface AgentSettings {
   enableDailySummary: boolean;
   enableAutoTriage: boolean;
   enableMemoryAutoIngest: boolean;
+  enableActivityTracking: boolean;
   enableGoalAutoLink: boolean;
   enablePlannerLoop: boolean;
   enableProactiveQuestions: boolean;

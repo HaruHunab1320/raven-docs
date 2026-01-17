@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Card,
+  Collapse,
   Container,
   Drawer,
   Group,
@@ -29,7 +30,13 @@ import { agentMemoryService } from "@/features/agent-memory/services/agent-memor
 import { useAtom } from "jotai";
 import { userAtom, workspaceAtom } from "@/features/user/atoms/current-user-atom";
 import { createGoal, listGoals } from "@/features/goal/services/goal-service";
-import { runAgentLoop } from "@/features/agent/services/agent-service";
+import {
+  runAgentLoop,
+  approveAgentPlan,
+  rejectAgentPlan,
+  runAgentPlanCascade,
+  listReviewPrompts,
+} from "@/features/agent/services/agent-service";
 import { useNavigate } from "react-router-dom";
 import { projectService } from "@/features/project/services/project-service";
 import { useProjects } from "@/features/project/hooks/use-projects";
@@ -39,6 +46,11 @@ import { IconChevronDown, IconChevronRight, IconDotsVertical } from "@tabler/ico
 import { markdownToHtml } from "@raven-docs/editor-ext";
 import { getOrCreateUserProfilePage } from "@/features/agent-memory/utils/user-profile";
 import { UserProfileMetrics } from "@/features/agent-memory/components/user-profile-metrics";
+import {
+  buildActivityStats,
+  formatDuration,
+} from "@/features/agent-memory/utils/activity-metrics";
+import { getWeekKey } from "@/features/gtd/utils/review-schedule";
 import classes from "./memory-insights-page.module.css";
 
 function renderMemoryContent(content: unknown) {
@@ -100,6 +112,13 @@ function formatLastSeen(lastSeen?: string | null) {
   return date.toLocaleDateString();
 }
 
+const PLAN_HORIZON_LABELS: Record<string, string> = {
+  long: "Long-range",
+  mid: "Mid-range",
+  short: "Short-term",
+  daily: "Daily",
+};
+
 export function MemoryInsightsPage() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const [workspace] = useAtom(workspaceAtom);
@@ -138,9 +157,12 @@ export function MemoryInsightsPage() {
   const [autonomyCollapsed, setAutonomyCollapsed] = useState(true);
   const [timelineCollapsed, setTimelineCollapsed] = useState(true);
   const [collectionsCollapsed, setCollectionsCollapsed] = useState(true);
+  const [expandedPlanIds, setExpandedPlanIds] = useState<string[]>([]);
+  const [highlightedPlanId, setHighlightedPlanId] = useState<string | null>(null);
 
   const filterTags = useMemo(() => parseCsv(tagFilter), [tagFilter]);
   const filterSources = useMemo(() => parseCsv(sourceFilter), [sourceFilter]);
+  const weekKey = useMemo(() => getWeekKey(new Date()), []);
 
   const memoryParams = useMemo(
     () => ({
@@ -173,6 +195,28 @@ export function MemoryInsightsPage() {
     enabled: !!workspace?.id && !!spaceId,
   });
 
+  const planHistoryQuery = useQuery({
+    queryKey: ["plan-history", workspace?.id, spaceId],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspace?.id || "",
+        spaceId: spaceId || "",
+        sources: ["agent-plan"],
+        limit: 200,
+      }),
+    enabled: !!workspace?.id && !!spaceId,
+  });
+
+  const reviewPromptsQuery = useQuery({
+    queryKey: ["plan-review-prompts", workspace?.id, spaceId, weekKey],
+    queryFn: () =>
+      listReviewPrompts({
+        spaceId: spaceId || "",
+        weekKey,
+      }),
+    enabled: !!workspace?.id && !!spaceId,
+  });
+
   const profileUpdatedLabel = useMemo(() => {
     const raw = profileQuery.data?.[0]?.timestamp;
     if (!raw) return "Updated when profile distillation runs";
@@ -186,6 +230,85 @@ export function MemoryInsightsPage() {
   const profileRecord = useMemo(() => {
     return profileQuery.data?.[0]?.content as { profile?: Record<string, any> } | undefined;
   }, [profileQuery.data]);
+
+  const planHistory = useMemo(() => {
+    const entries = planHistoryQuery.data || [];
+    const getHorizon = (entry: any) => {
+      const content = entry?.content as Record<string, any> | undefined;
+      if (content?.horizon) return String(content.horizon);
+      const tag = entry?.tags?.find((item: string) => item.startsWith("plan:"));
+      return tag ? tag.replace("plan:", "") : "daily";
+    };
+    const order = ["long", "mid", "short", "daily"];
+    const groups = new Map<string, typeof entries>();
+    entries.forEach((entry) => {
+      const horizon = getHorizon(entry);
+      const list = groups.get(horizon) || [];
+      list.push(entry);
+      groups.set(horizon, list);
+    });
+
+    const horizonData = order.map((horizon) => {
+      const list = (groups.get(horizon) || []).sort((a, b) => {
+        const ta = new Date(a.timestamp || 0).getTime();
+        const tb = new Date(b.timestamp || 0).getTime();
+        return tb - ta;
+      });
+      return { horizon, items: list, latest: list[0] };
+    });
+
+    return { order, horizonData };
+  }, [planHistoryQuery.data]);
+
+  const togglePlanDetails = (horizon: string) => {
+    setExpandedPlanIds((prev) =>
+      prev.includes(horizon) ? prev.filter((id) => id !== horizon) : [...prev, horizon]
+    );
+  };
+
+  const approvePlanMutation = useMutation({
+    mutationFn: (planId: string) =>
+      approveAgentPlan({ spaceId: spaceId || "", planId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["plan-history", workspace?.id, spaceId],
+      });
+      notifications.show({
+        title: "Plan approved",
+        message: "Marked plan as active.",
+        color: "green",
+      });
+    },
+  });
+
+  const rejectPlanMutation = useMutation({
+    mutationFn: (planId: string) =>
+      rejectAgentPlan({ spaceId: spaceId || "", planId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["plan-history", workspace?.id, spaceId],
+      });
+      notifications.show({
+        title: "Plan rejected",
+        message: "Marked plan as rejected.",
+        color: "orange",
+      });
+    },
+  });
+
+  const cascadePlanMutation = useMutation({
+    mutationFn: () => runAgentPlanCascade({ spaceId: spaceId || "" }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["plan-history", workspace?.id, spaceId],
+      });
+      notifications.show({
+        title: "Planning cascade started",
+        message: "Updated planning horizons.",
+        color: "blue",
+      });
+    },
+  });
 
   const signalsQuery = useQuery({
     queryKey: ["memory-signals", workspace?.id, spaceId],
@@ -207,6 +330,53 @@ export function MemoryInsightsPage() {
         spaceId: spaceId || undefined,
       }),
     enabled: !!workspace?.id && !!spaceId,
+  });
+
+  const activitySince7d = useMemo(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }, []);
+
+  const activitySince30d = useMemo(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }, []);
+
+  const activityQuery = useQuery({
+    queryKey: ["memory-activity", workspace?.id, spaceId, activitySince30d],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspace?.id || "",
+        spaceId: spaceId || "",
+        from: activitySince30d,
+        sources: ["page.view", "project.view", "activity.view"],
+        limit: 500,
+      }),
+    enabled: !!workspace?.id && !!spaceId,
+  });
+
+  const userActivityQuery = useQuery({
+    queryKey: [
+      "memory-activity-user",
+      workspace?.id,
+      spaceId,
+      currentUser?.id,
+      activitySince30d,
+    ],
+    queryFn: () =>
+      agentMemoryService.query({
+        workspaceId: workspace?.id || "",
+        spaceId: spaceId || "",
+        from: activitySince30d,
+        sources: ["page.view", "project.view", "activity.view"],
+        tags: currentUser?.id ? [`user:${currentUser.id}`] : undefined,
+        limit: 500,
+      }),
+    enabled: !!workspace?.id && !!spaceId && !!currentUser?.id,
   });
 
   const projectsQuery = useProjects({ spaceId: spaceId || "" });
@@ -243,6 +413,32 @@ export function MemoryInsightsPage() {
   }, [searchParams]);
 
   const groupedEntries = Object.entries(grouped);
+
+  const activityStats = useMemo(() => {
+    return buildActivityStats(activityQuery.data);
+  }, [activityQuery.data]);
+
+  const activityStats7d = useMemo(() => {
+    const entries = (activityQuery.data || []).filter((entry) => {
+      const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
+      if (!timestamp || Number.isNaN(timestamp.getTime())) return false;
+      return timestamp >= new Date(activitySince7d);
+    });
+    return buildActivityStats(entries);
+  }, [activityQuery.data, activitySince7d]);
+
+  const userActivityStats = useMemo(() => {
+    return buildActivityStats(userActivityQuery.data);
+  }, [userActivityQuery.data]);
+
+  const userActivityStats7d = useMemo(() => {
+    const entries = (userActivityQuery.data || []).filter((entry) => {
+      const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
+      if (!timestamp || Number.isNaN(timestamp.getTime())) return false;
+      return timestamp >= new Date(activitySince7d);
+    });
+    return buildActivityStats(entries);
+  }, [userActivityQuery.data, activitySince7d]);
 
   const graphQuery = useQuery({
     queryKey: ["memory-graph", workspace?.id, spaceId, filterTags, filterSources, fromFilter, toFilter],
@@ -1063,6 +1259,415 @@ export function MemoryInsightsPage() {
               | undefined
           }
         />
+        <Card withBorder radius="md" p="md">
+          <Group justify="space-between" mb="sm">
+            <Title order={4}>Active time</Title>
+            <Text size="xs" c="dimmed">
+              Last 30 days
+            </Text>
+          </Group>
+          <Group gap="xl" align="flex-start" wrap="wrap">
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed">
+                You
+              </Text>
+              <Text fw={600} size="lg">
+                {formatDuration(userActivityStats.totalDurationMs)}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {formatDuration(userActivityStats7d.totalDurationMs)} last 7 days
+              </Text>
+            </Stack>
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed">
+                Space total
+              </Text>
+              <Text fw={600} size="lg">
+                {formatDuration(activityStats.totalDurationMs)}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {formatDuration(activityStats7d.totalDurationMs)} last 7 days
+              </Text>
+            </Stack>
+            <Stack gap={6} style={{ minWidth: 220 }}>
+              <Text size="xs" c="dimmed">
+                Most viewed pages
+              </Text>
+              {userActivityStats.topPages.length ? (
+                userActivityStats.topPages.map((item) => (
+                  <Group key={item.id} justify="space-between">
+                    <Text size="sm" lineClamp={1}>
+                      {item.title || item.id}
+                    </Text>
+                    <Text size="sm" fw={600}>
+                      {formatDuration(item.durationMs)}
+                    </Text>
+                  </Group>
+                ))
+              ) : (
+                <Text size="xs" c="dimmed">
+                  No page activity yet.
+                </Text>
+              )}
+            </Stack>
+            <Stack gap={6} style={{ minWidth: 220 }}>
+              <Text size="xs" c="dimmed">
+                Most viewed projects
+              </Text>
+              {userActivityStats.topProjects.length ? (
+                userActivityStats.topProjects.map((item) => (
+                  <Group key={item.id} justify="space-between">
+                    <Text size="sm" lineClamp={1}>
+                      {item.title || item.id}
+                    </Text>
+                    <Text size="sm" fw={600}>
+                      {formatDuration(item.durationMs)}
+                    </Text>
+                  </Group>
+                ))
+              ) : (
+                <Text size="xs" c="dimmed">
+                  No project activity yet.
+                </Text>
+              )}
+            </Stack>
+          </Group>
+        </Card>
+        <Card withBorder radius="md" p="md">
+          <Group justify="space-between" mb="sm">
+            <Title order={4}>Planning</Title>
+            <Button
+              size="xs"
+              variant="light"
+              onClick={() => cascadePlanMutation.mutate()}
+              loading={cascadePlanMutation.isPending}
+              disabled={!spaceId}
+            >
+              Run cascade
+            </Button>
+          </Group>
+          <Stack gap="md">
+            <Group gap="xs" wrap="wrap">
+              {planHistory.horizonData.map((item, index) => {
+                const content = item.latest?.content as Record<string, any> | undefined;
+                const status = content?.status || "active";
+                const changeSummary = content?.changeSummary as string | undefined;
+                return (
+                  <Group key={item.horizon} gap="xs" align="center">
+                    <Card withBorder radius="sm" p="sm" style={{ minWidth: 180 }}>
+                      <Stack gap={4}>
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            {PLAN_HORIZON_LABELS[item.horizon] || item.horizon}
+                          </Text>
+                          <Badge
+                            color={
+                              status === "pending"
+                                ? "yellow"
+                                : status === "rejected"
+                                  ? "red"
+                                  : "green"
+                            }
+                            variant="light"
+                          >
+                            {status}
+                          </Badge>
+                        </Group>
+                        <Text size="sm" fw={600} lineClamp={2}>
+                          {item.latest?.summary || "No plan yet"}
+                        </Text>
+                        {changeSummary ? (
+                          <Text size="xs" c="dimmed" lineClamp={2}>
+                            {changeSummary}
+                          </Text>
+                        ) : null}
+                      </Stack>
+                    </Card>
+                    {index < planHistory.horizonData.length - 1 ? (
+                      <IconChevronRight size={18} color={theme.colors.gray[5]} />
+                    ) : null}
+                  </Group>
+                );
+              })}
+            </Group>
+            <Card withBorder radius="sm" p="sm">
+              <Stack gap="xs">
+                <Text size="sm" fw={600}>
+                  Plan Graph
+                </Text>
+                {planHistory.horizonData.length ? (
+                  <Box className={classes.planGraph}>
+                    <div className={classes.planGraphLine} />
+                    <div className={classes.planGraphNodes}>
+                      {planHistory.horizonData.map((item) => {
+                        const content = item.latest?.content as Record<string, any> | undefined;
+                        const status = content?.status || "active";
+                        const summary = item.latest?.summary || "No plan yet";
+                        const changeSummary = content?.changeSummary as string | undefined;
+                        const targetId = `plan-history-${item.horizon}`;
+                        return (
+                          <Tooltip
+                            key={`graph-${item.horizon}`}
+                            label={
+                              changeSummary
+                                ? `${summary} • ${changeSummary}`
+                                : summary
+                            }
+                            position="top"
+                            withArrow
+                          >
+                            <div
+                              className={classes.planGraphNode}
+                              data-status={status}
+                              onClick={() => {
+                                const target = document.getElementById(targetId);
+                                if (target) {
+                                  target.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  setHighlightedPlanId(item.horizon);
+                                  window.setTimeout(() => {
+                                    setHighlightedPlanId((current) =>
+                                      current === item.horizon ? null : current
+                                    );
+                                  }, 1200);
+                                }
+                                if (item.horizon) {
+                                  setExpandedPlanIds((prev) =>
+                                    prev.includes(item.horizon)
+                                      ? prev
+                                      : [...prev, item.horizon]
+                                  );
+                                }
+                              }}
+                            >
+                              <div className={classes.planGraphDot} data-status={status} />
+                              <Text size="xs" fw={600}>
+                                {PLAN_HORIZON_LABELS[item.horizon] || item.horizon}
+                              </Text>
+                              <Text size="xs" c="dimmed" lineClamp={1}>
+                                {summary}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {item.items.length} versions
+                              </Text>
+                            </div>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  </Box>
+                ) : (
+                  <Text size="xs" c="dimmed">
+                    No plan data yet. Run a cascade to create the first plan nodes.
+                  </Text>
+                )}
+              </Stack>
+            </Card>
+            <Card withBorder radius="sm" p="sm">
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" fw={600}>
+                    Review Queue
+                  </Text>
+                  <Badge variant="light" color="gray">
+                    {reviewPromptsQuery.data?.length || 0}
+                  </Badge>
+                </Group>
+                {reviewPromptsQuery.isLoading ? (
+                  <Text size="xs" c="dimmed">
+                    Loading review prompts...
+                  </Text>
+                ) : reviewPromptsQuery.data?.length ? (
+                  <Stack gap={4}>
+                    {reviewPromptsQuery.data.slice(0, 4).map((prompt) => (
+                      <Text key={prompt.id} size="xs" c="dimmed">
+                        {prompt.question}
+                      </Text>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Text size="xs" c="dimmed">
+                    No pending review prompts.
+                  </Text>
+                )}
+                {reviewPromptsQuery.data && reviewPromptsQuery.data.length > 4 ? (
+                  <Text size="xs" c="dimmed">
+                    {reviewPromptsQuery.data.length - 4} more prompts available.
+                  </Text>
+                ) : null}
+              </Stack>
+            </Card>
+            <Stack gap="sm">
+              {planHistory.horizonData.map((item) => {
+                const latest = item.latest;
+                const content = latest?.content as Record<string, any> | undefined;
+                const status = content?.status || "active";
+                const changeSummary = content?.changeSummary as string | undefined;
+                const changeMetrics = content?.changeMetrics as
+                  | {
+                      added?: number;
+                      removed?: number;
+                      significance?: string;
+                      addedSamples?: string[];
+                      removedSamples?: string[];
+                    }
+                  | undefined;
+                const planText =
+                  typeof content?.text === "string" ? (content.text as string) : "";
+                const isExpanded = expandedPlanIds.includes(item.horizon);
+                return (
+                  <Card
+                    key={`${item.horizon}-history`}
+                    id={`plan-history-${item.horizon}`}
+                    withBorder
+                    radius="sm"
+                    p="sm"
+                    className={
+                      highlightedPlanId === item.horizon ? classes.planHistoryHighlight : undefined
+                    }
+                  >
+                    <Group justify="space-between" align="flex-start">
+                      <Stack gap={2}>
+                        <Text size="sm" fw={600}>
+                          {PLAN_HORIZON_LABELS[item.horizon] || item.horizon}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {latest?.timestamp
+                            ? new Date(latest.timestamp).toLocaleString()
+                            : "No plan yet"}
+                        </Text>
+                      </Stack>
+                      <Group gap="xs">
+                        <Badge
+                          color={
+                            status === "pending"
+                              ? "yellow"
+                              : status === "rejected"
+                                ? "red"
+                                : "green"
+                          }
+                          variant="light"
+                        >
+                          {status}
+                        </Badge>
+                        {status === "pending" && latest?.id ? (
+                          <>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              onClick={() => approvePlanMutation.mutate(latest.id)}
+                              loading={approvePlanMutation.isPending}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="subtle"
+                              color="red"
+                              onClick={() => rejectPlanMutation.mutate(latest.id)}
+                              loading={rejectPlanMutation.isPending}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        ) : null}
+                        {planText ? (
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            onClick={() => togglePlanDetails(item.horizon)}
+                          >
+                            {isExpanded ? "Hide plan" : "View plan"}
+                          </Button>
+                        ) : null}
+                      </Group>
+                    </Group>
+                    {latest?.summary ? (
+                      <Text size="sm" mt="xs">
+                        {latest.summary}
+                      </Text>
+                    ) : null}
+                    {changeSummary ? (
+                      <Group gap="xs" mt="xs">
+                        <Text size="xs" c="dimmed">
+                          {changeSummary}
+                        </Text>
+                        {changeMetrics?.significance ? (
+                          <Badge variant="light" color="gray">
+                            {changeMetrics.significance}
+                          </Badge>
+                        ) : null}
+                      </Group>
+                    ) : null}
+                    {item.items.length > 1 ? (
+                      <Stack gap={4} mt="sm">
+                        {item.items.slice(1, 4).map((entry) => (
+                          <Group key={entry.id} justify="space-between">
+                            <Text size="xs" c="dimmed">
+                              {entry.timestamp
+                                ? new Date(entry.timestamp).toLocaleDateString()
+                                : "Unknown date"}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {entry.summary || "Plan"}
+                            </Text>
+                          </Group>
+                        ))}
+                      </Stack>
+                    ) : null}
+                    {planText ? (
+                      <Collapse in={isExpanded}>
+                        <Stack gap="xs" mt="sm">
+                          {changeMetrics?.addedSamples?.length ||
+                          changeMetrics?.removedSamples?.length ? (
+                            <Stack gap={4}>
+                              {changeMetrics?.addedSamples?.length ? (
+                                <div>
+                                  <Text size="xs" fw={600}>
+                                    Added
+                                  </Text>
+                                  <Stack gap={2}>
+                                    {changeMetrics.addedSamples.map((line: string, index: number) => (
+                                      <Text key={`added-${index}`} size="xs" c="dimmed">
+                                        + {line}
+                                      </Text>
+                                    ))}
+                                  </Stack>
+                                </div>
+                              ) : null}
+                              {changeMetrics?.removedSamples?.length ? (
+                                <div>
+                                  <Text size="xs" fw={600}>
+                                    Removed
+                                  </Text>
+                                  <Stack gap={2}>
+                                    {changeMetrics.removedSamples.map(
+                                      (line: string, index: number) => (
+                                        <Text key={`removed-${index}`} size="xs" c="dimmed">
+                                          - {line}
+                                        </Text>
+                                      )
+                                    )}
+                                  </Stack>
+                                </div>
+                              ) : null}
+                            </Stack>
+                          ) : null}
+                          <TypographyStylesProvider className={classes.markdown}>
+                            <div
+                              dangerouslySetInnerHTML={{
+                                __html: markdownToHtml(planText),
+                              }}
+                            />
+                          </TypographyStylesProvider>
+                        </Stack>
+                      </Collapse>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </Card>
         <Card withBorder radius="md" p="md">
           <Group justify="space-between" mb="sm">
             <Title order={4}>Filters</Title>

@@ -3,11 +3,13 @@ import { S3ClientConfig } from '@aws-sdk/client-s3';
 export enum StorageOption {
   LOCAL = 'local',
   S3 = 's3',
+  GCS = 'gcs',
 }
 
 export type StorageConfig =
   | { driver: StorageOption.LOCAL; config: LocalStorageConfig }
-  | { driver: StorageOption.S3; config: S3StorageConfig };
+  | { driver: StorageOption.S3; config: S3StorageConfig }
+  | { driver: StorageOption.GCS; config: GcsStorageConfig };
 
 export interface LocalStorageConfig {
   storagePath: string;
@@ -18,6 +20,17 @@ export interface S3StorageConfig
   endpoint: string; // Enforce endpoint
   bucket: string; // Enforce bucket
   baseUrl?: string; // Optional CDN URL for assets
+}
+
+export interface GcsStorageConfig {
+  bucket: string;
+  projectId?: string;
+  keyFilename?: string;
+  baseUrl?: string;
+  credentials?: {
+    client_email: string;
+    private_key: string;
+  };
 }
 
 export interface StorageOptions {
