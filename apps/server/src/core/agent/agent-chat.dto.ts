@@ -13,9 +13,17 @@ export class AgentChatDto {
 
   @IsOptional()
   @IsString()
+  projectId?: string;
+
+  @IsOptional()
+  @IsString()
   sessionId?: string;
 
   @IsOptional()
   @IsBoolean()
   autoApprove?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  internal?: boolean;
 }

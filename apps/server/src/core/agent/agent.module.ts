@@ -9,6 +9,7 @@ import { AgentHandoffService } from './agent-handoff.service';
 import { AgentReviewPromptsService } from './agent-review-prompts.service';
 import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
 import { ProjectModule } from '../project/project.module';
+import { PageModule } from '../page/page.module';
 import { CaslModule } from '../casl/casl.module';
 import { DatabaseModule } from '../../database/database.module';
 import { AIModule } from '../../integrations/ai/ai.module';
@@ -19,6 +20,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     DatabaseModule,
     AgentMemoryModule,
     ProjectModule,
+    PageModule,
     CaslModule,
     AIModule,
     MCPModule,

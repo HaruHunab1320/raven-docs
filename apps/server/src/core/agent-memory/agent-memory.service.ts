@@ -210,6 +210,71 @@ export class AgentMemoryService {
     };
   }
 
+  async deleteMemories(
+    filters: MemoryQueryFilters,
+    contentPrefixes: string[] = [],
+  ) {
+    if (!contentPrefixes.length && !filters.tags?.length && !filters.sources?.length) {
+      return { deleted: 0, ids: [] as string[] };
+    }
+
+    let query = this.db
+      .selectFrom('agentMemories')
+      .select('id')
+      .where('workspaceId', '=', filters.workspaceId);
+
+    if (filters.spaceId) {
+      query = query.where('spaceId', '=', filters.spaceId);
+    }
+
+    if (filters.sources?.length) {
+      query = query.where('source', 'in', filters.sources);
+    }
+
+    if (filters.tags?.length) {
+      const tagsJson = sql`${this.safeJsonStringify(filters.tags)}::jsonb` as unknown as any;
+      query = query.where(sql<boolean>`${sql.ref('tags')} @> ${tagsJson}`);
+    }
+
+    if (contentPrefixes.length) {
+      const textExpr = sql`COALESCE(${sql.ref('content')}->>'text', ${sql.ref(
+        'summary',
+      )}, '')`;
+      const conditions = contentPrefixes.map(
+        (prefix) => sql<boolean>`${textExpr} ILIKE ${`${prefix}%`}`,
+      );
+      query = query.where((eb) => eb.or(conditions));
+    }
+
+    if (filters.limit) {
+      query = query.limit(filters.limit);
+    }
+
+    const rows = await query.execute();
+    const ids = rows.map((row) => row.id);
+    if (!ids.length) {
+      return { deleted: 0, ids };
+    }
+
+    await this.db.deleteFrom('agentMemories').where('id', 'in', ids).execute();
+
+    const session = this.memgraph.getSession();
+    try {
+      await session.run(
+        `
+        MATCH (m:Memory)
+        WHERE m.id IN $ids
+        DETACH DELETE m
+        `,
+        { ids },
+      );
+    } finally {
+      await session.close();
+    }
+
+    return { deleted: ids.length, ids };
+  }
+
   private async fetchMemoryContent(ids: string[]) {
     if (!ids.length) return new Map();
     const rows = await this.db

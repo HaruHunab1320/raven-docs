@@ -43,8 +43,13 @@ export class EnvironmentVariables {
   APP_SECRET: string;
 
   @IsOptional()
-  @IsIn(['smtp', 'postmark'])
+  @IsIn(['smtp', 'postmark', 'resend', 'log'])
   MAIL_DRIVER: string;
+
+  @IsOptional()
+  @ValidateIf((obj) => obj.MAIL_DRIVER === 'resend')
+  @IsNotEmpty()
+  RESEND_API_KEY: string;
 
   @IsOptional()
   @IsIn(['local', 's3'])

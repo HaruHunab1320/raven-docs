@@ -2,9 +2,8 @@ import axios, { AxiosInstance } from "axios";
 import APP_ROUTE from "@/lib/app-route.ts";
 import { isCloud } from "@/lib/config.ts";
 
-// Use the absolute URL to the API server
-const API_BASE_URL =
-  process.env.NODE_ENV === "development" ? "http://localhost:3000/api" : "/api";
+// Always use a relative base so Vite proxy (dev) or reverse proxy (prod) applies.
+const API_BASE_URL = "/api";
 
 console.log("API client configured with base URL:", API_BASE_URL);
 

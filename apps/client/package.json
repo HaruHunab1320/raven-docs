@@ -10,12 +10,12 @@
     "format": "prettier --write \"src/**/*.tsx\" \"src/**/*.ts\""
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.14",
     "@casl/ability": "^6.7.2",
     "@casl/react": "^4.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@raven-docs/editor-ext": "workspace:*",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@excalidraw/excalidraw": "^0.17.6",
@@ -26,9 +26,11 @@
     "@mantine/modals": "^7.17.0",
     "@mantine/notifications": "^7.17.0",
     "@mantine/spotlight": "^7.17.0",
+    "@raven-docs/editor-ext": "workspace:*",
     "@tabler/icons-react": "^3.22.0",
     "@tanstack/react-query": "^5.61.4",
     "@tiptap/extension-character-count": "^2.11.5",
+    "ai": "^6.0.14",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.13",
@@ -58,7 +60,7 @@
     "socket.io-client": "^4.8.1",
     "tippy.js": "^6.3.7",
     "tiptap-extension-global-drag-handle": "^0.1.18",
-    "zod": "^3.23.8"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

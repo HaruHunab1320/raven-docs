@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Header,
   HttpCode,
   HttpStatus,
   Post,
@@ -28,6 +29,9 @@ import {
   SpaceCaslAction,
   SpaceCaslSubject,
 } from '../casl/interfaces/space-ability.type';
+import { AgentChatUiDto, AgentChatUiMessage } from './agent-chat-ui.dto';
+import { SkipTransform } from '../../common/decorators/skip-transform.decorator';
+import { AgentChatContextDto } from './agent-chat-context.dto';
 
 const getWeekKey = (date = new Date()) => {
   const firstDay = new Date(date.getFullYear(), 0, 1);
@@ -63,6 +67,70 @@ export class AgentController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.agentService.chat(dto, user, workspace);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('chat-context')
+  async chatContext(
+    @Body() dto: AgentChatContextDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentService.getChatContext(dto, user, workspace);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('chat-ui')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  @SkipTransform()
+  async chatUi(
+    @Body() dto: AgentChatUiDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const extractText = (message?: AgentChatUiMessage) => {
+      if (!message) return '';
+      if (typeof message.text === 'string') return message.text;
+      if (typeof message.content === 'string') return message.content;
+      if (Array.isArray(message.parts)) {
+        return message.parts
+          .map((part) => {
+            if (!part) return '';
+            if (part.type === 'text' || part.type === 'reasoning') {
+              return part.text || '';
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('\n')
+          .trim();
+      }
+      return '';
+    };
+
+    const lastUserMessage = (dto.messages || [])
+      .filter((message) => message?.role === 'user')
+      .at(-1);
+    const messageText = extractText(lastUserMessage);
+
+    if (!messageText) {
+      return '';
+    }
+
+    const response = await this.agentService.chat(
+      {
+        spaceId: dto.spaceId,
+        message: messageText,
+        pageId: dto.pageId,
+        projectId: dto.projectId,
+        sessionId: dto.sessionId,
+        autoApprove: dto.autoApprove,
+      },
+      user,
+      workspace,
+    );
+
+    return response.reply || '';
   }
 
   @HttpCode(HttpStatus.OK)

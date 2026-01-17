@@ -145,6 +145,10 @@ export class EnvironmentService {
     return this.configService.get<string>('POSTMARK_TOKEN');
   }
 
+  getResendApiKey(): string {
+    return this.configService.get<string>('RESEND_API_KEY');
+  }
+
   getDrawioUrl(): string {
     return this.configService.get<string>('DRAWIO_URL');
   }

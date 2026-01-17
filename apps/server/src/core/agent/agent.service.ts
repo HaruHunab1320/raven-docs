@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { AgentChatDto } from './agent-chat.dto';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
 import { TaskService } from '../project/services/task.service';
+import { ProjectService } from '../project/services/project.service';
 import { AIService } from '../../integrations/ai/ai.service';
 import SpaceAbilityFactory from '../casl/abilities/space-ability.factory';
 import {
@@ -12,11 +13,13 @@ import { User, Workspace } from '@raven-docs/db/types/entity.types';
 import { resolveAgentSettings } from './agent-settings';
 import { SpaceRepo } from '@raven-docs/db/repos/space/space.repo';
 import { PageRepo } from '@raven-docs/db/repos/page/page.repo';
+import { PageService } from '../page/services/page.service';
 import { AgentSuggestionsDto } from './agent-suggestions.dto';
 import { TaskBucket, TaskStatus } from '../project/constants/task-enums';
 import { MCPService } from '../../integrations/mcp/mcp.service';
 import { MCPSchemaService } from '../../integrations/mcp/services/mcp-schema.service';
 import { MCPErrorCode } from '../../integrations/mcp/utils/error.utils';
+import { AgentChatContextDto } from './agent-chat-context.dto';
 
 @Injectable()
 export class AgentService {
@@ -25,10 +28,12 @@ export class AgentService {
   constructor(
     private readonly memoryService: AgentMemoryService,
     private readonly taskService: TaskService,
+    private readonly projectService: ProjectService,
     private readonly aiService: AIService,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
     private readonly pageRepo: PageRepo,
+    private readonly pageService: PageService,
     private readonly mcpService: MCPService,
     private readonly mcpSchemaService: MCPSchemaService,
   ) {}
@@ -77,6 +82,145 @@ export class AgentService {
       .join('\n');
   }
 
+  private buildContextSource(
+    key: string,
+    label: string,
+    memories: any[],
+  ) {
+    return {
+      key,
+      label,
+      count: memories.length,
+      items: memories.map((memory) => ({
+        id: memory.id,
+        summary: memory.summary || '',
+        source: memory.source || null,
+        timestamp: memory.timestamp || memory.createdAt || null,
+        tags: memory.tags || [],
+      })),
+    };
+  }
+
+  private async resolveProjectIdFromPage(
+    spaceId: string,
+    pageId: string,
+  ): Promise<string | null> {
+    const breadcrumbs = await this.pageService.getPageBreadCrumbs(pageId);
+    if (!breadcrumbs.length) return null;
+
+    const ancestorIds = breadcrumbs.map((ancestor) => ancestor.id);
+    const indexById = new Map(
+      ancestorIds.map((id, index) => [id, index]),
+    );
+
+    const projectsResult = await this.projectService.findBySpaceId(
+      spaceId,
+      { page: 1, limit: 200 },
+    );
+    const projects = projectsResult?.data || [];
+
+    let bestMatch: { projectId: string; index: number } | null = null;
+    for (const project of projects) {
+      if (!project.homePageId) continue;
+      const index = indexById.get(project.homePageId);
+      if (index === undefined) continue;
+      if (!bestMatch || index > bestMatch.index) {
+        bestMatch = { projectId: project.id, index };
+      }
+    }
+
+    return bestMatch?.projectId || null;
+  }
+
+  private async fetchChatMemories(params: {
+    workspaceId: string;
+    spaceId: string;
+    userId: string;
+    pageId?: string;
+    projectId?: string | null;
+    sessionId?: string;
+    message?: string;
+    pageTitle?: string | null;
+  }) {
+    const pageChatTag = params.pageId
+      ? `agent-chat-page:${params.pageId}`
+      : 'agent-chat';
+    const sessionChatTag = params.sessionId
+      ? `agent-chat-session:${params.sessionId}`
+      : null;
+    const chatTag = sessionChatTag || pageChatTag;
+    const projectChatTag = params.projectId
+      ? `project:${params.projectId}`
+      : null;
+    const pageTag = params.pageId ? `page:${params.pageId}` : null;
+    const userTag = `user:${params.userId}`;
+
+    const recentMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
+        tags: [chatTag],
+        limit: 5,
+      },
+      undefined,
+    );
+    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const shortTermMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
+        from: shortTermSince,
+        limit: 8,
+      },
+      undefined,
+    );
+    const projectMemories = projectChatTag
+      ? await this.memoryService.queryMemories(
+          {
+            workspaceId: params.workspaceId,
+            spaceId: params.spaceId,
+            tags: [projectChatTag],
+            limit: 6,
+          },
+          undefined,
+        )
+      : [];
+    const topicQuery = params.message || params.pageTitle || '';
+    const topicMemories = topicQuery
+      ? await this.memoryService.queryMemories(
+          {
+            workspaceId: params.workspaceId,
+            spaceId: params.spaceId,
+            limit: 6,
+          },
+          topicQuery,
+        )
+      : [];
+    const profileMemories = await this.memoryService.queryMemories(
+      {
+        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
+        tags: [userTag],
+        limit: 1,
+      },
+      undefined,
+    );
+
+    return {
+      pageChatTag,
+      sessionChatTag,
+      chatTag,
+      projectChatTag,
+      pageTag,
+      userTag,
+      recentMemories,
+      shortTermMemories,
+      projectMemories,
+      topicMemories,
+      profileMemories,
+    };
+  }
+
   async chat(dto: AgentChatDto, user: User, workspace: Workspace) {
     const agentSettings = resolveAgentSettings(workspace.settings);
     if (!agentSettings.enabled || !agentSettings.allowAgentChat) {
@@ -101,6 +245,12 @@ export class AgentService {
       throw new ForbiddenException('Page not found in space');
     }
 
+    const inferredProjectId =
+      !dto.projectId && dto.pageId
+        ? await this.resolveProjectIdFromPage(dto.spaceId, dto.pageId)
+        : null;
+    const resolvedProjectId = dto.projectId || inferredProjectId || null;
+
     const triage = agentSettings.enableAutoTriage
       ? await this.taskService.getDailyTriageSummary(dto.spaceId, {
           limit: 5,
@@ -115,55 +265,32 @@ export class AgentService {
           counts: { inbox: 0, waiting: 0, someday: 0 },
         };
 
-    const pageChatTag = dto.pageId
-      ? `agent-chat-page:${dto.pageId}`
-      : 'agent-chat';
-    const sessionChatTag = dto.sessionId
-      ? `agent-chat-session:${dto.sessionId}`
-      : null;
-    const chatTag = sessionChatTag || pageChatTag;
-    const recentMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: workspace.id,
-        spaceId: dto.spaceId,
-        tags: [chatTag],
-        limit: 5,
-      },
-      undefined,
-    );
-    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const shortTermMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: workspace.id,
-        spaceId: dto.spaceId,
-        from: shortTermSince,
-        limit: 8,
-      },
-      undefined,
-    );
-    const topicQuery = page?.title || dto.message;
-    const topicMemories = topicQuery
-      ? await this.memoryService.queryMemories(
-          {
-            workspaceId: workspace.id,
-            spaceId: dto.spaceId,
-            limit: 6,
-          },
-          topicQuery,
-        )
-      : [];
-    const profileMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: workspace.id,
-        spaceId: dto.spaceId,
-        tags: [`user:${user.id}`],
-        limit: 1,
-      },
-      undefined,
-    );
+    const {
+      pageChatTag,
+      sessionChatTag,
+      chatTag,
+      projectChatTag,
+      pageTag,
+      userTag,
+      recentMemories,
+      shortTermMemories,
+      projectMemories,
+      topicMemories,
+      profileMemories,
+    } = await this.fetchChatMemories({
+      workspaceId: workspace.id,
+      spaceId: dto.spaceId,
+      userId: user.id,
+      pageId: dto.pageId,
+      projectId: resolvedProjectId,
+      sessionId: dto.sessionId,
+      message: dto.message,
+      pageTitle: page?.title,
+    });
     const profileContext = this.formatProfileContext(profileMemories[0]);
 
     const memoryContext = this.formatMemorySummary(recentMemories);
+    const projectContext = this.formatMemorySummary(projectMemories);
     const shortTermContext = this.formatMemorySummary(shortTermMemories);
     const topicContext = this.formatMemorySummary(topicMemories);
 
@@ -176,11 +303,12 @@ export class AgentService {
     const toolList = this.formatToolList();
 
     const prompt = [
-      `You are Raven Docs' agent. Provide clear, concise guidance.`,
+      `You are Raven Docs' agent. Respond conversationally and be helpful.`,
       `Space: ${space.name}`,
       page?.title ? `Page: ${page.title}` : null,
       `Recent chat memories:`,
       memoryContext,
+      projectMemories.length ? `Project context:\n${projectContext}` : null,
       `Recent activity (14d):`,
       shortTermContext,
       topicContext !== '- none' ? `Topic signals:\n${topicContext}` : null,
@@ -192,20 +320,33 @@ export class AgentService {
       `User message: ${dto.message}`,
       `Available tools (use these when needed):`,
       ...toolList,
+      `Ask concise clarifying questions when needed instead of listing boilerplate fields.`,
       `When you need a tool, include it in "actions" with method + params.`,
       `Always include spaceId and pageId when relevant to the tool.`,
-      `Return JSON only with keys: reply (string), actions (array).`,
+      `Return JSON with keys: reply (string), actions (array).`,
       `actions items: { "method": string, "params": object }.`,
       `If no tools are needed, set actions to [].`,
-      `End your reply with two lines:`,
-      `Draft readiness: ready|not-ready`,
-      `Confidence: high|medium|low`,
     ]
       .filter(Boolean)
       .join('\n');
 
     let replyText = 'Agent response unavailable.';
     let actions: Array<{ method: string; params?: any }> = [];
+
+    const parseAgentResponse = (rawText: string) => {
+      const trimmed = rawText.trim();
+      if (!trimmed) return false;
+      const parsed = this.extractJsonObject(trimmed);
+      if (parsed) {
+        replyText = parsed.reply || replyText;
+        actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+        return true;
+      }
+      replyText = trimmed;
+      actions = [];
+      return true;
+    };
+
     try {
       const response = await this.aiService.generateContent({
         model: this.getAgentModel(),
@@ -221,7 +362,14 @@ export class AgentService {
                 type: 'object',
                 properties: {
                   method: { type: 'string' },
-                  params: { type: 'object' },
+                  params: {
+                    type: 'object',
+                    properties: {
+                      spaceId: { type: 'string' },
+                      pageId: { type: 'string' },
+                    },
+                    additionalProperties: true,
+                  },
                 },
                 required: ['method'],
               },
@@ -232,20 +380,27 @@ export class AgentService {
       });
       const rawText =
         response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const jsonText = rawText.trim().startsWith('{')
-        ? rawText.trim()
-        : rawText.match(/\{[\s\S]*\}/)?.[0] || '';
-      if (jsonText) {
-        const parsed = JSON.parse(jsonText);
-        replyText = parsed.reply || replyText;
-        actions = Array.isArray(parsed.actions) ? parsed.actions : [];
-      } else if (rawText) {
-        replyText = rawText;
-      }
+      parseAgentResponse(rawText);
     } catch (error: any) {
       this.logger.warn(
         `Agent chat failed: ${error?.message || String(error)}`,
       );
+    }
+
+    if (replyText === 'Agent response unavailable.') {
+      try {
+        const fallback = await this.aiService.generateContent({
+          model: this.getAgentModel(),
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        const rawText =
+          fallback?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        parseAgentResponse(rawText);
+      } catch (error: any) {
+        this.logger.warn(
+          `Agent chat fallback failed: ${error?.message || String(error)}`,
+        );
+      }
     }
 
     const autoApprove = dto.autoApprove === true;
@@ -328,19 +483,22 @@ export class AgentService {
       replyText = `${replyText}\n\nTool results:\n${actionSummaries.join('\n')}`;
     }
 
-    const tags = dto.pageId ? ['agent-chat', pageChatTag] : ['agent-chat'];
-    if (sessionChatTag) {
-      tags.push(sessionChatTag);
-    }
+    const tags = ['agent-chat', pageChatTag];
+    if (sessionChatTag) tags.push(sessionChatTag);
+    if (projectChatTag) tags.push(projectChatTag);
+    if (pageTag) tags.push(pageTag);
+    tags.push(userTag);
 
-    await this.memoryService.ingestMemory({
-      workspaceId: workspace.id,
-      spaceId: dto.spaceId,
-      source: 'agent-chat',
-      summary: `User: ${dto.message.slice(0, 80)}`,
-      content: { text: dto.message },
-      tags: [...tags, 'user'],
-    });
+    if (!dto.internal) {
+      await this.memoryService.ingestMemory({
+        workspaceId: workspace.id,
+        spaceId: dto.spaceId,
+        source: 'agent-chat',
+        summary: `User: ${dto.message.slice(0, 80)}`,
+        content: { text: dto.message },
+        tags: [...tags, 'user'],
+      });
+    }
 
     await this.memoryService.ingestMemory({
       workspaceId: workspace.id,
@@ -355,6 +513,72 @@ export class AgentService {
       reply: replyText,
       approvalsRequired: approvalItems.length > 0,
       approvalItems,
+    };
+  }
+
+  async getChatContext(
+    dto: AgentChatContextDto,
+    user: User,
+    workspace: Workspace,
+  ) {
+    const agentSettings = resolveAgentSettings(workspace.settings);
+    if (!agentSettings.enabled || !agentSettings.allowAgentChat) {
+      throw new ForbiddenException('Agent chat disabled');
+    }
+
+    const ability = await this.spaceAbility.createForUser(user, dto.spaceId);
+    if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException('No access to space');
+    }
+
+    const space = await this.spaceRepo.findById(dto.spaceId, workspace.id);
+    if (!space) {
+      throw new ForbiddenException('Space not found');
+    }
+
+    const page = dto.pageId
+      ? await this.pageRepo.findById(dto.pageId, { includeSpace: false })
+      : null;
+    if (page && page.spaceId !== dto.spaceId) {
+      throw new ForbiddenException('Page not found in space');
+    }
+
+    const inferredProjectId =
+      !dto.projectId && dto.pageId
+        ? await this.resolveProjectIdFromPage(dto.spaceId, dto.pageId)
+        : null;
+    const resolvedProjectId = dto.projectId || inferredProjectId || null;
+
+    const {
+      recentMemories,
+      shortTermMemories,
+      projectMemories,
+      topicMemories,
+      profileMemories,
+    } = await this.fetchChatMemories({
+      workspaceId: workspace.id,
+      spaceId: dto.spaceId,
+      userId: user.id,
+      pageId: dto.pageId,
+      projectId: resolvedProjectId,
+      sessionId: dto.sessionId,
+      message: dto.message,
+      pageTitle: page?.title,
+    });
+
+    const sources = [
+      this.buildContextSource('chat', 'Chat', recentMemories),
+      this.buildContextSource('project', 'Project', projectMemories),
+      this.buildContextSource('workspace', 'Recent activity', shortTermMemories),
+      this.buildContextSource('topic', 'Topic', topicMemories),
+      this.buildContextSource('profile', 'Profile', profileMemories),
+    ];
+
+    return {
+      spaceId: dto.spaceId,
+      pageId: dto.pageId || null,
+      projectId: resolvedProjectId,
+      sources,
     };
   }
 

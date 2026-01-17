@@ -79,6 +79,7 @@
     "postmark": "^4.0.5",
     "react": "^18.3.1",
     "redis": "^4.7.0",
+    "resend": "^3.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sanitize-filename-ts": "^1.0.2",

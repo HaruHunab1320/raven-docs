@@ -104,6 +104,35 @@ export class MemoryQueryDto {
   limit?: number;
 }
 
+export class MemoryDeleteDto {
+  @IsUUID()
+  workspaceId: string;
+
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sources?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  contentPrefixes?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
 export class MemoryDailyDto {
   @IsUUID()
   workspaceId: string;

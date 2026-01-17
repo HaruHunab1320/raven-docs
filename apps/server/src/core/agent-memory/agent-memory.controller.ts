@@ -20,6 +20,7 @@ import {
   MemoryGraphDto,
   MemoryIngestDto,
   MemoryLinksDto,
+  MemoryDeleteDto,
   MemoryProfileDistillDto,
   MemoryQueryDto,
 } from './dto/memory.dto';
@@ -79,6 +80,28 @@ export class AgentMemoryController {
         limit: dto.limit,
       },
       dto.query,
+    );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('delete')
+  async delete(
+    @Body() dto: MemoryDeleteDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    if (dto.workspaceId !== workspace.id) {
+      throw new ForbiddenException('Workspace mismatch');
+    }
+
+    return this.memoryService.deleteMemories(
+      {
+        workspaceId: workspace.id,
+        spaceId: dto.spaceId,
+        tags: dto.tags,
+        sources: dto.sources,
+        limit: dto.limit,
+      },
+      dto.contentPrefixes || [],
     );
   }
 

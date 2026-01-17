@@ -27,6 +27,7 @@ export const agentChatDrawerAtom = atom<boolean>(false);
 export type AgentChatContext = {
   spaceId?: string;
   pageId?: string;
+  projectId?: string;
   contextLabel?: string;
   sessionId?: string;
 } | null;

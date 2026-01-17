@@ -10,6 +10,7 @@ import {
   MemoryEntityParams,
   MemoryDailyParams,
   MemoryDaysParams,
+  MemoryDeleteParams,
   MemoryIngestParams,
   MemoryProfileDistillParams,
   MemoryQueryParams,
@@ -60,6 +61,11 @@ export const agentMemoryService = {
 
   async distillProfile(params: MemoryProfileDistillParams): Promise<{ status: string }> {
     const { data } = await api.post(`${MEMORY_ENDPOINT}/profile/distill`, params);
+    return data;
+  },
+
+  async delete(params: MemoryDeleteParams): Promise<{ deleted: number; ids: string[] }> {
+    const { data } = await api.post(`${MEMORY_ENDPOINT}/delete`, params);
     return data;
   },
 };

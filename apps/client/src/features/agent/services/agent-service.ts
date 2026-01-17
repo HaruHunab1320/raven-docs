@@ -1,5 +1,9 @@
 import api from "@/lib/api-client";
-import { AgentChatResponse, AgentSettings } from "@/features/agent/types/agent.types";
+import {
+  AgentChatContextResponse,
+  AgentChatResponse,
+  AgentSettings,
+} from "@/features/agent/types/agent.types";
 
 export async function getAgentSettings(): Promise<AgentSettings> {
   const req = await api.post<AgentSettings>("/workspace/agent-settings");
@@ -17,10 +21,26 @@ export async function sendAgentChat(params: {
   spaceId: string;
   message: string;
   pageId?: string;
+  projectId?: string;
   sessionId?: string;
   autoApprove?: boolean;
+  internal?: boolean;
 }): Promise<AgentChatResponse> {
   const req = await api.post<AgentChatResponse>("/agent/chat", params);
+  return req.data;
+}
+
+export async function getAgentChatContext(params: {
+  spaceId: string;
+  message?: string;
+  pageId?: string;
+  projectId?: string;
+  sessionId?: string;
+}): Promise<AgentChatContextResponse> {
+  const req = await api.post<AgentChatContextResponse>(
+    "/agent/chat-context",
+    params
+  );
   return req.data;
 }
 

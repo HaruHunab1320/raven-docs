@@ -455,13 +455,6 @@ export class ProjectService {
         },
         trx,
       );
-      await this.createPlaybookPages(
-        userId,
-        workspaceId,
-        project,
-        projectPage.id,
-        trx,
-      );
       const updatedProject = await this.projectRepo.update(
         project.id,
         { homePageId: projectPage.id },
@@ -470,25 +463,6 @@ export class ProjectService {
 
       return updatedProject ?? project;
     });
-
-    try {
-      const phaseTasks = [
-        'Discovery phase',
-        'Architecture phase',
-        'Planning phase',
-        'Execution phase',
-        'Review phase',
-      ];
-      for (const title of phaseTasks) {
-        await this.taskService.create(userId, workspaceId, {
-          title,
-          projectId: result.id,
-          spaceId: result.spaceId,
-        });
-      }
-    } catch {
-      // Task creation should not block project creation.
-    }
 
     try {
       await this.agentMemoryService.ingestMemory({

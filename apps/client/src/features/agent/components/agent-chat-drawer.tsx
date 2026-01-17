@@ -38,6 +38,7 @@ export function AgentChatDrawer() {
         : "Agent Chat");
   const chatContextId = chatContext?.pageId || page?.slugId || params.pageSlug;
   const chatSessionId = chatContext?.sessionId;
+  const chatProjectId = chatContext?.projectId;
 
   return (
     <Drawer
@@ -59,17 +60,36 @@ export function AgentChatDrawer() {
       padding="md"
       closeOnClickOutside
       closeOnEscape
+      lockScroll={false}
+      styles={{
+        content: {
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        },
+        body: {
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        },
+      }}
     >
       {workspace?.id && space?.id ? (
-        <AgentChatPanel
-          workspaceId={workspace.id}
-          spaceId={space.id}
-          pageId={chatContextId}
-          sessionId={chatSessionId}
-          contextLabel={contextLabel}
-          allowChat={allowChat}
-          variant="plain"
-        />
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <AgentChatPanel
+            workspaceId={workspace.id}
+            spaceId={space.id}
+            pageId={chatContextId}
+            projectId={chatProjectId}
+            sessionId={chatSessionId}
+            contextLabel={contextLabel}
+            allowChat={allowChat}
+            variant="plain"
+          />
+        </div>
       ) : (
         <Text size="sm" c="dimmed">
           Select a space to start chatting.

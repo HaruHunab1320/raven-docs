@@ -34,6 +34,15 @@ export interface MemoryQueryParams {
   limit?: number;
 }
 
+export interface MemoryDeleteParams {
+  workspaceId: string;
+  spaceId?: string;
+  tags?: string[];
+  sources?: string[];
+  contentPrefixes?: string[];
+  limit?: number;
+}
+
 export interface MemoryDailyParams {
   workspaceId: string;
   spaceId?: string;

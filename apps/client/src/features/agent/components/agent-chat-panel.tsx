@@ -1,34 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActionIcon,
   Badge,
+  Box,
   Button,
   Card,
+  Collapse,
   Group,
+  Loader,
+  Popover,
+  ScrollArea,
   Stack,
   Switch,
   Text,
   Textarea,
   Title,
-  Accordion,
+  TypographyStylesProvider,
 } from "@mantine/core";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
 import {
-  confirmApproval,
-  rejectApproval,
-  sendAgentChat,
-  updateAgentSettings,
+  IconEdit,
+  IconPaperclip,
+  IconPlayerStop,
+  IconRefresh,
+  IconSend,
+  IconTrash,
+  IconX,
+} from "@tabler/icons-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import { useChat, type UIMessage } from "@ai-sdk/react";
+import { TextStreamChatTransport, generateId } from "ai";
+import classes from "./agent-chat-panel.module.css";
+import {
+  getAgentChatContext,
 } from "@/features/agent/services/agent-service";
-import { queryClient } from "@/main";
-import { useAtomValue } from "jotai";
-import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
-import useUserRole from "@/hooks/use-user-role";
-import { notifications } from "@mantine/notifications";
+import { AgentChatContextResponse } from "@/features/agent/types/agent.types";
+
+marked.use({
+  gfm: true,
+  breaks: true,
+  headerIds: false,
+  mangle: false,
+});
 
 interface AgentChatPanelProps {
   workspaceId: string;
   spaceId: string;
   pageId?: string;
+  projectId?: string;
   sessionId?: string;
   contextLabel?: string;
   allowChat?: boolean;
@@ -39,6 +60,7 @@ export function AgentChatPanel({
   workspaceId,
   spaceId,
   pageId,
+  projectId,
   sessionId,
   contextLabel,
   allowChat = true,
@@ -46,13 +68,22 @@ export function AgentChatPanel({
 }: AgentChatPanelProps) {
   const [message, setMessage] = useState("");
   const [autoApprove, setAutoApprove] = useState(false);
-  const [pendingApprovals, setPendingApprovals] = useState<
-    Array<{ token: string; method: string; params?: any }>
-  >([]);
-  const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [historyLimit, setHistoryLimit] = useState(30);
+  const [contextSummary, setContextSummary] =
+    useState<AgentChatContextResponse | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const workspace = useAtomValue(workspaceAtom);
-  const { isAdmin } = useUserRole();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const autoApproveRef = useRef(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    autoApproveRef.current = autoApprove;
+  }, [autoApprove]);
+
   const chatTag = sessionId
     ? `agent-chat-session:${sessionId}`
     : pageId
@@ -67,9 +98,33 @@ export function AgentChatPanel({
         workspaceId,
         spaceId,
         tags: [chatTag],
-        limit: 30,
+        limit: historyLimit,
       }),
     enabled: !!workspaceId && !!spaceId,
+  });
+  const contextQuery = useQuery({
+    queryKey: ["agent-chat-context", workspaceId, spaceId, pageId, projectId, sessionId],
+    queryFn: () =>
+      getAgentChatContext({
+        spaceId,
+        pageId,
+        projectId,
+        sessionId,
+      }),
+    enabled: !!workspaceId && !!spaceId,
+  });
+  const contextMutation = useMutation({
+    mutationFn: (messageText: string) =>
+      getAgentChatContext({
+        spaceId,
+        pageId,
+        projectId,
+        sessionId,
+        message: messageText,
+      }),
+    onSuccess: (data) => {
+      setContextSummary(data);
+    },
   });
 
   useEffect(() => {
@@ -78,78 +133,74 @@ export function AgentChatPanel({
     setAutoApprove(stored === "true");
   }, [workspaceId]);
 
-  const mutation = useMutation({
+  const clearHistoryMutation = useMutation({
     mutationFn: () =>
-      sendAgentChat({ spaceId, message, pageId, sessionId, autoApprove }),
-    onSuccess: (data) => {
-      setMessage("");
-      if (data?.approvalItems?.length) {
-        setPendingApprovals((prev) => {
-          const existing = new Map(prev.map((item) => [item.token, item]));
-          for (const item of data.approvalItems || []) {
-            existing.set(item.token, item);
-          }
-          return Array.from(existing.values());
-        });
-      }
+      agentMemoryService.delete({
+        workspaceId,
+        spaceId,
+        tags: [chatTag],
+      }),
+    onSuccess: () => {
+      setMessages([]);
       queryClient.invalidateQueries({ queryKey });
     },
   });
-
-  const handleApprove = async (token: string) => {
-    setApprovalLoading(token);
-    try {
-      await confirmApproval(token);
-      setPendingApprovals((prev) => prev.filter((item) => item.token !== token));
-      notifications.show({ message: "Approval applied", color: "green" });
-    } catch {
-      notifications.show({ message: "Approval failed", color: "red" });
-    } finally {
-      setApprovalLoading(null);
-    }
-  };
-
-  const handleReject = async (token: string) => {
-    setApprovalLoading(token);
-    try {
-      await rejectApproval(token);
-      setPendingApprovals((prev) => prev.filter((item) => item.token !== token));
-      setMessage("Additional context: ");
-      textareaRef.current?.focus();
-      notifications.show({ message: "Approval rejected", color: "yellow" });
-    } catch {
-      notifications.show({ message: "Reject failed", color: "red" });
-    } finally {
-      setApprovalLoading(null);
-    }
-  };
-
-  const chatDraftLimit =
-    workspace?.settings?.agent?.chatDraftLimit ??
-    workspace?.settings?.agentSettings?.chatDraftLimit ??
-    300;
-  const increaseLimitTarget = Math.min(chatDraftLimit + 100, 2000);
-
-  const updateLimitMutation = useMutation({
+  const clearAllMutation = useMutation({
     mutationFn: () =>
-      updateAgentSettings({
-        chatDraftLimit: increaseLimitTarget,
+      agentMemoryService.delete({
+        workspaceId,
       }),
     onSuccess: () => {
-      notifications.show({
-        message: "Chat draft limit updated",
-        color: "green",
-      });
-    },
-    onError: () => {
-      notifications.show({
-        message: "Failed to update chat draft limit",
-        color: "red",
-      });
+      setMessages([]);
+      setHistoryLimit(30);
+      queryClient.invalidateQueries();
     },
   });
 
-  const messages = useMemo(() => {
+  const chatIdFallback = useRef(generateId());
+  const chatId = useMemo(() => {
+    if (workspaceId && spaceId) {
+      return [
+        "agent-chat",
+        workspaceId,
+        spaceId,
+        sessionId || pageId || "global",
+      ].join(":");
+    }
+    return chatIdFallback.current;
+  }, [workspaceId, spaceId, sessionId, pageId]);
+
+  const transport = useMemo(
+    () =>
+      new TextStreamChatTransport({
+        api: "/api/agent/chat-ui",
+        body: () => ({
+          spaceId,
+          pageId,
+          projectId,
+          sessionId,
+          autoApprove: autoApproveRef.current,
+        }),
+      }),
+    [spaceId, pageId, projectId, sessionId],
+  );
+
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    status,
+    error: chatError,
+    stop,
+    regenerate,
+    reload,
+  } = useChat({
+    id: chatId,
+    transport,
+    experimental_throttle: 50,
+  });
+
+  const seedMessages = useMemo(() => {
     const items = chatQuery.data || [];
     return items
       .slice()
@@ -158,221 +209,567 @@ export function AgentChatPanel({
         const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return aTime - bTime;
       })
-      .map((item) => ({
-        id: item.id,
-        role: item.tags?.includes("assistant") ? "assistant" : "user",
-        text:
+      .map((item) => {
+        const text =
           typeof item.content === "object" &&
           item.content !== null &&
           "text" in item.content
             ? (item.content as { text?: string }).text || ""
             : typeof item.content === "string"
               ? item.content
-              : item.summary || "",
-      }));
+              : item.summary || "";
+        return {
+          id: item.id || generateId(),
+          role: item.tags?.includes("assistant") ? "assistant" : "user",
+          parts: [{ type: "text", text }],
+        } as UIMessage;
+      });
   }, [chatQuery.data]);
 
-  const parsedMessages = useMemo(() => {
-    return messages.map((message) => {
-      if (message.role !== "assistant") {
-        return { ...message };
-      }
+  useEffect(() => {
+    if (!seedMessages.length) return;
+    setMessages((current) => {
+      const existing = new Map(current.map((item) => [item.id, item]));
+      const merged = seedMessages.map((item) => existing.get(item.id) || item);
+      const mergedIds = new Set(merged.map((item) => item.id));
+      current.forEach((item) => {
+        if (!mergedIds.has(item.id)) {
+          merged.push(item);
+        }
+      });
+      return merged;
+    });
+  }, [seedMessages, setMessages]);
 
-      const readinessMatch = message.text.match(
-        /Draft readiness:\s*(ready|not-ready)/i
-      );
-      const confidenceMatch = message.text.match(
-        /Confidence:\s*(high|medium|low)/i
-      );
+  const renderedMessages = useMemo(() => {
+    const getText = (msg: UIMessage) =>
+      msg.parts
+        .map((part) => {
+          if (part.type === "text" || part.type === "reasoning") {
+            return part.text || "";
+          }
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n")
+        .trim();
 
-      const cleanedText = message.text
+    const stripMetaLines = (text: string) =>
+      text
         .split("\n")
         .filter(
           (line) =>
             !line.match(/^\s*Draft readiness:/i) &&
-            !line.match(/^\s*Confidence:/i)
+            !line.match(/^\s*Confidence:/i),
         )
         .join("\n")
         .trim();
 
+    return messages.map((msg) => {
+      const rawText = getText(msg);
       return {
-        ...message,
-        text: cleanedText,
-        readiness: readinessMatch?.[1]?.toLowerCase() as
-          | "ready"
-          | "not-ready"
-          | undefined,
-        confidence: confidenceMatch?.[1]?.toLowerCase() as
-          | "low"
-          | "medium"
-          | "high"
-          | undefined,
+        id: msg.id,
+        role: msg.role,
+        text: msg.role === "assistant" ? stripMetaLines(rawText) : rawText,
+        parts: msg.parts,
       };
     });
   }, [messages]);
 
-  const isSessionLimitReached =
-    !!sessionId && messages.length >= chatDraftLimit;
+  const isBusy = status === "streaming" || status === "submitted";
+  const canRegenerate =
+    renderedMessages.length > 0 && (status === "ready" || status === "error");
+  const hasMoreHistory =
+    (chatQuery.data?.length || 0) >= historyLimit && historyLimit < 200;
+  const activeContext = contextSummary || contextQuery.data;
+  const contextChips = useMemo(() => {
+    if (activeContext?.sources?.length) {
+      return activeContext.sources.filter((source) => source.count > 0);
+    }
+    return [];
+  }, [activeContext]);
+  const canSend =
+    (!!message.trim() || attachedFiles.length > 0) &&
+    allowChat &&
+    !!spaceId &&
+    !isBusy;
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    if (editingMessageId) {
+      setMessages((current) =>
+        current.map((msg) => {
+          if (msg.id !== editingMessageId) return msg;
+          return {
+            ...msg,
+            parts: [{ type: "text", text: message.trim() }],
+          };
+        }),
+      );
+      setEditingMessageId(null);
+      setMessage("");
+      return;
+    }
+    const nextMessage = message.trim();
+    setMessage("");
+    const files = attachedFiles.length ? attachedFiles : undefined;
+    setAttachedFiles([]);
+    if (nextMessage) {
+      contextMutation.mutate(nextMessage);
+    }
+    await sendMessage(
+      { text: nextMessage, files },
+      {
+        body: {
+          workspaceId,
+          spaceId,
+          pageId,
+          projectId,
+          sessionId,
+          autoApprove: autoApproveRef.current,
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    });
+  }, [messages.length, status]);
+
+  const renderMessageBody = (item: (typeof renderedMessages)[number]) => {
+    const textContent = item.text || "";
+    const fileParts =
+      item.parts?.filter((part) => part.type === "file") || [];
+
+    return (
+      <Stack gap="xs">
+        {textContent ? (
+          item.role === "assistant" ? (
+            <TypographyStylesProvider className={classes.markdown}>
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(marked.parse(textContent)),
+                }}
+              />
+            </TypographyStylesProvider>
+          ) : (
+            <Text size="sm">{textContent}</Text>
+          )
+        ) : null}
+        {fileParts.length ? (
+          <Group gap="xs" wrap="wrap">
+            {fileParts.map((part, index) => {
+              const filePart = part as {
+                url?: string;
+                filename?: string;
+                mediaType?: string;
+              };
+              if (
+                filePart.mediaType?.startsWith("image/") &&
+                filePart.url
+              ) {
+                return (
+                  <img
+                    key={`${item.id}-file-${index}`}
+                    src={filePart.url}
+                    alt={filePart.filename || "attachment"}
+                    className={classes.messageImage}
+                  />
+                );
+              }
+              if (filePart.url) {
+                return (
+                  <a
+                    key={`${item.id}-file-${index}`}
+                    className={classes.messageAttachmentLink}
+                    href={filePart.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {filePart.filename || "Attachment"}
+                  </a>
+                );
+              }
+              return (
+                <Text
+                  key={`${item.id}-file-${index}`}
+                  size="xs"
+                  className={classes.messageAttachment}
+                >
+                  {filePart.filename || "Attachment"}
+                </Text>
+              );
+            })}
+          </Group>
+        ) : null}
+      </Stack>
+    );
+  };
 
   const content = (
-    <Stack gap="sm">
-      {variant === "card" ? <Title order={4}>Agent Chat</Title> : null}
-      <Group justify="space-between" align="center">
-        <Switch
-          label="Auto-approve tool actions"
-          checked={autoApprove}
-          onChange={(event) => {
-            const next = event.currentTarget.checked;
-            setAutoApprove(next);
-            if (workspaceId) {
-              localStorage.setItem(
-                `agentChatAutoApprove:${workspaceId}`,
-                String(next)
-              );
-            }
-          }}
-        />
+    <Box className={classes.chatContainer}>
+      <Stack gap="sm">
+        {variant === "card" ? <Title order={4}>Agent Chat</Title> : null}
+        <Group justify="space-between" align="center">
+          <Switch
+            label="Auto-approve tool actions"
+            checked={autoApprove}
+            onChange={(event) => {
+              const next = event.currentTarget.checked;
+              setAutoApprove(next);
+              if (workspaceId) {
+                localStorage.setItem(
+                  `agentChatAutoApprove:${workspaceId}`,
+                  String(next),
+                );
+              }
+            }}
+          />
+          <Group gap="xs">
+            {isBusy ? <Loader size="xs" /> : null}
+            <Text size="xs" c="dimmed">
+              {isBusy
+                ? status === "submitted"
+                  ? "Sending..."
+                  : "Streaming..."
+                : "Ready"}
+            </Text>
+          </Group>
+        </Group>
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconRefresh size={14} />}
+              disabled={!canRegenerate}
+              onClick={() => regenerate()}
+            >
+              Regenerate
+            </Button>
+            <Button
+              size="xs"
+              variant="light"
+              color="red"
+              leftSection={<IconPlayerStop size={14} />}
+              disabled={!isBusy}
+              onClick={() => stop()}
+            >
+              Stop
+            </Button>
+          </Group>
+          <Button
+            size="xs"
+            variant="subtle"
+            onClick={() => clearHistoryMutation.mutate()}
+            disabled={!workspaceId || !spaceId}
+            loading={clearHistoryMutation.isPending}
+          >
+            Clear chat history
+          </Button>
+        </Group>
+      </Stack>
+      <Group gap="xs">
         <Text size="xs" c="dimmed">
-          {autoApprove ? "Auto-approve enabled" : "Approval required"}
+          Context used:
         </Text>
-      </Group>
-      {pendingApprovals.length ? (
-        <Stack gap={6}>
-          {pendingApprovals.map((approval) => (
-            <Group key={approval.token} justify="space-between" align="center">
-              <Stack gap={2} style={{ flex: 1 }}>
-                <Text size="sm" c="dimmed">
-                  Approval required for {approval.method}
+        {contextChips.length ? (
+          contextChips.map((chip) => (
+            <Badge key={chip.key} size="xs" variant="light">
+              {chip.label} {chip.count}
+            </Badge>
+          ))
+        ) : (
+          <Text size="xs" c="dimmed">
+            No context yet.
+          </Text>
+        )}
+        <Popover width={360} position="bottom-start" shadow="md" withinPortal>
+          <Popover.Target>
+            <Button size="xs" variant="subtle">
+              Details
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <Stack gap="xs" className={classes.contextDropdown}>
+              {contextChips.length ? (
+                contextChips.map((source) => (
+                  <Stack key={source.key} gap={4}>
+                    <Group justify="space-between" align="center">
+                      <Text size="xs" fw={600}>
+                        {source.label}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {source.count}
+                      </Text>
+                    </Group>
+                    <ScrollArea h={120} offsetScrollbars>
+                      <Stack gap={4}>
+                        {source.items.map((item) => (
+                          <Text key={item.id} size="xs" c="dimmed">
+                            {item.summary || "memory"}
+                          </Text>
+                        ))}
+                      </Stack>
+                    </ScrollArea>
+                  </Stack>
+                ))
+              ) : (
+                <Text size="xs" c="dimmed">
+                  No context available yet.
                 </Text>
-                {approval.params ? (
-                  <Accordion variant="contained" radius="sm">
-                    <Accordion.Item value={`approval-${approval.token}`}>
-                      <Accordion.Control>
+              )}
+            </Stack>
+          </Popover.Dropdown>
+        </Popover>
+      </Group>
+      <Box className={classes.chatShell}>
+        <div
+          className={classes.chatList}
+          onWheel={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {hasMoreHistory ? (
+            <Group justify="center">
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => setHistoryLimit((value) => value + 30)}
+              >
+                Load earlier messages
+              </Button>
+            </Group>
+          ) : null}
+          {renderedMessages.length ? (
+            renderedMessages.map((item, index) => {
+              const isLast = index === renderedMessages.length - 1;
+              return (
+                <div
+                  key={item.id}
+                  className={`${classes.message} ${
+                    item.role === "assistant"
+                      ? classes.assistantMessage
+                      : classes.userMessage
+                  }`}
+                >
+                  <div className={classes.messageHeader}>
+                    <Group gap="xs">
+                      {item.role === "user" ? (
                         <Text size="xs" c="dimmed">
-                          Show details
+                          You
                         </Text>
-                      </Accordion.Control>
-                      <Accordion.Panel>
+                      ) : (
                         <Text size="xs" c="dimmed">
-                          {JSON.stringify(approval.params, null, 2)}
+                          Raven
                         </Text>
-                      </Accordion.Panel>
-                    </Accordion.Item>
-                  </Accordion>
-                ) : null}
-              </Stack>
+                      )}
+                      {isLast && status === "streaming" && item.role === "assistant" ? (
+                        <Text size="xs" c="dimmed">
+                          Streaming...
+                        </Text>
+                      ) : null}
+                    </Group>
+                    <Group gap="xs">
+                      {item.role === "user" ? (
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          color="gray"
+                          onClick={() => {
+                            setEditingMessageId(item.id);
+                            setMessage(item.text || "");
+                            textareaRef.current?.focus();
+                          }}
+                          aria-label="Edit message"
+                        >
+                          <IconEdit size={12} />
+                        </ActionIcon>
+                      ) : null}
+                      <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        onClick={() =>
+                          setMessages((current) =>
+                            current.filter((msg) => msg.id !== item.id),
+                          )
+                        }
+                        aria-label="Delete message"
+                      >
+                        <IconTrash size={12} />
+                      </ActionIcon>
+                    </Group>
+                  </div>
+                  {renderMessageBody(item)}
+                </div>
+              );
+            })
+          ) : (
+            <Text size="sm" c="dimmed">
+              No messages yet.
+            </Text>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        {contextLabel ? (
+          <Group className={classes.toolbarRow}>
+            <Badge size="sm" variant="light" color="gray">
+              {contextLabel}
+            </Badge>
+          </Group>
+        ) : null}
+        {chatError ? (
+          <Group className={classes.toolbarRow} justify="space-between">
+            <Text size="xs" c="red">
+              Something went wrong. Please try again.
+            </Text>
+            <Button size="xs" variant="light" onClick={() => reload()}>
+              Retry
+            </Button>
+          </Group>
+        ) : null}
+        {!allowChat && (
+          <Group className={classes.toolbarRow}>
+            <Text size="xs" c="dimmed">
+              Agent chat is disabled in workspace settings.
+            </Text>
+          </Group>
+        )}
+        {attachedFiles.length ? (
+          <Group className={classes.attachmentsRow} gap="xs">
+            {attachedFiles.map((file, index) => (
+              <Group key={`${file.name}-${index}`} gap={6}>
+                <Text size="xs" className={classes.attachmentPill}>
+                  {file.name}
+                </Text>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  onClick={() =>
+                    setAttachedFiles((current) =>
+                      current.filter((_, fileIndex) => fileIndex !== index),
+                    )
+                  }
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              </Group>
+            ))}
+          </Group>
+        ) : null}
+        {editingMessageId ? (
+          <Group className={classes.editingRow} gap="xs">
+            <Text size="xs" c="dimmed">
+              Editing message
+            </Text>
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={() => {
+                setEditingMessageId(null);
+                setMessage("");
+              }}
+            >
+              Cancel
+            </Button>
+          </Group>
+        ) : null}
+        <div className={classes.inputRow}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(event) => {
+              const nextFiles = Array.from(event.currentTarget.files || []);
+              setAttachedFiles(nextFiles);
+            }}
+          />
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!allowChat || isBusy}
+            aria-label="Attach files"
+          >
+            <IconPaperclip size={18} />
+          </ActionIcon>
+          <Textarea
+            ref={textareaRef}
+            className={classes.inputField}
+            value={message}
+            onChange={(event) => setMessage(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                event.preventDefault();
+                void handleSend();
+              }
+            }}
+            placeholder="Ask the agent..."
+            minRows={2}
+            disabled={!allowChat || isBusy}
+          />
+          <ActionIcon
+            variant="filled"
+            color="blue"
+            onClick={() => void handleSend()}
+            disabled={!canSend}
+            aria-label="Send message"
+          >
+            <IconSend size={18} />
+          </ActionIcon>
+        </div>
+        <Stack gap="xs" className={classes.debugToggle}>
+          <Button
+            size="xs"
+            variant="subtle"
+            onClick={() => setShowDebug((value) => !value)}
+          >
+            {showDebug ? "Hide debug" : "Show debug"}
+          </Button>
+          <Collapse in={showDebug}>
+            <Stack gap="xs" className={classes.debugPanel}>
+              <Text size="xs" c="dimmed">
+                Debug tools
+              </Text>
               <Group gap="xs">
                 <Button
                   size="xs"
-                  variant="subtle"
-                  onClick={() => handleReject(approval.token)}
-                  loading={approvalLoading === approval.token}
+                  variant="light"
+                  onClick={() => {
+                    setMessages([]);
+                    setHistoryLimit(30);
+                  }}
                 >
-                  Cancel
+                  Reset chat context
                 </Button>
                 <Button
                   size="xs"
-                  onClick={() => handleApprove(approval.token)}
-                  loading={approvalLoading === approval.token}
-                >
-                  Approve
-                </Button>
-              </Group>
-            </Group>
-          ))}
-        </Stack>
-      ) : null}
-      {isSessionLimitReached ? (
-        <Group justify="space-between" align="center">
-          <Text size="sm" c="orange">
-            This playbook chat session reached the draft limit ({chatDraftLimit}).
-          </Text>
-          <Button
-            size="xs"
-            variant="light"
-            onClick={() => updateLimitMutation.mutate()}
-            disabled={!isAdmin || updateLimitMutation.isPending}
-            loading={updateLimitMutation.isPending}
-          >
-            Increase limit
-          </Button>
-        </Group>
-      ) : null}
-      <Stack gap="xs">
-        {parsedMessages.length ? (
-          parsedMessages.map((item) => (
-            <Group
-              key={item.id}
-              justify={item.role === "user" ? "flex-end" : "flex-start"}
-            >
-              <Stack gap={4} align={item.role === "user" ? "flex-end" : "flex-start"}>
-                <Text
-                  size="sm"
-                  style={{
-                    maxWidth: "70%",
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                    background:
-                      item.role === "user"
-                        ? "var(--mantine-color-blue-light)"
-                        : "var(--mantine-color-gray-light)",
+                  variant="light"
+                  color="red"
+                  loading={clearAllMutation.isPending}
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      "Delete all memories for this workspace? This cannot be undone.",
+                    );
+                    if (confirmed) {
+                      clearAllMutation.mutate();
+                    }
                   }}
                 >
-                  {item.text}
-                </Text>
-                {item.role === "assistant" && (item.readiness || item.confidence) ? (
-                  <Group gap={6} wrap="wrap">
-                    {item.readiness ? (
-                      <Badge size="xs" color={item.readiness === "ready" ? "green" : "yellow"}>
-                        Draft {item.readiness === "ready" ? "ready" : "not ready"}
-                      </Badge>
-                    ) : null}
-                    {item.confidence ? (
-                      <Badge size="xs" color="gray">
-                        {item.confidence} confidence
-                      </Badge>
-                    ) : null}
-                  </Group>
-                ) : null}
-              </Stack>
-            </Group>
-          ))
-      ) : (
-        <Text size="sm" c="dimmed">
-          No messages yet.
-        </Text>
-      )}
-    </Stack>
-    {contextLabel ? (
-      <Group>
-        <Badge size="sm" variant="light" color="gray">
-          {contextLabel}
-        </Badge>
-      </Group>
-    ) : null}
-    <Textarea
-      ref={textareaRef}
-      value={message}
-      onChange={(event) => setMessage(event.currentTarget.value)}
-        placeholder="Ask the agent..."
-        minRows={2}
-        disabled={!allowChat}
-      />
-      <Group justify="flex-end">
-        <Button
-          onClick={() => mutation.mutate()}
-          disabled={!message.trim() || !allowChat}
-          loading={mutation.isPending}
-        >
-          Send
-        </Button>
-      </Group>
-      {!allowChat && (
-        <Text size="xs" c="dimmed">
-          Agent chat is disabled in workspace settings.
-        </Text>
-      )}
-    </Stack>
+                  Delete all memories
+                </Button>
+              </Group>
+            </Stack>
+          </Collapse>
+        </Stack>
+      </Box>
+    </Box>
   );
 
   return variant === "plain" ? (

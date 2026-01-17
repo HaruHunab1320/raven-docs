@@ -58,3 +58,25 @@ export interface AgentChatResponse {
   approvalTokens?: string[];
   approvalItems?: Array<{ token: string; method: string; params?: any }>;
 }
+
+export interface AgentChatContextItem {
+  id: string;
+  summary?: string;
+  source?: string | null;
+  timestamp?: string | null;
+  tags?: string[];
+}
+
+export interface AgentChatContextSource {
+  key: string;
+  label: string;
+  count: number;
+  items: AgentChatContextItem[];
+}
+
+export interface AgentChatContextResponse {
+  spaceId: string;
+  pageId?: string | null;
+  projectId?: string | null;
+  sources: AgentChatContextSource[];
+}

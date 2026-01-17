@@ -55,7 +55,6 @@ import {
   IconTrash,
   IconEye,
   IconEyeOff,
-  IconRobot,
 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { Label, Project, TaskPriority } from "../types";
@@ -69,15 +68,10 @@ import {
 import { useWorkspaceUsers } from "@/features/user/hooks/use-workspace-users";
 import { useTaskLabels } from "@/features/project/hooks/use-task-labels";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
-import { useAtom } from "jotai";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 import api from "@/lib/api-client.ts";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { PlaybookWizardModal } from "./playbook-wizard-modal";
-import {
-  agentChatContextAtom,
-  agentChatDrawerAtom,
-} from "@/components/layouts/global/hooks/atoms/sidebar-atom";
+import { useAtom } from "jotai";
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env?.DEV;
@@ -137,11 +131,6 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [wizardOpened, { open: openWizard, close: closeWizard }] =
-    useDisclosure(false);
-  const [, setAgentChatOpened] = useAtom(agentChatDrawerAtom);
-  const [, setAgentChatContext] = useAtom(agentChatContextAtom);
-
   // Track which properties are visible
   const [visibleProperties, setVisibleProperties] = useState({
     timeline: true,
@@ -152,15 +141,6 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
 
   // Track if we're showing hidden properties
   const [showAllProperties, setShowAllProperties] = useState(false);
-
-  const openAgentChat = () => {
-    setAgentChatContext({
-      spaceId: project.spaceId,
-      pageId: project.homePageId || undefined,
-      contextLabel: `Project: ${project.name}`,
-    });
-    setAgentChatOpened(true);
-  };
 
   // Functions to save/load property configuration
   const getStorageKey = (key: string) => `project_${project.id}_${key}`;
@@ -828,7 +808,6 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
-            {...provided.dragHandleProps}
             style={{
               ...provided.draggableProps.style,
               opacity: !isVisible ? 0.5 : 1,
@@ -856,6 +835,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
               }}
             >
               <div
+                {...provided.dragHandleProps}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1183,11 +1163,6 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
 
   return (
     <Box mb="lg">
-      <PlaybookWizardModal
-        opened={wizardOpened}
-        onClose={closeWizard}
-        project={project}
-      />
       {/* Cover image (if exists) */}
       {coverImageUrl ? (
         <Box pos="relative" mb="md">
@@ -1291,16 +1266,6 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           </Group>
         )}
 
-        <Group gap="sm">
-          <Button variant="light" size="sm" onClick={openWizard}>
-            {t("Playbook Wizard")}
-          </Button>
-          <Tooltip label={t("Agent chat")} withArrow>
-            <ActionIcon variant="subtle" onClick={openAgentChat}>
-              <IconRobot size={18} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
       </Group>
 
       {/* Project description */}
