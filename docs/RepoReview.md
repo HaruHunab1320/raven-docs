@@ -92,29 +92,12 @@ work is polish: runtime validation, performance gating, and doc consolidation.
 4) Ensure deployment docs match current Docker + env setup.
 5) Consolidate docs and delete deprecated/duplicate files.
 
-## Documentation Cleanup (Proposed Deletions)
+## Documentation Cleanup (Completed)
 
-These files are deprecated or duplicative and should be removed once the
-references are updated:
+Deprecated MCP + UI audit docs and outdated review files have been removed.
 
-- `docs/MCPIntegration.md` (deprecated)
-- `docs/MCPStandardIntegration.md` (deprecated)
-- `docs/MCP_INTEGRATION_SUMMARY.md` (deprecated)
-- `docs/MCP_ARCHITECTURE_REFACTOR.md` (deprecated)
-- `docs/MCP-README.md` (deprecated)
-- `docs/UIAudit_Runbook.md` (duplicate of checklist)
-- `docs/UIAudit_Checklist.md` (duplicate of route checks)
-- `docs/UIAudit_RouteChecks.md` (duplicate of UI audit matrix)
-- `docs/UIAudit.md` (superseded by new release checklists)
-- `CodebaseReview.md` (outdated; superseded by this doc)
-- `DEPLOYMENT_STATUS.md` (outdated)
-
-Optional consolidation candidates (merge into `docs/MCP.md` or this doc):
-
-- `APIKeySystem.md`
-- `docs/MCP_COVERAGE.md`
-- `docs/MCPEvents.md`
-- `docs/MCP_TEST_DATA_README.md`
+Optional consolidation candidates: completed (MCP.md now includes API key,
+coverage summary, events flow, and test data setup).
 
 ## Primary Docs to Keep
 

@@ -234,7 +234,7 @@ Add a dedicated Journal page with:
 
 ### Next Up
 - Multi-layer memory retrieval (short-term + long-term + topic-specific).
-- Research JSON-RPC handlers + deep research UI surface.
+- Research MCP Standard tooling + deep research UI surface.
 - Inline research block that writes back to the current page.
 - Agent-initiated research projects with structured storage.
 - Project Playbook MVP (brief -> architecture -> backlog -> phases).

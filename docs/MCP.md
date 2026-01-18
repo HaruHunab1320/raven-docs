@@ -43,6 +43,27 @@ Authorization: Bearer mcp_your_api_key_here
 API keys are associated with a user + workspace and enforce the same
 permissions as the issuing user.
 
+### API Key System (Summary)
+
+- Prefix: `mcp_` identifies MCP API keys.
+- Storage: Only hashed keys are stored (linked to user + workspace).
+- Guards: `MCPAuthGuard` (JWT first, API key fallback) + `MCPApiKeyGuard` +
+  `MCPPermissionGuard` enforce access.
+- Lifecycle: Keys are created in Workspace Settings → API Keys or via
+  `/api/api-keys/register` with a registration token.
+
+### Example (MCP Standard)
+
+```bash
+curl -X POST http://localhost:3000/api/mcp-standard/call_tool \
+  -H "Authorization: Bearer mcp_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "page_list",
+    "arguments": {}
+  }'
+```
+
 ## Approvals + Policy
 
 Some methods require approvals. When a tool needs approval, the server returns
@@ -59,8 +80,7 @@ Policy rules are configured in Workspace Settings → Agent Settings:
 
 ## Tool Coverage
 
-MCP Standard exposes all tool methods. See `docs/MCP_COVERAGE.md` for the
-coverage matrix. Core tool groups include:
+MCP Standard exposes all tool methods. Core tool groups include:
 
 - Spaces, Pages, Comments, Attachments
 - Projects + Tasks (including triage summary)
@@ -69,10 +89,32 @@ coverage matrix. Core tool groups include:
 - Memory (ingest/query/daily/days)
 - Approvals, Context, System, Navigation
 
+Coverage currently includes all former internal MCP methods now exposed
+through MCP Standard. Remaining gaps are limited to auth/billing and
+admin-only configuration flows.
+
 ## WebSocket Events
 
-Events are emitted for changes made via MCP and propagate to the client. See
-`docs/MCPEvents.md` for event types and client handling.
+Events are emitted for changes made via MCP and propagate to the client.
+
+Event flow:
+1) MCP handler performs action.
+2) MCP event service emits `mcp:event`.
+3) WebSocket gateway broadcasts to workspace rooms.
+4) Client hooks update UI.
+
+Key event groups: spaces, pages, comments, attachments, tasks, UI navigation.
+
+## Test Data (MCP Standard)
+
+Use the test data scripts in `scripts/` to seed a workspace, user, and API key:
+
+```bash
+./scripts/setup-mcp-test-data-simple.sh
+```
+
+This creates a workspace, admin user, and default space, then prompts to
+create an MCP API key.
 
 ## Quick Start (Cursor Example)
 

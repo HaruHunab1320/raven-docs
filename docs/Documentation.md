@@ -52,23 +52,6 @@ Production readiness checklist with pass/fail steps.
 
 State-of-the-art agentic behavior, memory intelligence, and delivery playbooks.
 
-### 1. [API Key Authentication System](../APIKeySystem.md)
-
-Detailed explanation of the API key authentication system:
-- Key structure and generation
-- Storage and security
-- Authentication flow
-- Implementation details
-
-### 3. [WebSocket Events System](./MCPEvents.md)
-
-Details on the real-time event system:
-- Architecture and components
-- Event types and structure
-- Server implementation
-- Client implementation
-- Testing and usage
-
 ### 4. [GTD + Second Brain UI](./GTD_SecondBrain_UI.md)
 
 Current GTD surfaces and remaining gaps.

@@ -66,7 +66,7 @@ The in-app agent can use MCP tools with approval controls. Approvals are surface
 - Workflows: `docs/Workflows.md`
 - Autonomy quickstart: `docs/AutonomyQuickstart.md`
 - System risks: `docs/SystemRisks.md`
-- UI audit routes: `docs/UIAudit_RouteChecks.md`
+- Manual test runbook: `docs/ManualTest_Runbook.md`
 - Testing matrix: `docs/TestingMatrix.md`
 - Manual test runbook: `docs/ManualTest_Runbook.md`
 - GTD + second brain UI: `docs/GTD_SecondBrain_UI.md`

@@ -36,8 +36,8 @@ Current TODO list is empty; re-run the scan during release checks to keep this
 section accurate.
 
 ### API Consistency
-- MCP uses JSON-RPC, REST uses POST + DTO; keep REST endpoints consistent with
-  existing DTO validation patterns.
+- MCP Standard uses tool/resource endpoints; REST uses POST + DTO. Keep REST
+  endpoints consistent with existing DTO validation patterns.
 - Task/project endpoints and agents return shapes that are not always documented
   in `docs/`.
 

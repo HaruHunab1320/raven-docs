@@ -87,10 +87,11 @@ what is stable, and what still needs work.
 
 ### Integrations (`apps/server/src/integrations`)
 
-**MCP + MCP Standard**
+**MCP Standard**
 - Status: Implemented.
-- Notes: MCP Standard (`/api/mcp-standard`) endpoints
-  are complete. Approval flow is enforced by policy and MCP approval service.
+- Notes: MCP Standard (`/api/mcp-standard`) endpoints are complete; legacy
+  JSON-RPC HTTP endpoints have been removed. Approval flow is enforced by
+  policy and MCP approval service.
 
 **Memgraph**
 - Status: Implemented.
@@ -191,15 +192,15 @@ what is stable, and what still needs work.
 
 - Page task list extraction/sync uses stable pageTaskId values for new items;
   validate legacy title fallback behavior during runtime QA.
-- Some docs still reference legacy limitations (needs cleanup).
+- Documentation cleanup is complete; verify MCP Standard references during QA.
 - UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
 - Security (EE) settings require a runtime pass to confirm plan-gating UX.
 
 ## Consistency Notes
 
-- **API shape:** Core REST uses `POST` for most operations with DTOs; MCP uses
-  JSON-RPC and MCP Standard. Keep new endpoints consistent with existing DTO
-  validation patterns.
+- **API shape:** Core REST uses `POST` for most operations with DTOs; MCP
+  Standard exposes tool/resource endpoints backed by shared MCP services.
+  Keep new endpoints consistent with existing DTO validation patterns.
 - **Permissions:** CASL abilities are enforced on server; UI should reflect
   permission availability to avoid dead actions.
 - **Agent logging:** Agent decisions and approvals should always be logged in
