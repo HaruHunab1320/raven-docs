@@ -95,10 +95,6 @@ raven-docs/
 └── docker-compose.yml # Docker config
 ```
 
-## Origin
-
-Raven Docs is built on the Docmost codebase and continues to evolve with its own product direction.
-
 ## License
 
 Raven Docs is licensed under AGPL-3.0-only. See `LICENSE` for details.
