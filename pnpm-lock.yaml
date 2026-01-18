@@ -724,37 +724,6 @@ importers:
 
   packages/editor-ext: {}
 
-  packages/mcp-bridge:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.10.1
-        version: 1.10.1
-      axios:
-        specifier: ^1.7.9
-        version: 1.7.9
-      dotenv:
-        specifier: ^16.5.0
-        version: 16.5.0
-      zod:
-        specifier: ^3.24.3
-        version: 3.24.3
-    devDependencies:
-      '@types/jest':
-        specifier: ^29.5.14
-        version: 29.5.14
-      '@types/node':
-        specifier: ^20.17.30
-        version: 20.17.30
-      jest:
-        specifier: ^29.7.0
-        version: 29.7.0(@types/node@20.17.30)(babel-plugin-macros@3.1.0)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: ^5.7.3
-        version: 5.7.3
-
 packages:
 
   '@aashutoshrathi/word-wrap@1.2.6':

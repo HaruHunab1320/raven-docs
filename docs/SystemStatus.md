@@ -193,7 +193,7 @@ what is stable, and what still needs work.
   validate legacy title fallback behavior during runtime QA.
 - Some docs still reference legacy limitations (needs cleanup).
 - UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
-- Security (EE) settings still contain placeholder TODOs for second plan UX.
+- Security (EE) settings require a runtime pass to confirm plan-gating UX.
 
 ## Consistency Notes
 

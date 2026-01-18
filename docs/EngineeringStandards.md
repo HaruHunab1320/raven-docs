@@ -32,10 +32,8 @@ Examples:
 - `apps/client/src/features/project/services/project-service.ts`
 
 ### TODOs / Gaps in Code
-These TODOs should be tracked and resolved:
-- `apps/server/src/common/middlewares/domain.middleware.ts`: TODO for unification.
-- `apps/client/src/ee/security/pages/security.tsx`: TODO for secondary plan UX.
-- `apps/server/src/database/pagination/pagination.ts`: TODO for type fix (`@ts-expect-error`).
+Current TODO list is empty; re-run the scan during release checks to keep this
+section accurate.
 
 ### API Consistency
 - MCP uses JSON-RPC, REST uses POST + DTO; keep REST endpoints consistent with
@@ -48,7 +46,7 @@ These TODOs should be tracked and resolved:
 1) Replace `console.*` with `Logger` (server) and feature‑flagged logging (client).
 2) Add a global `VITE_ENABLE_LOGS` check in client logging utilities and
    remove inline logs in hot paths.
-3) Convert TODOs into issues or tracked roadmap items.
+3) Convert any new TODOs into issues or tracked roadmap items.
 4) Ensure all new MCP/agent endpoints are documented in `docs/MCP.md`.
 
 ## Enforcement

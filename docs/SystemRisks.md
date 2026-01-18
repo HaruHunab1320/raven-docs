@@ -34,7 +34,7 @@ work.
    - Follow-up: validate legacy fallback behavior in runtime QA.
    - Owner: Editor + task services (Editor + Backend).
 
-3) **Permissions TODOs**
+3) **Permissions QA**
    - Status: MCP guard now aligns role tiers with CASL abilities.
    - Follow-up: validate scope resolution (space/page/task) in QA.
    - Owner: MCP integration (Backend).
