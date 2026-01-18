@@ -198,6 +198,6 @@ These are server capabilities that exist outside the JSON-RPC MCP API today:
 
 - JSON-RPC MCP does **not** cover the full app feature set yet.
 - MCP Standard now covers **all JSON-RPC MCP methods**.
-- Remaining gaps are in **features not yet exposed via JSON-RPC MCP** (invites, auth flows, import/export, broader settings, etc.).
+- Remaining gaps are in **features not yet exposed via JSON-RPC MCP** (auth flows, workspace settings, audit/analytics, app configuration).
 
 If you want, I can turn this into a prioritized implementation plan and start filling the missing tools and handlers.

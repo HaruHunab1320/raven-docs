@@ -31,7 +31,7 @@ flowchart LR
     DB["Postgres"]
     REDIS["Redis"]
     MEM["Memgraph"]
-    FS["Local/S3 Storage"]
+    FS["Local/S3/GCP Storage"]
   end
 
   UI --> API
@@ -73,8 +73,8 @@ Located under `apps/server/src/core`:
 
 ### Integrations
 Located under `apps/server/src/integrations`:
-- `storage` (local or S3)
-- `mail` (SMTP / Postmark)
+- `storage` (local GCP or S3)
+- `mail` (SMTP / Postmark / Resend)
 - `queue`, `telemetry`, `security`, `health`
 - `import`, `export`, `static`
 - MCP:
@@ -139,15 +139,16 @@ sequenceDiagram
 
 - Core systems are in place and wired.
 - MCP Standard integration appears complete and is preferred over the legacy bridge.
-- Project management system is implemented at API + UI; task-to-page list sync remains a gap.
+- Project management system is implemented at API + UI; page task list sync
+  uses stable pageTaskId values with legacy title fallback.
 - Agent memory + autonomy are live; approvals are required for sensitive actions.
 - Documentation overlaps and needs consolidation.
 
 ## Known Gaps (from code scan)
 
-- Permission TODOs in comments, search, and page scoping.
-- Project/task UI has placeholders and TODOs (create/open editor, file operations, delete).
-- Some docs refer to files that exist at repo root, not under `docs/`.
+- Task list extraction from pages uses stable pageTaskId values with legacy
+  title fallback; validate duplicate-title legacy cases in QA.
+- Some docs refer to legacy files at repo root and need cleanup/consolidation.
 
 ## Workflow Notes
 

@@ -59,6 +59,10 @@ export class CreateTaskDto {
   @IsOptional()
   pageId?: string;
 
+  @IsString()
+  @IsOptional()
+  pageTaskId?: string;
+
   @IsUUID()
   @IsOptional()
   assigneeId?: string;
@@ -109,6 +113,10 @@ export class UpdateTaskDto {
   @IsUUID()
   @IsOptional()
   pageId?: string | null;
+
+  @IsString()
+  @IsOptional()
+  pageTaskId?: string | null;
 
   @IsEnum(TaskBucket)
   @IsOptional()

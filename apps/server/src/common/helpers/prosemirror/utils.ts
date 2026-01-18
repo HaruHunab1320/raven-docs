@@ -58,6 +58,7 @@ export function extractPageMentions(mentionList: MentionNode[]): MentionNode[] {
 }
 
 export interface TaskItemNode {
+  id?: string;
   text: string;
   checked: boolean;
 }
@@ -76,16 +77,24 @@ export function extractTaskItems(content: any): TaskItemNode[] {
   try {
     const doc = jsonToNode(json);
     const items: TaskItemNode[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenTitles = new Set<string>();
 
     doc.descendants((node: Node) => {
       if (node.type.name === 'taskItem') {
         const text = node.textContent.trim();
         if (!text) return;
-        const key = text.toLowerCase();
-        if (seen.has(key)) return;
-        seen.add(key);
+        const id = node.attrs?.id as string | undefined;
+        if (id) {
+          if (seenIds.has(id)) return;
+          seenIds.add(id);
+        } else {
+          const key = text.toLowerCase();
+          if (seenTitles.has(key)) return;
+          seenTitles.add(key);
+        }
         items.push({
+          id,
           text,
           checked: Boolean(node.attrs?.checked),
         });

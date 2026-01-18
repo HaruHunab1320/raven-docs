@@ -102,11 +102,11 @@ what is stable, and what still needs work.
 
 **Storage**
 - Status: Implemented.
-- Notes: Local + S3 storage drivers.
+- Notes: Local + GCP + S3 storage drivers.
 
 **Mail**
 - Status: Implemented.
-- Notes: SMTP/Postmark drivers.
+- Notes: SMTP/Postmark/Resend drivers.
 
 **Import/Export**
 - Status: Implemented.
@@ -166,7 +166,7 @@ what is stable, and what still needs work.
 - **Postgres**: Core system of record (spaces/pages/projects/tasks/agent memories).
 - **Redis**: Sessions, MCP approval context, background systems.
 - **Memgraph**: Memory graph + embeddings + entity relationships.
-- **Object Storage**: Attachments (local or S3).
+- **Object Storage**: Attachments (local GCP, S3).
 
 ## Workflow Coverage (UI + Agent)
 
@@ -184,17 +184,16 @@ what is stable, and what still needs work.
   runs are skipped (ensure timezone + cadence are configured).
 - **Memgraph dependency**: Memory insights require Memgraph connectivity; when
   Memgraph is down, memory graph features degrade.
-- **Task label CRUD**: Labels are used by boards but lack management UI.
-- **Permissions TODOs**: MCP permission guard still has placeholder logic.
+- **Permissions**: MCP permission guard enforces role tiers only; CASL alignment
+  for space-specific checks is still pending.
 
 ## Known Gaps / Remaining Work
 
- - Page task list extraction sync still needs runtime validation.
-- Page task list extraction/sync with task database is not fully wired.
+- Page task list extraction/sync uses stable pageTaskId values for new items
+  with legacy title fallback for older pages.
 - Some docs still reference legacy limitations (needs cleanup).
-- UI audit items still need runtime confirmation (see `docs/UIAudit.md`).
+- UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
 - Security (EE) settings still contain placeholder TODOs for second plan UX.
-- MCP permission guard now enforces role tiers; CASL alignment still pending.
 
 ## Consistency Notes
 

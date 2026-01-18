@@ -620,6 +620,7 @@ export class TaskRepo {
         ? taskData.parentTaskId
         : null,
       pageId: this.isValidUuid(taskData.pageId) ? taskData.pageId : null,
+      pageTaskId: taskData.pageTaskId || null,
       assigneeId: this.isValidUuid(taskData.assigneeId)
         ? taskData.assigneeId
         : null,
@@ -659,6 +660,10 @@ export class TaskRepo {
           ? this.isValidUuid(updateData.pageId)
             ? updateData.pageId
             : null
+          : undefined,
+      pageTaskId:
+        updateData.pageTaskId !== undefined
+          ? updateData.pageTaskId
           : undefined,
     };
 

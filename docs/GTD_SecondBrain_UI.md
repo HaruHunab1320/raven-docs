@@ -50,8 +50,8 @@ Raven Docs today.
 
 ## Remaining UI Gaps
 
-- Task label CRUD UI is limited.
-- Task extraction from document checklists is not fully wired.
+- Task extraction from document checklists uses stable pageTaskId values with
+  legacy title fallback; validate legacy behavior in QA.
 - Some advanced review surfaces (project recap, time tracking) remain in roadmap.
 
 ## Design Principles (Applied)

@@ -3,6 +3,7 @@ import { Placeholder } from "@tiptap/extension-placeholder";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
+import { Plugin } from "@tiptap/pm/state";
 import { Underline } from "@tiptap/extension-underline";
 import { Superscript } from "@tiptap/extension-superscript";
 import SubScript from "@tiptap/extension-subscript";
@@ -116,7 +117,50 @@ export const mainExtensions = [
   }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   TaskList,
-  TaskItem.configure({
+  TaskItem.extend({
+    addAttributes() {
+      return {
+        ...this.parent?.(),
+        id: {
+          default: null,
+          parseHTML: (element) => element.getAttribute("data-task-id"),
+          renderHTML: (attributes) =>
+            attributes.id ? { "data-task-id": attributes.id } : {},
+        },
+      };
+    },
+    addProseMirrorPlugins() {
+      const createTaskId = () => {
+        if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+          return crypto.randomUUID();
+        }
+        return `task_${Date.now().toString(36)}_${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+      };
+
+      return [
+        new Plugin({
+          appendTransaction: (_transactions, _oldState, newState) => {
+            let tr = newState.tr;
+            let changed = false;
+
+            newState.doc.descendants((node, pos) => {
+              if (node.type.name !== "taskItem") return;
+              if (node.attrs?.id) return;
+              tr = tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                id: createTaskId(),
+              });
+              changed = true;
+            });
+
+            return changed ? tr : null;
+          },
+        }),
+      ];
+    },
+  }).configure({
     nested: true,
   }),
   Underline,

@@ -63,7 +63,7 @@ Use this list to drive runtime verification and capture pass/fail.
 | --- | --- | --- |
 | Project dashboard | Unverified | UI exists, needs runtime validation. |
 | Kanban board | Unverified | Drag/drop appears implemented. |
-| Board filters (labels) | Partial | Labels derived from task data; no label CRUD UI found. |
+| Board filters (labels) | Partial | Label CRUD UI exists; validate filter behavior. |
 | Task detail drawer | Code-verified | Page creation/linking now wired; verify UX. |
 | Task card editing | Code-verified | Title update and emoji picker wired; verify UX. |
 | New task modal | Code-verified | Wired to TaskFormModal; verify create flow. |
@@ -104,7 +104,9 @@ Use this list to drive runtime verification and capture pass/fail.
 ## Remaining Gaps (Code Scan)
 
 - Page deletion is hard delete only; no restore endpoint for soft-delete flow.
-- Task label CRUD UI not found; board filters only work if labels already exist.
+- Task label CRUD UI is implemented; needs runtime validation.
+- Page task list extraction uses stable pageTaskId values with legacy title
+  fallback; validate legacy behavior in runtime QA.
 
 ## Next Steps (to complete the UI)
 

@@ -32,9 +32,10 @@ including what is implemented, how it maps to UI, and what remains.
 - MCP exposure for projects/tasks + triage summary
 
 ### In Progress / Gaps
-- Task label CRUD UI is limited (labels exist, but creation/edit flows are sparse)
-- Document task list extraction / sync with task DB is not fully wired
-- Task mentions inside pages are not yet first-class
+- Task label CRUD UI is implemented; needs runtime validation pass.
+- Document task list extraction uses stable pageTaskId values with legacy
+  title fallback; validate legacy behavior in QA.
+- Task mentions inside pages are not yet first-class.
 
 ## Data Model Notes
 
@@ -44,7 +45,7 @@ including what is implemented, how it maps to UI, and what remains.
 
 ## Roadmap (Near-Term)
 
-1) Task list extraction from page content → tasks DB sync
+1) Task list extraction from page content → tasks DB sync (validate runtime UX)
 2) Label CRUD UI and task label management
 3) Project recap pages + weekly review integrations
 4) Task mentions and backlinks in pages

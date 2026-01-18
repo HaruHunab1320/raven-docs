@@ -16,7 +16,8 @@ This document maps GTD / Second Brain primitives to Raven Docs data and MCP Stan
 - Inbox items: tasks in a space with no `projectId`.
 - Projects: `projects` table with `homePageId` and task lists.
 - Tasks: `tasks` table with status, priority, due date, assignee.
-- GTD buckets: **stored in localStorage** (`ravendocs.taskBuckets.{spaceId}`).
+- GTD buckets: stored on tasks (`bucket` enum), with legacy localStorage
+  migrations supported for older data.
 - Daily notes: created as pages with date titles.
 - Weekly review: helper creates a page with a checklist template.
 
@@ -27,38 +28,21 @@ Exposed tool categories (from docs):
 - Pages (list/create/update/delete/move)
 - Comments (create/list/update/delete)
 - Attachments (upload/list/get/download/delete)
+- Projects + Tasks (project/task CRUD, triage summary)
 - Users, Groups, Workspaces
 - UI navigation
 
 ## Critical Gaps (Blockers for Agentic GTD)
 
-1) Task + Project MCP tools do not exist.
-2) GTD bucket state is localStorage only (not MCP-accessible).
-3) Inbox/triage logic depends on client state only.
-4) Agent cannot access or mutate the task triage state via MCP.
+1) Page task list sync uses stable pageTaskId values with legacy title fallback;
+   validate legacy behavior in QA.
+2) Agent UX needs clearer explanations for policy/approval boundaries.
 
-## Required MCP Additions
+## MCP Status (Current)
 
-### Projects
-- `project_list`
-- `project_create`
-- `project_update`
-- `project_archive`
-- `project_get`
-
-### Tasks
-- `task_list` (by space, by project, by status, by due date)
-- `task_create`
-- `task_update`
-- `task_complete`
-- `task_delete`
-- `task_move_to_project`
-- `task_assign`
-
-### GTD Buckets (Server-Side)
-- `task_bucket_set` (waiting, someday, inbox/none)
-- `task_bucket_clear`
-- Add a persisted bucket field or metadata store for tasks.
+### Projects + Tasks
+- Project and task tools exist in MCP Standard (`project_*`, `task_*`).
+- Bucket state is persisted on tasks and is MCP-accessible via `task_update`.
 
 ## Primitive → Data → Tool Mapping
 
@@ -66,8 +50,8 @@ Exposed tool categories (from docs):
 | --- | --- | --- | --- |
 | Capture Inbox item | `tasks` (no projectId) | `task_create` | Single input should create unassigned task. |
 | Triage item | `tasks` + bucket | `task_update`, `task_move_to_project`, `task_bucket_set` | Needs server bucket field. |
-| Waiting list | `tasks` where bucket = waiting | `task_list`, `task_bucket_set` | Currently localStorage-only. |
-| Someday list | `tasks` where bucket = someday | `task_list`, `task_bucket_set` | Currently localStorage-only. |
+| Waiting list | `tasks` where bucket = waiting | `task_list`, `task_update` | Server-side bucket persisted. |
+| Someday list | `tasks` where bucket = someday | `task_list`, `task_update` | Server-side bucket persisted. |
 | Daily Note | `pages` by date | `page_create`, `page_list`, `page_update` | Use search by title or metadata. |
 | Weekly Review | `pages` template | `page_create`, `page_update` | Weekly checklist stored in page content. |
 | Project overview | `projects` + `tasks` | `project_list`, `task_list` | Needs MCP for projects/tasks. |
@@ -86,11 +70,10 @@ Exposed tool categories (from docs):
    - MCP create/open weekly review page.
    - Compile overdue tasks, stale projects, waiting/someday lists.
 
-## Data Model Changes (Recommended)
+## Data Model Notes (Current)
 
-- Add `bucket` enum to tasks: `inbox | waiting | someday | none`
-- Or add a `task_metadata` table with `bucket`, `lastTriagedAt`, `triagedBy`.
-- Store `lastTriagedAt` to support daily curation and stale detection.
+- Tasks include a `bucket` enum: `inbox | waiting | someday | none`.
+- Legacy localStorage buckets are migrated into the task bucket field.
 
 ## Next Implementation Steps
 

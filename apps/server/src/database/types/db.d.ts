@@ -44,6 +44,7 @@ export interface Attachments {
   id: Generated<string>;
   mimeType: string | null;
   pageId: string | null;
+  pageTaskId: string | null;
   spaceId: string | null;
   type: string | null;
   updatedAt: Generated<Timestamp>;

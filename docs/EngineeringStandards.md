@@ -33,7 +33,6 @@ Examples:
 
 ### TODOs / Gaps in Code
 These TODOs should be tracked and resolved:
-- `apps/server/src/integrations/mcp/guards/mcp-permission.guard.ts`: permission checks TODO.
 - `apps/server/src/common/middlewares/domain.middleware.ts`: TODO for unification.
 - `apps/server/src/main.ts`: legacy JSON-RPC MCP deprecation TODO.
 - `apps/client/src/ee/security/pages/security.tsx`: TODO for secondary plan UX.

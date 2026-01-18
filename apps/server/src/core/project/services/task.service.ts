@@ -377,6 +377,7 @@ export class TaskService {
       projectId: data.projectId,
       parentTaskId: data.parentTaskId,
       pageId: data.pageId,
+      pageTaskId: data.pageTaskId,
       assigneeId: data.assigneeId,
       creatorId: userId,
       spaceId: data.spaceId,
@@ -442,9 +443,18 @@ export class TaskService {
     const items = extractTaskItems(content);
 
     const existing = await this.taskRepo.findByPageId(params.pageId);
-    const itemsByTitle = new Map(
-      items.map((item) => [item.text.toLowerCase(), item]),
-    );
+    const itemsById = new Map<string, (typeof items)[number]>();
+    const itemsByTitle = new Map<string, (typeof items)[number][]>();
+
+    for (const item of items) {
+      if (item.id) {
+        itemsById.set(item.id, item);
+      }
+      const key = item.text.toLowerCase();
+      const list = itemsByTitle.get(key) || [];
+      list.push(item);
+      itemsByTitle.set(key, list);
+    }
 
     let created = 0;
     let updated = 0;
@@ -452,44 +462,86 @@ export class TaskService {
     let skipped = 0;
 
     for (const task of existing) {
-      const key = task.title.toLowerCase();
-      const item = itemsByTitle.get(key);
+      let item = task.pageTaskId ? itemsById.get(task.pageTaskId) : undefined;
+
+      if (!item) {
+        const key = task.title.toLowerCase();
+        const list = itemsByTitle.get(key);
+        if (list && list.length) {
+          item = list.shift();
+          if (list.length === 0) {
+            itemsByTitle.delete(key);
+          }
+        }
+      }
+
       if (!item) {
         await this.delete(task.id);
         deleted += 1;
         continue;
       }
 
-      itemsByTitle.delete(key);
+      if (item.id) {
+        itemsById.delete(item.id);
+      }
+
       let didUpdate = false;
+      const updatePayload: Partial<{
+        title: string;
+        status: TaskStatus;
+        pageTaskId: string | null;
+      }> = {};
 
       if (task.title !== item.text) {
-        await this.update(task.id, { title: item.text });
+        updatePayload.title = item.text;
+        didUpdate = true;
+      }
+
+      if (!task.pageTaskId && item.id) {
+        updatePayload.pageTaskId = item.id;
         didUpdate = true;
       }
 
       const desiredStatus = item.checked ? TaskStatus.DONE : TaskStatus.TODO;
       if (task.status !== desiredStatus) {
-        await this.update(task.id, { status: desiredStatus });
+        updatePayload.status = desiredStatus;
         didUpdate = true;
       }
 
       if (didUpdate) {
+        await this.update(task.id, updatePayload);
         updated += 1;
       } else {
         skipped += 1;
       }
     }
 
-    for (const item of itemsByTitle.values()) {
+    for (const item of itemsById.values()) {
       await this.create(params.userId, params.workspaceId, {
         title: item.text,
         status: item.checked ? TaskStatus.DONE : TaskStatus.TODO,
         bucket: TaskBucket.NONE,
         spaceId: params.spaceId,
         pageId: params.pageId,
+        pageTaskId: item.id,
       });
       created += 1;
+    }
+
+    for (const list of itemsByTitle.values()) {
+      for (const item of list) {
+        if (item.id) {
+          continue;
+        }
+        await this.create(params.userId, params.workspaceId, {
+          title: item.text,
+          status: item.checked ? TaskStatus.DONE : TaskStatus.TODO,
+          bucket: TaskBucket.NONE,
+          spaceId: params.spaceId,
+          pageId: params.pageId,
+        });
+        created += 1;
+      }
     }
 
     return { created, updated, deleted, skipped };
@@ -536,6 +588,7 @@ export class TaskService {
       dueDate?: Date | null;
       assigneeId?: string | null;
       pageId?: string | null;
+      pageTaskId?: string | null;
       estimatedTime?: number | null;
       position?: string;
     },
@@ -554,6 +607,7 @@ export class TaskService {
       ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
       ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
       ...(data.pageId !== undefined && { pageId: data.pageId }),
+      ...(data.pageTaskId !== undefined && { pageTaskId: data.pageTaskId }),
       ...(data.estimatedTime !== undefined && {
         estimatedTime: data.estimatedTime,
       }),

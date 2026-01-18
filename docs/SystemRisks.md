@@ -29,8 +29,9 @@ work.
    - Owner: Project/task feature (Frontend + Backend).
 
 2) **Page ↔ task list sync**
-   - Status: Initial sync implemented (task items create tasks on page updates).
-   - Follow-up: add delete/update reconciliation and runtime validation.
+   - Status: Task extraction uses stable pageTaskId values for new items with
+     legacy title fallback for older pages.
+   - Follow-up: validate legacy fallback behavior in runtime QA.
    - Owner: Editor + task services (Editor + Backend).
 
 3) **Permissions TODOs**
@@ -57,5 +58,5 @@ work.
 3) MCP event logging gates.
 4) Task label CRUD.
 5) Page ↔ task list sync.
-6) MCP permission TODO resolution.
+6) MCP permission guard alignment with CASL (guard is role-tier only today).
 7) Autonomy schedule UX.
