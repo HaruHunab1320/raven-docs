@@ -109,14 +109,12 @@ export function CreateApiKeyModal({ opened, onClose }: CreateApiKeyModalProps) {
           </Text>
 
           <Code block>
-            {`curl -X POST ${window.location.origin}/api/mcp \\
+            {`curl -X POST ${window.location.origin}/api/mcp-standard/call_tool \\
   -H "Authorization: Bearer ${createdKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "jsonrpc": "2.0",
-    "method": "page.list",
-    "params": {},
-    "id": 1
+    "name": "page_list",
+    "arguments": {}
   }'`}
           </Code>
 

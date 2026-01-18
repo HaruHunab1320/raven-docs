@@ -34,7 +34,6 @@ Examples:
 ### TODOs / Gaps in Code
 These TODOs should be tracked and resolved:
 - `apps/server/src/common/middlewares/domain.middleware.ts`: TODO for unification.
-- `apps/server/src/main.ts`: legacy JSON-RPC MCP deprecation TODO.
 - `apps/client/src/ee/security/pages/security.tsx`: TODO for secondary plan UX.
 - `apps/server/src/database/pagination/pagination.ts`: TODO for type fix (`@ts-expect-error`).
 

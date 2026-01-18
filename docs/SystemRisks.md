@@ -35,8 +35,8 @@ work.
    - Owner: Editor + task services (Editor + Backend).
 
 3) **Permissions TODOs**
-   - Status: Implemented role-based guard for MCP endpoints.
-   - Follow-up: align with CASL abilities for space-specific checks.
+   - Status: MCP guard now aligns role tiers with CASL abilities.
+   - Follow-up: validate scope resolution (space/page/task) in QA.
    - Owner: MCP integration (Backend).
 
 ## P2 (UX + Ops)
@@ -58,5 +58,5 @@ work.
 3) MCP event logging gates.
 4) Task label CRUD.
 5) Page ↔ task list sync.
-6) MCP permission guard alignment with CASL (guard is role-tier only today).
+6) MCP permission guard QA for scope resolution.
 7) Autonomy schedule UX.

@@ -30,11 +30,11 @@ including what is implemented, how it maps to UI, and what remains.
 - Task board views (columns, swimlanes, timeline)
 - Project dashboards + metrics
 - MCP exposure for projects/tasks + triage summary
+- Document task list extraction uses stable pageTaskId values with legacy
+  title fallback; validate legacy behavior in QA.
 
 ### In Progress / Gaps
 - Task label CRUD UI is implemented; needs runtime validation pass.
-- Document task list extraction uses stable pageTaskId values with legacy
-  title fallback; validate legacy behavior in QA.
 - Task mentions inside pages are not yet first-class.
 
 ## Data Model Notes

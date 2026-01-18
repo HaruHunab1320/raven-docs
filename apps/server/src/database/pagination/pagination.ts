@@ -29,13 +29,13 @@ export async function executeWithPagination<O, DB, TB extends keyof DB>(
   const deferredJoinPrimaryKey = opts.experimental_deferredJoinPrimaryKey;
 
   if (deferredJoinPrimaryKey) {
-    const primaryKeys = await qb
+    const rows = await qb
       .clearSelect()
       .select((eb) => eb.ref(deferredJoinPrimaryKey).as('primaryKey'))
-      .execute()
-      // @ts-expect-error TODO: Fix the type here later
-
-      .then((rows) => rows.map((row) => row.primaryKey));
+      .execute();
+    const primaryKeys = (rows as Array<{ primaryKey: string | number }>).map(
+      (row) => row.primaryKey,
+    );
 
     qb = qb
       .where((eb) =>

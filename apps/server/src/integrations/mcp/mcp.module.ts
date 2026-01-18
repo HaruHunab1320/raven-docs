@@ -1,5 +1,4 @@
-import { Module, forwardRef, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
-import { MCPController } from './mcp.controller';
+import { Module, forwardRef } from '@nestjs/common';
 import { MCPService } from './mcp.service';
 import { PageHandler } from './handlers/page.handler';
 import { ProjectHandler } from './handlers/project.handler';
@@ -60,8 +59,8 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 /**
  * Machine Control Protocol (MCP) Module
  *
- * This module provides programmatic access to Raven Docs functionality
- * through a JSON-RPC 2.0 based protocol.
+ * This module provides MCP services, handlers, and websocket events that
+ * back MCP Standard integrations and internal agent workflows.
  */
 @Module({
   imports: [
@@ -87,7 +86,7 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     ResearchModule,
     EventEmitterModule.forRoot(),
   ],
-  controllers: [MCPController, ApiKeyController, ApprovalCenterController],
+  controllers: [ApiKeyController, ApprovalCenterController],
   providers: [
     MCPService,
     // Register all handlers
@@ -142,13 +141,4 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     MCPApprovalService,
   ],
 })
-export class MCPModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(WorkspaceInjectionMiddleware)
-      .forRoutes(
-        { path: 'mcp', method: RequestMethod.POST },
-        { path: 'mcp/batch', method: RequestMethod.POST }
-      );
-  }
-}
+export class MCPModule {}

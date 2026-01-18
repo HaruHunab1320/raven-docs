@@ -89,7 +89,7 @@ what is stable, and what still needs work.
 
 **MCP + MCP Standard**
 - Status: Implemented.
-- Notes: Internal JSON-RPC (`/api/mcp`) and MCP Standard (`/api/mcp-standard`)
+- Notes: MCP Standard (`/api/mcp-standard`) endpoints
   are complete. Approval flow is enforced by policy and MCP approval service.
 
 **Memgraph**
@@ -184,13 +184,13 @@ what is stable, and what still needs work.
   runs are skipped (ensure timezone + cadence are configured).
 - **Memgraph dependency**: Memory insights require Memgraph connectivity; when
   Memgraph is down, memory graph features degrade.
-- **Permissions**: MCP permission guard enforces role tiers only; CASL alignment
-  for space-specific checks is still pending.
+- **Permissions**: MCP permission guard aligns role tiers with CASL abilities;
+  validate scope resolution (space/page/task) during runtime QA.
 
 ## Known Gaps / Remaining Work
 
-- Page task list extraction/sync uses stable pageTaskId values for new items
-  with legacy title fallback for older pages.
+- Page task list extraction/sync uses stable pageTaskId values for new items;
+  validate legacy title fallback behavior during runtime QA.
 - Some docs still reference legacy limitations (needs cleanup).
 - UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
 - Security (EE) settings still contain placeholder TODOs for second plan UX.

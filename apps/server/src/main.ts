@@ -67,8 +67,6 @@ async function bootstrap() {
         '/api/sso/google',
         '/api/workspace/create',
         '/api/workspace/joined',
-        // TODO(raven-docs): Deprecate legacy JSON-RPC MCP endpoint once MCP Standard coverage is complete.
-        '/api/mcp',
         '/api/api-keys/register',
         '/api/mcp-standard',
       ];

@@ -79,7 +79,7 @@ Located under `apps/server/src/integrations`:
 - `import`, `export`, `static`
 - MCP:
   - Standard MCP protocol: `apps/server/src/integrations/mcp-standard`
-  - Internal JSON-RPC Master Control API: `apps/server/src/integrations/mcp`
+  - MCP core services + handlers: `apps/server/src/integrations/mcp`
 - Memgraph integration: `apps/server/src/integrations/memgraph`
 - AI integration: `apps/server/src/integrations/ai`
 

@@ -24,7 +24,6 @@ This comprehensive review identifies several areas for improvement to make Raven
 - `server.log`
 - `server-new.log`
 - `mcp-server.log`
-- Various logs in packages/mcp-bridge/
 - **Fix**: Add `*.log` to `.gitignore` and remove existing log files
 
 ## High Priority Issues
@@ -134,7 +133,6 @@ rm "PROJECT 89_ TRANSMISSION DOSSIER Prepared for Journalists, Storytellers, and
 rm .env
 rm .env.mcp
 rm *.log
-rm packages/mcp-bridge/*.log
 
 # Move to scripts directory
 mkdir scripts

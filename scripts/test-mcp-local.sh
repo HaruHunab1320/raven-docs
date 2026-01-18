@@ -7,9 +7,9 @@ echo "============================="
 echo -e "\n1. Testing health endpoint:"
 curl -s http://localhost:3000/api/health | jq '.' || echo "Failed"
 
-# Test 2: MCP tools endpoint (should be public)
-echo -e "\n2. Testing MCP tools endpoint (should be public):"
-curl -s http://localhost:3000/api/mcp/tools | jq '.' || echo "Failed"
+# Test 2: MCP Standard list_tools endpoint (should be public)
+echo -e "\n2. Testing MCP Standard list_tools endpoint (should be public):"
+curl -s -X POST http://localhost:3000/api/mcp-standard/list_tools | jq '.' || echo "Failed"
 
 # Test 3: API key registration without token (should fail)
 echo -e "\n3. Testing API key registration without token (should fail with 401):"
@@ -32,20 +32,18 @@ curl -s -X POST http://localhost:3000/api/api-keys/register \
   -H "x-registration-token: $APP_SECRET" \
   -d '{"name": "Test MCP Key", "userId": "invalid-user", "workspaceId": "invalid-workspace"}' | jq '.' || echo "Failed"
 
-# Test 6: Test main MCP endpoint
-echo -e "\n6. Testing main MCP endpoint without auth (should fail):"
-curl -s -X POST http://localhost:3000/api/mcp \
+# Test 6: Test MCP Standard call_tool without auth (should fail)
+echo -e "\n6. Testing MCP Standard call_tool without auth (should fail):"
+curl -s -X POST http://localhost:3000/api/mcp-standard/call_tool \
   -H "Content-Type: application/json" \
   -d '{
-    "jsonrpc": "2.0",
-    "method": "system.ping",
-    "params": {},
-    "id": 1
+    "name": "system_ping",
+    "arguments": {}
   }' | jq '.' || echo "Failed"
 
 echo -e "\n\nSummary:"
 echo "- Server is running on port 3000"
-echo "- MCP endpoints are registered and accessible"
+echo "- MCP Standard endpoints are registered and accessible"
 echo "- Authentication is working (blocking unauthorized requests)"
-echo "- The /api/mcp/tools endpoint requires auth (even though marked @Public)"
+echo "- /api/mcp-standard/call_tool requires auth"
 echo "- To create API keys, we need valid user and workspace IDs from the database"

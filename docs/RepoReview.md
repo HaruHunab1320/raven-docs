@@ -47,7 +47,7 @@ work is polish: runtime validation, performance gating, and doc consolidation.
 
 ### Integrations
 
-- MCP Standard (`/api/mcp-standard/*`) and internal JSON-RPC (`/api/mcp`).
+- MCP Standard (`/api/mcp-standard/*`) endpoints.
 - WebSocket gateway for MCP events + presence.
 - AI integration (Gemini generation + embeddings).
 - Storage abstraction (local, S3).
@@ -78,9 +78,11 @@ work is polish: runtime validation, performance gating, and doc consolidation.
 ## Current State Highlights
 
 - MCP Standard is the canonical external integration.
+- MCP permission guard aligns role tiers with CASL abilities (scope QA pending).
 - Agent memory and insights are live and visible.
 - Planner cascade and plan approvals are implemented.
 - Project/task dashboards and GTD flows are in place.
+- Page task list sync uses stable pageTaskId values with legacy title fallback.
 
 ## Release Polish Checklist
 
@@ -140,4 +142,3 @@ The system is close to v1. The remaining work is focused on:
 - validating agent planning/approval flows end-to-end,
 - cleaning up doc drift and build warnings,
 - confirming deployment environment settings.
-

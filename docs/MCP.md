@@ -6,15 +6,14 @@ readmes and integration summaries.
 ## Overview
 
 Raven Docs exposes MCP Standard directly at `/api/mcp-standard/*`. Internally it
-uses a JSON-RPC 2.0 Master Control API (`/api/mcp`) and a WebSocket event
-gateway for real-time updates.
+uses MCP services + handlers and a WebSocket event gateway for real-time updates.
 
 ## Architecture (High Level)
 
 - **MCP Standard** (`apps/server/src/integrations/mcp-standard`): Public MCP
   interface for AI tools.
-- **Master Control API** (`apps/server/src/integrations/mcp`): Internal JSON-RPC
-  service used by MCP Standard.
+- **MCP Core Services** (`apps/server/src/integrations/mcp`): Shared services
+  and handlers used by MCP Standard + agent workflows.
 - **WebSocket Events** (`apps/server/src/integrations/mcp/mcp-websocket.gateway.ts`):
   real-time events for pages, tasks, spaces, etc.
 - **Approvals + Policy**: Sensitive actions require approval tokens; policy
@@ -60,7 +59,7 @@ Policy rules are configured in Workspace Settings → Agent Settings:
 
 ## Tool Coverage
 
-MCP Standard exposes all JSON-RPC methods. See `docs/MCP_COVERAGE.md` for the
+MCP Standard exposes all tool methods. See `docs/MCP_COVERAGE.md` for the
 coverage matrix. Core tool groups include:
 
 - Spaces, Pages, Comments, Attachments
@@ -74,11 +73,6 @@ coverage matrix. Core tool groups include:
 
 Events are emitted for changes made via MCP and propagate to the client. See
 `docs/MCPEvents.md` for event types and client handling.
-
-## Internal JSON-RPC (Master Control API)
-
-The JSON-RPC service is used internally by MCP Standard. External tools should
-use MCP Standard instead. See `docs/MasterControlAPI.md` for details.
 
 ## Quick Start (Cursor Example)
 

@@ -60,15 +60,6 @@ Detailed explanation of the API key authentication system:
 - Authentication flow
 - Implementation details
 
-### 2. [Master Control API: JSON-RPC 2.0 Server (Internal)](./MasterControlAPI.md)
-
-Comprehensive documentation of the JSON-RPC 2.0 server implementation:
-- Architecture and components
-- Request and response formats
-- Method structure and implementation
-- Authentication and authorization
-- Complete API reference
-
 ### 3. [WebSocket Events System](./MCPEvents.md)
 
 Details on the real-time event system:

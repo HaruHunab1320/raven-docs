@@ -89,25 +89,16 @@ The `MCPApiKeyService` provides methods for:
 3. **Revocation**: Keys can be immediately revoked if compromised
 4. **Scoped Access**: Each key is bound to a specific user and inherits their permissions
 
-## MCP Bridge Configuration
+## MCP Standard Configuration
 
-The MCP bridge uses the API key to authenticate with the Raven Docs server:
+Use MCP Standard directly with an API key:
 
 ```json
 {
   "mcpServers": {
     "raven-docs": {
-      "command": "npx",
-      "args": [
-        "tsx",
-        "./packages/mcp-bridge/src/index.ts"
-      ],
-      "env": {
-        "MCP_DEBUG": "true",
-        "MCP_SERVER_URL": "http://localhost:3000",
-        "MCP_API_KEY": "mcp_a68e63ded924146c3b53b00ef47f8e73193e01b5eeaa3ae67cd63b99357acc08",
-        "NODE_ENV": "development"
-      }
+      "url": "http://localhost:3000/api/mcp-standard",
+      "apiKey": "mcp_a68e63ded924146c3b53b00ef47f8e73193e01b5eeaa3ae67cd63b99357acc08"
     }
   }
 }
@@ -137,22 +128,20 @@ curl -X POST http://localhost:3000/api/api-keys/register \
 ### Using an API Key
 
 ```typescript
-const response = await fetch("http://localhost:3000/api/mcp", {
+const response = await fetch("http://localhost:3000/api/mcp-standard/call_tool", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
     "Authorization": "Bearer mcp_your_api_key_here"
   },
   body: JSON.stringify({
-    jsonrpc: "2.0",
-    method: "page.create",
-    params: {
+    name: "page_create",
+    arguments: {
       title: "New Page",
       content: { type: "doc", content: [] },
       spaceId: "space-id",
       workspaceId: "workspace-id"
-    },
-    id: 1
+    }
   })
 });
 ```

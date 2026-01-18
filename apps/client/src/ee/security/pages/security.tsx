@@ -35,7 +35,6 @@ export default function Security() {
         Single sign-on (SSO)
       </Title>
 
-      {/*TODO: revisit when we add a second plan */}
       {!isCloud() && hasLicenseKey ? (
         <>
           <EnforceSso />
