@@ -24,8 +24,6 @@ const APP_ROUTE = {
     SETUP: "/setup/register",
     FORGOT_PASSWORD: "/forgot-password",
     PASSWORD_RESET: "/password-reset",
-    CREATE_WORKSPACE: "/create",
-    SELECT_WORKSPACE: "/select",
   },
   SETTINGS: {
     ACCOUNT: {
@@ -38,8 +36,6 @@ const APP_ROUTE = {
       GROUPS: "/settings/groups",
       SPACES: "/settings/spaces",
       API_KEYS: "/settings/api-keys",
-      BILLING: "/settings/billing",
-      SECURITY: "/settings/security",
     },
   },
 };

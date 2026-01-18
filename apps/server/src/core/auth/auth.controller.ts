@@ -24,7 +24,6 @@ import { PasswordResetDto } from './dto/password-reset.dto';
 import { VerifyUserTokenDto } from './dto/verify-user-token.dto';
 import { FastifyReply } from 'fastify';
 import { addDays } from 'date-fns';
-import { validateSsoEnforcement } from './auth.util';
 
 @Controller('auth')
 export class AuthController {
@@ -40,8 +39,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: FastifyReply,
     @Body() loginInput: LoginDto,
   ) {
-    validateSsoEnforcement(workspace);
-
     const authToken = await this.authService.login(loginInput, workspace.id);
     this.setAuthCookie(res, authToken);
   }
@@ -77,7 +74,6 @@ export class AuthController {
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    validateSsoEnforcement(workspace);
     return this.authService.forgotPassword(forgotPasswordDto, workspace);
   }
 

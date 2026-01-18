@@ -18,7 +18,6 @@ work is polish: runtime validation, performance gating, and doc consolidation.
 - `apps/server`: NestJS backend with REST APIs, MCP Standard, WebSockets.
 - `apps/client`: React frontend with editor, GTD, project/task UI, agent UI.
 - `packages/editor-ext`: Tiptap extensions and markdown utilities.
-- `packages/ee`: Enterprise modules (optional).
 
 ### Data Stores
 
@@ -121,7 +120,19 @@ coverage summary, events flow, and test data setup).
 
 The system is close to v1. The remaining work is focused on:
 
-- running the manual test runbook and updating pass/fail states,
 - validating agent planning/approval flows end-to-end,
-- cleaning up doc drift and build warnings,
 - confirming deployment environment settings.
+
+## Deployment Checklist
+
+- Confirm `.env` values for production (APP_URL, DB, Redis, storage, mail).
+- Run `pnpm --filter ./apps/server run migration:latest`.
+- Verify MCP Standard API key creation + `call_tool` flow.
+- Validate agent approvals and policy rules in production.
+- Confirm storage + email providers (GCP/S3 + SMTP/Postmark/Resend).
+
+## Portfolio Readiness
+
+- Manual test runbook is complete.
+- Docs consolidated with MCP Standard as the single integration path.
+- Remove or gate noisy dev logs before recording demos.

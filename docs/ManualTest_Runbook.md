@@ -2,6 +2,11 @@
 
 Use this checklist to validate Raven Docs end‑to‑end before a production push.
 
+## Run Status
+
+- Completed: Yes (manual run complete).
+- Notes: Capture any follow-up issues in `docs/RepoReview.md`.
+
 ## Setup
 
 - [X] Start backend + frontend.

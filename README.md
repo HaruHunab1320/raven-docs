@@ -36,6 +36,15 @@ pnpm install
 pnpm dev
 ```
 
+### Production deployment (summary)
+
+```bash
+cp .env.production.example .env
+# set APP_SECRET, APP_URL, DATABASE_URL, REDIS_URL, storage + mail settings
+docker-compose -f docker-compose.production.yml up -d
+pnpm --filter ./apps/server run migration:latest
+```
+
 ## Features
 
 - Real-time collaboration
@@ -92,7 +101,7 @@ Raven Docs is built on the Docmost codebase and continues to evolve with its own
 
 ## License
 
-Raven Docs inherits the Raven Docs core licensed under AGPL 3.0. Enterprise features are under `packages/ee/License`.
+Raven Docs is licensed under AGPL-3.0-only. See `LICENSE` for details.
 
 ## Contributing
 

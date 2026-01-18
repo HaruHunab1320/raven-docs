@@ -1,12 +1,4 @@
-import {
-  ActionIcon,
-  Badge,
-  Group,
-  Menu,
-  Stack,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Group, Menu, Stack, Text, Tooltip } from "@mantine/core";
 import classes from "./app-header.module.css";
 import React, { useEffect } from "react";
 import TopMenu from "@/components/layouts/global/top-menu.tsx";
@@ -21,8 +13,6 @@ import {
 import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-toggle-sidebar.ts";
 import SidebarToggle from "@/components/ui/sidebar-toggle-button.tsx";
 import { useTranslation } from "react-i18next";
-import useTrial from "@/ee/hooks/use-trial.tsx";
-import { isCloud } from "@/lib/config.ts";
 import { ThemeSwitcher } from "@/features/user/components/theme-switcher";
 import { QuickCapture } from "@/features/gtd/components/quick-capture";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
@@ -59,7 +49,6 @@ export function AppHeader() {
   const [desktopOpened] = useAtom(desktopSidebarAtom);
   const toggleDesktop = useToggleSidebar(desktopSidebarAtom);
   const [, setAgentChatOpened] = useAtom(agentChatDrawerAtom);
-  const { isTrial, trialDaysLeft } = useTrial();
 
   const isHomeRoute = location.pathname === "/home";
   const isMac = React.useMemo(() => {
@@ -288,19 +277,6 @@ export function AppHeader() {
             </Menu.Dropdown>
           </Menu>
 
-          {isCloud() && isTrial && trialDaysLeft !== 0 && (
-            <Badge
-              variant="light"
-              style={{ cursor: "pointer" }}
-              component={Link}
-              to={APP_ROUTE.SETTINGS.WORKSPACE.BILLING}
-              visibleFrom="xs"
-            >
-              {trialDaysLeft === 1
-                ? "1 day left"
-                : `${trialDaysLeft} days left`}
-            </Badge>
-          )}
           <div className={classes.desktopOnly}>
             <Tooltip label={t("Help & shortcuts")} withArrow position="bottom">
               <ActionIcon

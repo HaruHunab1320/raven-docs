@@ -21,8 +21,7 @@
     "jsx": "react",
     "paths": {
       "@raven-docs/db/*": ["./src/database/*"],
-      "@raven-docs/transactional/*": ["./src/integrations/transactional/*"],
-      "@raven-docs/ee/*": ["./src/ee/*"]
+      "@raven-docs/transactional/*": ["./src/integrations/transactional/*"]
     }
   }
 }

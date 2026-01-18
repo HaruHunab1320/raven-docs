@@ -26,12 +26,7 @@ export class WorkspaceRepo {
     'createdAt',
     'updatedAt',
     'deletedAt',
-    'stripeCustomerId',
     'status',
-    'billingEmail',
-    'trialEndAt',
-    'enforceSso',
-    'plan',
   ];
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
 
@@ -40,7 +35,6 @@ export class WorkspaceRepo {
     opts?: {
       withLock?: boolean;
       withMemberCount?: boolean;
-      withLicenseKey?: boolean;
       trx?: KyselyTransaction;
     },
   ): Promise<Workspace> {
@@ -53,10 +47,6 @@ export class WorkspaceRepo {
 
     if (opts?.withMemberCount) {
       query = query.select(this.withMemberCount);
-    }
-
-    if (opts?.withLicenseKey) {
-      query = query.select('licenseKey');
     }
 
     if (opts?.withLock && opts?.trx) {

@@ -106,9 +106,7 @@ export class WorkspaceHandler {
         createdAt: workspace.createdAt,
         updatedAt: workspace.updatedAt,
         defaultSpaceId: workspace.defaultSpaceId,
-        trialEndAt: workspace.trialEndAt,
         settings: workspace.settings,
-        billingEmail: workspace.billingEmail,
         userRole: authUser.role || 'owner', // Use the actual user role when available
       };
     } catch (error: any) {

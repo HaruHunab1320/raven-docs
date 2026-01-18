@@ -20,20 +20,6 @@ import { MCPModule } from './integrations/mcp/mcp.module';
 import { MCPStandardModule } from './integrations/mcp-standard/mcp-standard.module';
 import { LoggerModule } from 'nestjs-pino';
 
-const enterpriseModules = [];
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  if (require('./ee/ee.module')?.EeModule) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    enterpriseModules.push(require('./ee/ee.module')?.EeModule);
-  }
-} catch (err) {
-  if (process.env.CLOUD === 'true') {
-    console.warn('Failed to load enterprise modules. Exiting program.\n', err);
-    process.exit(1);
-  }
-}
-
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -67,7 +53,6 @@ try {
     EventEmitterModule.forRoot(),
     SecurityModule,
     TelemetryModule,
-    ...enterpriseModules,
   ],
   controllers: [AppController],
   providers: [AppService],

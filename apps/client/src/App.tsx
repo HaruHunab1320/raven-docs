@@ -19,14 +19,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import InviteSignup from "@/pages/auth/invite-signup.tsx";
 import ForgotPassword from "@/pages/auth/forgot-password.tsx";
 import PasswordReset from "./pages/auth/password-reset";
-import Billing from "@/ee/billing/pages/billing.tsx";
-import CloudLogin from "@/ee/pages/cloud-login.tsx";
-import CreateWorkspace from "@/ee/pages/create-workspace.tsx";
-import { isCloud } from "@/lib/config.ts";
 import { useTranslation } from "react-i18next";
-import Security from "@/ee/security/pages/security.tsx";
-import License from "@/ee/licence/pages/license.tsx";
-import { useRedirectToCloudSelect } from "@/ee/hooks/use-redirect-to-cloud-select.tsx";
 import AttachmentsPage from "@/features/attachment/pages/attachments-page.tsx";
 import { useMCPEvents } from "@/features/websocket/hooks/use-mcp-events";
 import NavigationTestPage from "@/features/websocket/pages/navigation-test-page.tsx";
@@ -368,8 +361,6 @@ const project89CSS = `
 
 export default function App() {
   const { t } = useTranslation();
-  useRedirectToCloudSelect();
-
   // Initialize MCP events handling (including navigation events)
   useMCPEvents();
 
@@ -457,16 +448,7 @@ export default function App() {
         <Route path={"/forgot-password"} element={<ForgotPassword />} />
         <Route path={"/password-reset"} element={<PasswordReset />} />
 
-        {!isCloud() && (
-          <Route path={"/setup/register"} element={<SetupWorkspace />} />
-        )}
-
-        {isCloud() && (
-          <>
-            <Route path={"/create"} element={<CreateWorkspace />} />
-            <Route path={"/select"} element={<CloudLogin />} />
-          </>
-        )}
+        <Route path={"/setup/register"} element={<SetupWorkspace />} />
 
         <Route path={"/p/:pageSlug"} element={<PageRedirect />} />
 
@@ -523,9 +505,6 @@ export default function App() {
           <Route path={"/settings/groups/:groupId"} element={<GroupInfo />} />
           <Route path={"/settings/spaces"} element={<Spaces />} />
           <Route path={"/settings/api-keys"} element={<ApiKeys />} />
-          <Route path={"/settings/billing"} element={<Billing />} />
-          <Route path={"/settings/security"} element={<Security />} />
-          <Route path={"/settings/license"} element={<License />} />
           <Route path={"/navigation-test"} element={<NavigationTestPage />} />
           <Route path={"*"} element={<Error404 />} />
         </Route>

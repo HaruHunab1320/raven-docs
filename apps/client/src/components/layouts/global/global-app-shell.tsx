@@ -13,7 +13,6 @@ import { SpaceSidebar } from "@/features/space/components/sidebar/space-sidebar.
 import { AppHeader } from "@/components/layouts/global/app-header.tsx";
 import Aside from "@/components/layouts/global/aside.tsx";
 import classes from "./app-shell.module.css";
-import { useTrialEndAction } from "@/ee/hooks/use-trial-end-action.tsx";
 import { AgentChatDrawer } from "@/features/agent/components/agent-chat-drawer";
 import { ActivityTracker } from "@/features/agent-memory/components/activity-tracker";
 import { PageTabsBar } from "@/components/layouts/global/page-tabs-bar";
@@ -25,7 +24,6 @@ export default function GlobalAppShell({
 }: {
   children: React.ReactNode;
 }) {
-  useTrialEndAction();
   const [mobileOpened, setMobileOpened] = useAtom(mobileSidebarAtom);
   const [desktopOpened] = useAtom(desktopSidebarAtom);
   const [{ isAsideOpen }] = useAtom(asideStateAtom);

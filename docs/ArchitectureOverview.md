@@ -8,7 +8,7 @@ Raven Docs is a monorepo with two primary apps and shared packages:
 
 - Backend: NestJS server (`apps/server`)
 - Frontend: React + Vite client (`apps/client`)
-- Shared packages: editor extension, enterprise features (`packages/*`)
+- Shared packages: editor extension (`packages/*`)
 
 ### High-Level Diagram
 
@@ -55,7 +55,6 @@ apps/
   server/            NestJS API + WebSockets
 packages/
   editor-ext/        Editor extension package
-  ee/                Enterprise modules
 docs/                Project and MCP documentation
 ```
 

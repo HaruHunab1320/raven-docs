@@ -19,16 +19,10 @@ import {
 } from "@/features/auth/types/auth.types";
 import { notifications } from "@mantine/notifications";
 import { IAcceptInvite } from "@/features/workspace/types/workspace.types.ts";
-import {
-  acceptInvitation,
-  createWorkspace,
-} from "@/features/workspace/services/workspace-service.ts";
+import { acceptInvitation } from "@/features/workspace/services/workspace-service.ts";
 import APP_ROUTE from "@/lib/app-route.ts";
 import { RESET } from "jotai/utils";
 import { useTranslation } from "react-i18next";
-import { isCloud } from "@/lib/config.ts";
-import { exchangeTokenRedirectUrl, getHostnameUrl } from "@/ee/utils.ts";
-import { getMyInfo } from "@/features/user/services/user-service";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import api from "@/lib/api-client";
@@ -102,21 +96,9 @@ export default function useAuth() {
     setIsLoading(true);
 
     try {
-      if (isCloud()) {
-        const res = await createWorkspace(data);
-        const hostname = res?.workspace?.hostname;
-        const exchangeToken = res?.exchangeToken;
-        if (hostname && exchangeToken) {
-          window.location.href = exchangeTokenRedirectUrl(
-            hostname,
-            exchangeToken,
-          );
-        }
-      } else {
-        const res = await setupWorkspace(data);
-        setIsLoading(false);
-        navigate(APP_ROUTE.HOME);
-      }
+      await setupWorkspace(data);
+      setIsLoading(false);
+      navigate(APP_ROUTE.HOME);
     } catch (err) {
       setIsLoading(false);
       notifications.show({

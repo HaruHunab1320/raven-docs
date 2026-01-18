@@ -22,16 +22,9 @@ import { PaginationOptions } from '@raven-docs/db/pagination/pagination-options'
 import { PaginationResult } from '@raven-docs/db/pagination/pagination';
 import { UpdateWorkspaceUserRoleDto } from '../dto/update-workspace-user-role.dto';
 import { UserRepo } from '@raven-docs/db/repos/user/user.repo';
-import { EnvironmentService } from '../../../integrations/environment/environment.service';
 import { DomainService } from '../../../integrations/environment/domain.service';
-import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import { addDays } from 'date-fns';
 import { DISALLOWED_HOSTNAMES, WorkspaceStatus } from '../workspace.constants';
 import { v4 } from 'uuid';
-import { AttachmentType } from 'src/core/attachment/attachment.constants';
-import { InjectQueue } from '@nestjs/bullmq';
-import { QueueJob, QueueName } from '../../../integrations/queue/constants';
-import { Queue } from 'bullmq';
 import { AgentSettingsDto } from '../dto/agent-settings.dto';
 import { WorkspaceIntegrationSettingsDto } from '../dto/workspace-integration-settings.dto';
 import { resolveAgentSettings } from '../../agent/agent-settings';
@@ -47,11 +40,9 @@ export class WorkspaceService {
     private groupRepo: GroupRepo,
     private groupUserRepo: GroupUserRepo,
     private userRepo: UserRepo,
-    private environmentService: EnvironmentService,
     private domainService: DomainService,
     @InjectKysely() private readonly db: KyselyDB,
     @InjectQueue(QueueName.ATTACHMENT_QUEUE) private attachmentQueue: Queue,
-    @InjectQueue(QueueName.BILLING_QUEUE) private billingQueue: Queue,
   ) {}
 
   async findById(workspaceId: string) {
@@ -87,20 +78,7 @@ export class WorkspaceService {
   async getWorkspacePublicData(workspaceId: string) {
     const workspace = await this.db
       .selectFrom('workspaces')
-      .select(['id', 'name', 'logo', 'hostname', 'enforceSso', 'licenseKey'])
-      .select((eb) =>
-        jsonArrayFrom(
-          eb
-            .selectFrom('authProviders')
-            .select([
-              'authProviders.id',
-              'authProviders.name',
-              'authProviders.type',
-            ])
-            .where('authProviders.isEnabled', '=', true)
-            .where('workspaceId', '=', workspaceId),
-        ).as('authProviders'),
-      )
+      .select(['id', 'name', 'logo', 'hostname'])
       .where('id', '=', workspaceId)
       .executeTakeFirst();
 
@@ -108,12 +86,7 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const { licenseKey, ...rest } = workspace;
-
-    return {
-      ...rest,
-      hasLicenseKey: Boolean(licenseKey),
-    };
+    return workspace;
   }
 
   async create(
@@ -121,29 +94,10 @@ export class WorkspaceService {
     createWorkspaceDto: CreateWorkspaceDto,
     trx?: KyselyTransaction,
   ) {
-    let trialEndAt = undefined;
-
     const createdWorkspace = await executeTx(
       this.db,
       async (trx) => {
-        let hostname = undefined;
-        let status = undefined;
-        let plan = undefined;
-        let billingEmail = undefined;
-
-        if (this.environmentService.isCloud()) {
-          // generate unique hostname
-          hostname = await this.generateHostname(
-            createWorkspaceDto.hostname ?? createWorkspaceDto.name,
-          );
-          trialEndAt = addDays(
-            new Date(),
-            this.environmentService.getBillingTrialDays(),
-          );
-          status = WorkspaceStatus.Active;
-          plan = 'standard';
-          billingEmail = user.email;
-        }
+        const hostname = createWorkspaceDto.hostname || undefined;
 
         // create workspace
         const workspace = await this.workspaceRepo.insertWorkspace(
@@ -151,10 +105,7 @@ export class WorkspaceService {
             name: createWorkspaceDto.name,
             description: createWorkspaceDto.description,
             hostname,
-            status,
-            trialEndAt,
-            plan,
-            billingEmail,
+            status: WorkspaceStatus.Active,
           },
           trx,
         );
@@ -230,26 +181,6 @@ export class WorkspaceService {
       trx,
     );
 
-    if (this.environmentService.isCloud() && trialEndAt) {
-      try {
-        const delay = trialEndAt.getTime() - Date.now();
-
-        await this.billingQueue.add(
-          QueueJob.TRIAL_ENDED,
-          { workspaceId: createdWorkspace.id },
-          { delay },
-        );
-
-        await this.billingQueue.add(
-          QueueJob.WELCOME_EMAIL,
-          { userId: user.id },
-          { delay: 60 * 1000 }, // 1m
-        );
-      } catch (err) {
-        this.logger.error(err);
-      }
-    }
-
     return createdWorkspace;
   }
 
@@ -286,21 +217,6 @@ export class WorkspaceService {
   }
 
   async update(workspaceId: string, updateWorkspaceDto: UpdateWorkspaceDto) {
-    if (updateWorkspaceDto.enforceSso) {
-      const sso = await this.db
-        .selectFrom('authProviders')
-        .selectAll()
-        .where('isEnabled', '=', true)
-        .where('workspaceId', '=', workspaceId)
-        .execute();
-
-      if (sso && sso?.length === 0) {
-        throw new BadRequestException(
-          'There must be at least one active SSO provider to enforce SSO.',
-        );
-      }
-    }
-
     if (updateWorkspaceDto.emailDomains) {
       const regex =
         /(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]/;
@@ -324,16 +240,9 @@ export class WorkspaceService {
 
     await this.workspaceRepo.updateWorkspace(updateWorkspaceDto, workspaceId);
 
-    const workspace = await this.workspaceRepo.findById(workspaceId, {
+    return this.workspaceRepo.findById(workspaceId, {
       withMemberCount: true,
-      withLicenseKey: true,
     });
-
-    const { licenseKey, ...rest } = workspace;
-    return {
-      ...rest,
-      hasLicenseKey: Boolean(licenseKey),
-    };
   }
 
   async updateAgentSettings(

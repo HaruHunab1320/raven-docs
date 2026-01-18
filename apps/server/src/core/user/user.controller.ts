@@ -32,12 +32,9 @@ export class UserController {
       workspace.id,
     );
 
-    const { licenseKey, ...rest } = workspace;
-
     const workspaceInfo = {
-      ...rest,
+      ...workspace,
       memberCount,
-      hasLicenseKey: Boolean(licenseKey),
     };
 
     return { user: authUser, workspace: workspaceInfo };

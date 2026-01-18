@@ -194,7 +194,7 @@ what is stable, and what still needs work.
   validate legacy title fallback behavior during runtime QA.
 - Documentation cleanup is complete; verify MCP Standard references during QA.
 - UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
-- Security (EE) settings require a runtime pass to confirm plan-gating UX.
+- Security settings require a runtime pass to confirm plan-gating UX.
 
 ## Consistency Notes
 
