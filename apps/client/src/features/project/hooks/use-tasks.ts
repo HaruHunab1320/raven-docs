@@ -11,6 +11,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { migrateLegacyBuckets } from "@/features/gtd/utils/bucket-migration";
+import { logger } from "@/lib/logger";
 
 const TASKS_QUERY_KEY = "tasks";
 const TASKS_BY_PAGE_QUERY_KEY = "tasks-by-page";
@@ -343,7 +344,7 @@ export function useUpdateTaskPositionMutation() {
       projectId?: string;
       spaceId?: string;
     }) => {
-      console.log("🔄 Updating task position:", params);
+      logger.log("🔄 Updating task position:", params);
 
       // Call the updateTask endpoint with position parameter
       const result = await projectService.updateTask({
@@ -351,12 +352,12 @@ export function useUpdateTaskPositionMutation() {
         position: params.position,
       });
 
-      console.log("✅ Position update result:", result);
+      logger.log("✅ Position update result:", result);
       return result;
     },
 
     onSuccess: (data, variables) => {
-      console.log("🎉 Position update success (No Toast):", data);
+      logger.log("🎉 Position update success (No Toast):", data);
 
       // Keep cache invalidation logic
       queryClient.invalidateQueries({ queryKey: [TASKS_QUERY_KEY, data.id] });
@@ -381,7 +382,7 @@ export function useUpdateTaskPositionMutation() {
       queryClient.invalidateQueries({ queryKey: [TASKS_QUERY_KEY] });
     },
     onError: (error) => {
-      console.error("❌ Error updating task position:", error);
+      logger.error("❌ Error updating task position:", error);
     },
   });
 }

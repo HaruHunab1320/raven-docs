@@ -12,18 +12,10 @@ import { treeDataAtom } from "@/features/page/tree/atoms/tree-data-atom";
 import { useNavigate } from "react-router-dom";
 import { getSpaceUrl } from "@/lib/config";
 import { buildPageUrl } from "@/features/page/page.utils";
+import { mcpLog, mcpWarn } from "../utils/mcp-log";
 
-const shouldLog = import.meta.env?.VITE_ENABLE_LOGS === "true";
-const debugLog = (...args: unknown[]) => {
-  if (shouldLog) {
-    globalThis.console?.log(...args);
-  }
-};
-const debugWarn = (...args: unknown[]) => {
-  if (shouldLog) {
-    globalThis.console?.warn(...args);
-  }
-};
+const debugLog = mcpLog;
+const debugWarn = mcpWarn;
 
 /**
  * A hook that listens for MCP events and updates the application state accordingly

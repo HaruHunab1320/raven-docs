@@ -12,9 +12,13 @@ export default defineConfig(({ mode }) => {
     CLOUD,
     SUBDOMAIN_HOST,
     COLLAB_URL,
+    VITE_ENABLE_LOGS,
   } = loadEnv(mode, envPath, "");
 
-  console.log("Configuring Vite with APP_URL:", APP_URL);
+  const enableLogs = VITE_ENABLE_LOGS === "true";
+  if (enableLogs) {
+    process.stdout.write(`Configuring Vite with APP_URL: ${APP_URL}\n`);
+  }
 
   return {
     define: {
@@ -52,7 +56,9 @@ export default defineConfig(({ mode }) => {
           configure: (proxy, options) => {
             // Log proxy requests for debugging
             proxy.on("error", (err, req, res) => {
-              console.log("Proxy error:", err);
+              if (enableLogs) {
+                process.stderr.write(`Proxy error: ${String(err)}\n`);
+              }
             });
             proxy.on("proxyReq", (proxyReq, req, res) => {
               // Copy authentication headers from original request
@@ -63,13 +69,11 @@ export default defineConfig(({ mode }) => {
                 proxyReq.setHeader("authorization", req.headers.authorization);
               }
 
-              console.log(
-                "Proxy request:",
-                req.method,
-                req.url,
-                "→",
-                options.target + req.url
-              );
+              if (enableLogs) {
+                process.stdout.write(
+                  `Proxy request: ${req.method} ${req.url} \u2192 ${options.target}${req.url}\n`
+                );
+              }
             });
           },
         },

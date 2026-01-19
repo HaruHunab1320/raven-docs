@@ -101,6 +101,19 @@ export interface ProjectListParams {
   searchTerm?: string;
 }
 
+export interface ProjectRecapParams {
+  projectId: string;
+  days?: number;
+  includeOpenTasks?: boolean;
+}
+
+export interface ProjectRecapResponse {
+  pageId: string;
+  title: string;
+  summary: string;
+  stats: Record<string, number>;
+}
+
 export interface TaskListParams {
   projectId: string;
   page?: number;

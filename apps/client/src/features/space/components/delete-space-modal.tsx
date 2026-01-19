@@ -6,6 +6,7 @@ import { ISpace } from "../types/space.types";
 import { useNavigate } from "react-router-dom";
 import APP_ROUTE from "@/lib/app-route";
 import { Trans, useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 interface DeleteSpaceModalProps {
   space: ISpace;
@@ -48,7 +49,7 @@ export default function DeleteSpaceModal({
       await deleteSpaceMutation.mutateAsync({ id: space.id, slug: space.slug });
       navigate(APP_ROUTE.HOME);
     } catch (error) {
-      console.error("Failed to delete space", error);
+      logger.error("Failed to delete space", error);
     }
   };
 

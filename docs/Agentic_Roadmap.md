@@ -1,4 +1,4 @@
-# Agentic Roadmap + Project Playbook
+# Agentic Roadmap
 
 This document captures the next-stage vision for Raven Docs agent behavior,
 project planning, and memory intelligence. It expands on current autonomy and
@@ -35,7 +35,7 @@ We will evolve into a multi-loop, policy-driven system with explicit artifacts:
    - Distills observations into a stable user model.
    - Surfaces long-term interests, constraints, and risk signals.
 
-2) **Project Playbook Loop**
+2) **Project Planning Loop**
    - Converts a project brief into a structured delivery plan.
    - Outputs phases, milestones, tasks, risks, and definitions of done.
 
@@ -84,7 +84,7 @@ Multi-layer retrieval (not just one vector search):
 - If workload is high, reduce scope and add recovery blocks.
 - If an interest trend is rising, propose a project or goal.
 
-## Project Playbook (First-Class Agile/Scrum + Delivery)
+## Project Planning (First-Class Agile/Scrum + Delivery)
 
 ### Core Principles to Encode
 
@@ -93,7 +93,7 @@ Multi-layer retrieval (not just one vector search):
 - **Lean**: eliminate waste, validate assumptions early.
 - **GTD**: capture -> clarify -> organize -> reflect -> engage.
 
-### Playbook Artifacts (Outputs)
+### Planning Artifacts (Outputs)
 
 When a project is created with a solid brief, the system should generate:
 
@@ -120,7 +120,7 @@ When a project is created with a solid brief, the system should generate:
 7) **Review Cadence**
    - Weekly review checklist, retrospectives, quality gates.
 
-### Playbook Phases (Template)
+### Planning Phases (Template)
 
 1) **Discovery**
    - Validate problem, stakeholders, success metrics.
@@ -202,9 +202,9 @@ Add a dedicated Journal page with:
 - Memory distiller job -> User Profile page.
 - Multi-layer memory retrieval API.
 
-### Phase 2: Project Playbook MVP
+### Phase 2: Project Planning MVP
 - Project brief template + architecture template.
-- Playbook generator (create pages + tasks).
+- Plan generator (create pages + tasks).
 - Policy gating for auto-created artifacts.
 
 ### Phase 3: Adaptive Planning
@@ -226,18 +226,17 @@ Add a dedicated Journal page with:
 - MCP Standard research tools + report appends to host page.
 - Inline research block (slash command + page-attached research runs).
 - Research outputs organized under a space-level Research page + enriched tags.
-- Project Playbook MVP (brief/architecture/delivery/backlog/risk pages + phase tasks).
+- Unified agent chat drawer (global entry point; approvals, context chips).
 
 ### In Progress
 - Memory profile distillation coverage across users/spaces.
+- Multi-layer memory retrieval (short-term + long-term + topic-specific).
  
 
 ### Next Up
-- Multi-layer memory retrieval (short-term + long-term + topic-specific).
 - Research MCP Standard tooling + deep research UI surface.
-- Inline research block that writes back to the current page.
 - Agent-initiated research projects with structured storage.
-- Project Playbook MVP (brief -> architecture -> backlog -> phases).
+- Project planning MVP (brief -> architecture -> backlog -> phases).
 
 ## Success Metrics
 

@@ -2,10 +2,13 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Max,
+  Min,
 } from 'class-validator';
 import { PaginationOptionsDto } from '../../../common/dto/pagination-options.dto';
 
@@ -144,4 +147,20 @@ export class ProjectPlaybookChatSummaryDto {
   @IsOptional()
   @IsString()
   sessionId?: string;
+}
+
+export class ProjectRecapDto {
+  @IsUUID()
+  projectId: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  days?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  includeOpenTasks?: boolean;
 }

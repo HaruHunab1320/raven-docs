@@ -36,6 +36,7 @@ import { useTranslation } from "react-i18next";
 import { useDisclosure } from "@mantine/hooks";
 import ProjectFormModal from "./project-form-modal";
 import { getProjectsArray } from "../utils/project-data";
+import { logger } from "@/lib/logger";
 
 interface ProjectListProps {
   spaceId: string;
@@ -147,11 +148,11 @@ export function ProjectList({
 
   const projects = getProjectsArray(data);
 
-  console.log("PROJECT-LIST COMPONENT DEBUG:");
-  console.log("- raw data:", data);
-  console.log("- extracted projects:", projects);
+  logger.log("PROJECT-LIST COMPONENT DEBUG:");
+  logger.log("- raw data:", data);
+  logger.log("- extracted projects:", projects);
   if (projects.length > 0) {
-    console.log("- first project details:", {
+    logger.log("- first project details:", {
       id: projects[0].id,
       name: projects[0].name,
       description: projects[0].description,

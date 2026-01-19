@@ -36,6 +36,7 @@ import { formatDate } from "@/lib/utils/format-utils";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import { Goal } from "@/features/goal/types";
+import { logger } from "@/lib/logger";
 
 interface BoardColumnsProps {
   tasks: Task[];
@@ -433,7 +434,7 @@ export function BoardColumns({
                     checked={task.isCompleted}
                     onChange={(e) => {
                       // Handle task completion change
-                      console.log(
+                      logger.log(
                         "Task completion changed",
                         task.id,
                         e.currentTarget.checked

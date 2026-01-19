@@ -7,6 +7,7 @@ import {
   UseGuards,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { TaskService } from './services/task.service';
 import {
@@ -71,11 +72,42 @@ function createEmptyResult(page: number = 1, limit: number = 10): any {
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
 export class TaskController {
+  private readonly logger = new Logger(TaskController.name);
+
   constructor(
     private readonly taskService: TaskService,
     private readonly projectService: ProjectService,
     private readonly spaceAbility: SpaceAbilityFactory,
   ) {}
+
+  private logDebug(message: string, meta?: Record<string, unknown>) {
+    if (meta) {
+      this.logger.debug(`${message} ${JSON.stringify(meta)}`);
+    } else {
+      this.logger.debug(message);
+    }
+  }
+
+  private logWarn(message: string, meta?: Record<string, unknown>) {
+    if (meta) {
+      this.logger.warn(`${message} ${JSON.stringify(meta)}`);
+    } else {
+      this.logger.warn(message);
+    }
+  }
+
+  private logError(
+    message: string,
+    error?: unknown,
+    meta?: Record<string, unknown>,
+  ) {
+    const details = meta ? `${message} ${JSON.stringify(meta)}` : message;
+    if (error instanceof Error) {
+      this.logger.error(details, error.stack);
+    } else {
+      this.logger.error(details);
+    }
+  }
 
   @HttpCode(HttpStatus.OK)
   @Post('/info')
@@ -130,7 +162,7 @@ export class TaskController {
     @AuthUser() user: User,
   ) {
     try {
-      console.log('[TaskController] listTasksByProject started:', {
+      this.logDebug('listTasksByProject started', {
         projectId: dto.projectId,
         hasProjectId: !!dto.projectId,
         projectIdType: typeof dto.projectId,
@@ -139,7 +171,9 @@ export class TaskController {
       });
 
       if (!dto.projectId || dto.projectId.trim() === '') {
-        console.log('[TaskController] Empty projectId, returning empty result');
+        this.logWarn('Empty projectId, returning empty result', {
+          userId: user.id,
+        });
         return createEmptyResult(dto.page, dto.limit);
       }
 
@@ -147,20 +181,19 @@ export class TaskController {
       let project;
       try {
         project = await this.projectService.findById(dto.projectId);
-        console.log('[TaskController] Project lookup result:', {
+        this.logDebug('Project lookup result', {
           found: !!project,
           projectId: dto.projectId,
         });
       } catch (error: any) {
-        console.error('[TaskController] Project lookup failed:', {
+        this.logError('Project lookup failed', error, {
           projectId: dto.projectId,
-          error: error.message || String(error),
         });
         throw error;
       }
 
       if (!project) {
-        console.log('[TaskController] Project not found:', dto.projectId);
+        this.logWarn('Project not found', { projectId: dto.projectId });
         throw new NotFoundException('Project not found');
       }
 
@@ -171,17 +204,16 @@ export class TaskController {
           project.spaceId,
         );
         if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
-          console.log('[TaskController] Permission denied for user:', user.id);
+          this.logWarn('Permission denied for user', { userId: user.id });
           throw new ForbiddenException();
         }
       } catch (error: any) {
         if (error instanceof ForbiddenException) {
           throw error;
         }
-        console.error('[TaskController] Permission check failed:', {
+        this.logError('Permission check failed', error, {
           userId: user.id,
           projectId: dto.projectId,
-          error: error.message || String(error),
         });
         throw error;
       }
@@ -196,14 +228,11 @@ export class TaskController {
         searchTerm,
         includeSubtasks,
       } = dto;
-      console.log(
-        '[TaskController] Calling taskService.findByProjectId with:',
-        {
-          projectId,
-          page,
-          limit,
-        },
-      );
+      this.logDebug('Calling taskService.findByProjectId', {
+        projectId,
+        page,
+        limit,
+      });
 
       let result;
       try {
@@ -220,43 +249,34 @@ export class TaskController {
             includeLabels: true,
           },
         );
-        console.log('[TaskController] Got result from taskService:', {
+        this.logDebug('Got result from taskService', {
           hasResult: !!result,
           dataLength: result?.data?.length,
           paginationInfo: result?.pagination,
         });
       } catch (error: any) {
-        console.error('[TaskController] taskService.findByProjectId failed:', {
+        this.logError('taskService.findByProjectId failed', error, {
           projectId,
-          error: error.message || String(error),
-          stack: error.stack,
         });
         throw error;
       }
 
       // Transform the pagination format to match client expectations
-      console.log('[TaskController] Transforming result format');
+      this.logDebug('Transforming result format');
       try {
         const transformed = adaptPaginationFormat(result);
-        console.log(
-          '[TaskController] Successfully transformed result format:',
-          {
-            itemsLength: transformed?.items?.length,
-            meta: transformed?.meta,
-          },
-        );
+        this.logDebug('Successfully transformed result format', {
+          itemsLength: transformed?.items?.length,
+          meta: transformed?.meta,
+        });
         return transformed;
       } catch (error: any) {
-        console.error('[TaskController] Failed to transform result format:', {
-          error: error.message || String(error),
-        });
+        this.logError('Failed to transform result format', error);
         throw error;
       }
     } catch (error: any) {
-      console.error('[TaskController] Unhandled error in listTasksByProject:', {
+      this.logError('Unhandled error in listTasksByProject', error, {
         projectId: dto.projectId,
-        error: error.message || String(error),
-        stack: error.stack,
       });
       throw error;
     }
@@ -286,7 +306,7 @@ export class TaskController {
     @AuthUser() user: User,
   ) {
     try {
-      console.log('[TaskController] listTasksBySpace started:', {
+      this.logDebug('listTasksBySpace started', {
         spaceId: dto.spaceId,
         hasSpaceId: !!dto.spaceId,
         spaceIdType: typeof dto.spaceId,
@@ -295,7 +315,9 @@ export class TaskController {
       });
 
       if (!dto.spaceId || dto.spaceId.trim() === '') {
-        console.log('[TaskController] Empty spaceId, returning empty result');
+        this.logWarn('Empty spaceId, returning empty result', {
+          userId: user.id,
+        });
         return createEmptyResult(dto.page, dto.limit);
       }
 
@@ -306,24 +328,23 @@ export class TaskController {
           dto.spaceId,
         );
         if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
-          console.log('[TaskController] Permission denied for user:', user.id);
+          this.logWarn('Permission denied for user', { userId: user.id });
           throw new ForbiddenException();
         }
       } catch (error: any) {
         if (error instanceof ForbiddenException) {
           throw error;
         }
-        console.error('[TaskController] Permission check failed:', {
+        this.logError('Permission check failed', error, {
           userId: user.id,
           spaceId: dto.spaceId,
-          error: error.message || String(error),
         });
         throw error;
       }
 
       // Fetch tasks
       const { page, limit, spaceId, status, bucket, searchTerm } = dto;
-      console.log('[TaskController] Calling taskService.findBySpaceId with:', {
+      this.logDebug('Calling taskService.findBySpaceId', {
         spaceId,
         page,
         limit,
@@ -331,56 +352,47 @@ export class TaskController {
 
       let result;
       try {
-      result = await this.taskService.findBySpaceId(
-        spaceId,
-        { page, limit },
-        {
-          status,
-          bucket,
-          searchTerm,
-          includeCreator: true,
-          includeAssignee: true,
-          includeLabels: true,
-          includeProject: true,
-        },
-      );
-        console.log('[TaskController] Got result from taskService:', {
+        result = await this.taskService.findBySpaceId(
+          spaceId,
+          { page, limit },
+          {
+            status,
+            bucket,
+            searchTerm,
+            includeCreator: true,
+            includeAssignee: true,
+            includeLabels: true,
+            includeProject: true,
+          },
+        );
+        this.logDebug('Got result from taskService', {
           hasResult: !!result,
           dataLength: result?.data?.length,
           paginationInfo: result?.pagination,
         });
       } catch (error: any) {
-        console.error('[TaskController] taskService.findBySpaceId failed:', {
+        this.logError('taskService.findBySpaceId failed', error, {
           spaceId,
-          error: error.message || String(error),
-          stack: error.stack,
         });
         throw error;
       }
 
       // Transform the pagination format to match client expectations
-      console.log('[TaskController] Transforming result format');
+      this.logDebug('Transforming result format');
       try {
         const transformed = adaptPaginationFormat(result);
-        console.log(
-          '[TaskController] Successfully transformed result format:',
-          {
-            itemsLength: transformed?.items?.length,
-            meta: transformed?.meta,
-          },
-        );
+        this.logDebug('Successfully transformed result format', {
+          itemsLength: transformed?.items?.length,
+          meta: transformed?.meta,
+        });
         return transformed;
       } catch (error: any) {
-        console.error('[TaskController] Failed to transform result format:', {
-          error: error.message || String(error),
-        });
+        this.logError('Failed to transform result format', error);
         throw error;
       }
     } catch (error: any) {
-      console.error('[TaskController] Unhandled error in listTasksBySpace:', {
+      this.logError('Unhandled error in listTasksBySpace', error, {
         spaceId: dto.spaceId,
-        error: error.message || String(error),
-        stack: error.stack,
       });
       throw error;
     }

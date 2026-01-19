@@ -1010,6 +1010,54 @@
       "relatedMethods": ["project.get", "page.create"]
     },
     {
+      "name": "project.recap",
+      "description": "Generate a project recap page with recent task activity",
+      "category": "Project Management",
+      "parameters": {
+        "projectId": { "type": "string", "description": "ID of the project" },
+        "days": {
+          "type": "number",
+          "description": "Number of days to include (default 7, max 90)"
+        },
+        "includeOpenTasks": {
+          "type": "boolean",
+          "description": "Include open task section in the recap"
+        }
+      },
+      "returns": {
+        "pageId": { "type": "string", "description": "Created recap page ID" },
+        "title": { "type": "string", "description": "Recap page title" },
+        "summary": { "type": "string", "description": "Recap summary text" },
+        "stats": { "type": "object", "description": "Recap statistics" }
+      },
+      "errors": [
+        { "code": "RESOURCE_NOT_FOUND", "message": "Project not found", "resolution": "Check the projectId" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Request access" }
+      ],
+      "examples": [
+        {
+          "description": "Generate a 14-day project recap",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "project.recap",
+            "params": { "projectId": "project_123", "days": 14 },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "pageId": "page_456",
+              "title": "Project Recap - 2026-01-08",
+              "summary": "This recap covers activity from the last 14 days.",
+              "stats": { "totalTasks": 42, "completedTasks": 12 }
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["project.get", "task.list"]
+    },
+    {
       "name": "task.list",
       "description": "List tasks by project or space",
       "category": "Task Management",

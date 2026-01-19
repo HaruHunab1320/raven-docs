@@ -423,4 +423,62 @@ export class ProjectHandler {
       throw createInternalError(error?.message || String(error));
     }
   }
+
+  /**
+   * Handles project.recap operation
+   */
+  async generateProjectRecap(params: any, userId: string): Promise<any> {
+    this.logger.debug(`Processing project.recap operation for user ${userId}`);
+
+    if (!params.projectId) {
+      throw createInvalidParamsError('projectId is required');
+    }
+
+    try {
+      const project = await this.projectService.findById(params.projectId);
+      if (!project) {
+        throw createResourceNotFoundError('Project', params.projectId);
+      }
+
+      const user = { id: userId } as User;
+      const ability = await this.spaceAbility.createForUser(
+        user,
+        project.spaceId,
+      );
+      if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+        throw createPermissionDeniedError(
+          'You do not have permission to recap this project',
+        );
+      }
+
+      const recap = await this.projectService.generateProjectRecap(
+        project.id,
+        userId,
+        {
+          days: params.days,
+          includeOpenTasks: params.includeOpenTasks,
+        },
+      );
+
+      this.mcpEventService.createCreatedEvent(
+        MCPResourceType.PAGE,
+        recap.pageId,
+        { title: recap.title },
+        userId,
+        project.workspaceId,
+        project.spaceId,
+      );
+
+      return recap;
+    } catch (error: any) {
+      this.logger.error(
+        `Error generating project recap: ${error?.message || 'Unknown error'}`,
+        error?.stack,
+      );
+      if (error?.code && typeof error.code === 'number') {
+        throw error;
+      }
+      throw createInternalError(error?.message || String(error));
+    }
+  }
 }

@@ -23,6 +23,7 @@ import {
 } from "@/features/websocket/types/mcp-event.types";
 import { Loader } from "@mantine/core";
 import { usePageTabs } from "@/features/page/hooks/use-page-tabs";
+import { logger } from "@/lib/logger";
 
 export default function Page() {
   const { t } = useTranslation();
@@ -56,7 +57,7 @@ export default function Page() {
         (event.type === MCPEventType.UPDATED ||
           event.type === MCPEventType.MOVED)
       ) {
-        console.log(
+        logger.log(
           "🔄 PageView: Page update event detected, refreshing page...",
           event
         );
@@ -74,7 +75,7 @@ export default function Page() {
   // Register for direct MCP events
   useEffect(() => {
     if (socket) {
-      console.log(
+      logger.log(
         "🔗 PageView: Setting up MCP event listener for page:",
         pageId
       );
@@ -115,12 +116,12 @@ export default function Page() {
   }
 
   if (isError || !page) {
-    console.error("Error loading page:", error);
+    logger.error("Error loading page:", error);
     return <Error404 />;
   }
 
   if (!space) {
-    console.error("Space not found for page:", page);
+    logger.error("Space not found for page:", page);
     return <Error404 />;
   }
 

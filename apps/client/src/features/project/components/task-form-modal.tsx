@@ -35,6 +35,7 @@ import { UserSelect } from "@/features/user/components/user-select";
 import { useCreatePageMutation } from "@/features/page/queries/page-query";
 import { useCurrentWorkspace } from "@/features/workspace/hooks/use-current-workspace";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/lib/logger";
 
 interface TaskFormModalProps {
   opened: boolean;
@@ -141,7 +142,7 @@ export default function TaskFormModal({
         },
         {
           onSuccess: (data) => {
-            console.log("Task updated successfully:", data);
+            logger.log("Task updated successfully:", data);
             // Handle assignee update if changed
             if (assigneeId !== task.assigneeId) {
               assignTaskMutation.mutate(
@@ -151,11 +152,11 @@ export default function TaskFormModal({
                 },
                 {
                   onSuccess: () => {
-                    console.log("Assignee updated successfully");
+                    logger.log("Assignee updated successfully");
                     onClose();
                   },
                   onError: (error) => {
-                    console.error("Error updating assignee:", error);
+                    logger.error("Error updating assignee:", error);
                   },
                 }
               );
@@ -164,7 +165,7 @@ export default function TaskFormModal({
             }
           },
           onError: (error) => {
-            console.error("Error updating task:", error);
+            logger.error("Error updating task:", error);
           },
         }
       );
@@ -219,7 +220,7 @@ export default function TaskFormModal({
             }
           }
         } catch (error) {
-          console.error("Error creating task and page:", error);
+          logger.error("Error creating task and page:", error);
         }
       } else {
         // Create task only without a page
@@ -237,11 +238,11 @@ export default function TaskFormModal({
           },
           {
             onSuccess: (data) => {
-              console.log("Task created successfully:", data);
+              logger.log("Task created successfully:", data);
               onClose();
             },
             onError: (error) => {
-              console.error("Error creating task:", error);
+              logger.error("Error creating task:", error);
             },
           }
         );

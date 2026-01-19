@@ -9,6 +9,7 @@ import { useForm, zodResolver } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 const formSchema = z.object({
   name: z.string().min(4),
@@ -37,7 +38,7 @@ export default function WorkspaceNameForm() {
       setWorkspace(updatedWorkspace);
       notifications.show({ message: t("Updated successfully") });
     } catch (err) {
-      console.log(err);
+      logger.log(err);
       notifications.show({
         message: t("Failed to update data"),
         color: "red",

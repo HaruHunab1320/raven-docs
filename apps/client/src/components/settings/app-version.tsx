@@ -5,6 +5,7 @@ import { Indicator, Text, Tooltip } from "@mantine/core";
 import React from "react";
 import semverGt from "semver/functions/gt";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export default function AppVersion() {
   const { t } = useTranslation();
@@ -17,7 +18,7 @@ export default function AppVersion() {
       semverGt(appVersion.latestVersion, appVersion.currentVersion) &&
       Boolean(appVersion.releaseUrl);
   } catch (err) {
-    console.error(err);
+    logger.error(err);
   }
 
   const releaseUrl = appVersion?.releaseUrl;

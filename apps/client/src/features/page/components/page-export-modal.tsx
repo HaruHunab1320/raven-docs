@@ -5,6 +5,7 @@ import * as React from "react";
 import { ExportFormat } from "@/features/page/types/page.types.ts";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 interface PageExportModalProps {
   pageId: string;
@@ -30,7 +31,7 @@ export default function PageExportModal({
         message: t("Export failed:") + err.response?.data.message,
         color: "red",
       });
-      console.error("export error", err);
+      logger.error("export error", err);
     }
   };
 

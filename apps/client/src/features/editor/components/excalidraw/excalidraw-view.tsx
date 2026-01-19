@@ -21,6 +21,7 @@ import { IconEdit } from "@tabler/icons-react";
 import { lazy } from "react";
 import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 const Excalidraw = lazy(() =>
   import("@excalidraw/excalidraw").then((module) => ({
@@ -58,7 +59,7 @@ export default function ExcalidrawView(props: NodeViewProps) {
         setExcalidrawData(data);
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     } finally {
       open();
     }

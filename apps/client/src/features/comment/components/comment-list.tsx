@@ -14,6 +14,7 @@ import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { IPagination } from "@/lib/types.ts";
 import { extractPageSlugId } from "@/lib";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 function CommentList() {
   const { t } = useTranslation();
@@ -39,7 +40,7 @@ function CommentList() {
 
         await createCommentMutation.mutateAsync(commentData);
       } catch (error) {
-        console.error("Failed to post comment:", error);
+        logger.error("Failed to post comment:", error);
       } finally {
         setIsLoading(false);
       }
@@ -97,7 +98,7 @@ function CommentList() {
                 content: JSON.stringify(content),
               });
             } catch (error) {
-              console.error("Failed to post comment:", error);
+              logger.error("Failed to post comment:", error);
             } finally {
               setIsLoading(false);
             }

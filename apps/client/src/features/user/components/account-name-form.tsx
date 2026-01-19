@@ -9,6 +9,7 @@ import { useState } from "react";
 import { TextInput, Button } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 const formSchema = z.object({
   name: z.string().min(2).max(40),
@@ -41,7 +42,7 @@ export default function AccountNameForm() {
         message: t("Updated successfully"),
       });
     } catch (err) {
-      console.log(err);
+      logger.log(err);
       notifications.show({
         message: t("Failed to update data"),
         color: "red",

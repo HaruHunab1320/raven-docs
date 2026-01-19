@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { KYSELY } from '../../../lib/kysely/nestjs-kysely';
 import { DB } from '../../types/db';
 import { Kysely, Transaction } from 'kysely';
@@ -14,6 +14,8 @@ import { paginate } from '../../../lib/pagination/paginate';
 
 @Injectable()
 export class ProjectRepo {
+  private readonly logger = new Logger(ProjectRepo.name);
+
   constructor(@Inject(KYSELY) private readonly db: Kysely<DB>) {}
 
   async findById(
@@ -88,7 +90,7 @@ export class ProjectRepo {
         ]);
     }
 
-    console.log('findBySpaceId query SQL:', query.compile().sql);
+    this.logger.debug('findBySpaceId query SQL:', query.compile().sql);
     return paginate(query, pagination);
   }
 
@@ -132,7 +134,7 @@ export class ProjectRepo {
         ]);
     }
 
-    console.log('findByWorkspaceId query SQL:', query.compile().sql);
+    this.logger.debug('findByWorkspaceId query SQL:', query.compile().sql);
     return paginate(query, pagination);
   }
 
@@ -140,7 +142,7 @@ export class ProjectRepo {
     projectData: InsertableProject,
     trx?: Transaction<DB>,
   ): Promise<Project> {
-    console.log(
+    this.logger.debug(
       'ProjectRepo.create called with data:',
       JSON.stringify(projectData, null, 2),
     );
@@ -151,13 +153,13 @@ export class ProjectRepo {
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      console.log(
+      this.logger.debug(
         'ProjectRepo.create success, returned:',
         JSON.stringify(project, null, 2),
       );
       return project as Project;
     } catch (error) {
-      console.error('ProjectRepo.create error:', error);
+      this.logger.error('ProjectRepo.create error:', error);
       throw error;
     }
   }
@@ -167,7 +169,10 @@ export class ProjectRepo {
     updateData: UpdatableProject,
     trx?: Transaction<DB>,
   ): Promise<Project | undefined> {
-    console.log('ProjectRepo.update called with:', { projectId, updateData });
+    this.logger.debug('ProjectRepo.update called with:', {
+      projectId,
+      updateData,
+    });
     try {
       const project = await dbOrTx(this.db, trx)
         .updateTable('projects')
@@ -177,10 +182,10 @@ export class ProjectRepo {
         .returningAll()
         .executeTakeFirst();
 
-      console.log('ProjectRepo.update result:', project);
+      this.logger.debug('ProjectRepo.update result:', project);
       return project as Project | undefined;
     } catch (error) {
-      console.error('ProjectRepo.update error:', error);
+      this.logger.error('ProjectRepo.update error:', error);
       throw error;
     }
   }

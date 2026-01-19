@@ -20,6 +20,7 @@ import { useAtom } from "jotai";
 import { currentUserAtom } from "../atoms/current-user-atom";
 import { updateUser } from "../services/user-service";
 import { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 
 export default function AccountTheme() {
   const { t } = useTranslation();
@@ -111,7 +112,7 @@ function ThemeSwitcher() {
       // Update local state
       setSelectedThemeId(themeId);
     } catch (error) {
-      console.error("Failed to update theme preference:", error);
+      logger.error("Failed to update theme preference:", error);
     }
   };
 

@@ -9,6 +9,7 @@ import {
   validateSync,
 } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import { Logger } from '@nestjs/common';
 
 export class EnvironmentVariables {
   @IsNotEmpty()
@@ -95,20 +96,21 @@ export class EnvironmentVariables {
 }
 
 export function validate(config: Record<string, any>) {
+  const logger = new Logger('EnvironmentValidation');
   const validatedConfig = plainToInstance(EnvironmentVariables, config);
 
   const errors = validateSync(validatedConfig);
 
   if (errors.length > 0) {
-    console.error(
+    logger.error(
       'The Environment variables has failed the following validations:',
     );
 
     errors.map((error) => {
-      console.error(JSON.stringify(error.constraints));
+      logger.error(JSON.stringify(error.constraints));
     });
 
-    console.error(
+    logger.error(
       'Please fix the environment variables and try again. Exiting program...',
     );
     process.exit(1);

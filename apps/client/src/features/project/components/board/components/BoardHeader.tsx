@@ -34,6 +34,7 @@ import { usePageQuery } from "@/features/page/queries/page-query";
 import { buildPageUrl } from "@/features/page/page.utils";
 import { useNavigate } from "react-router-dom";
 import { useCreateProjectPageMutation } from "@/features/project/hooks/use-projects";
+import { logger } from "@/lib/logger";
 
 interface BoardHeaderProps {
   onToggleFilters: () => void;
@@ -63,7 +64,7 @@ export function BoardHeader({ onToggleFilters }: BoardHeaderProps) {
 
   // Handle sort selection
   const handleSortChange = (value: string) => {
-    console.log(
+    logger.log(
       `SORT: Changing sort. Current: ${sortBy} (${sortOrder}), New value: ${value}`
     );
     if (value === "position") {
@@ -71,10 +72,10 @@ export function BoardHeader({ onToggleFilters }: BoardHeaderProps) {
       setSortOrder("asc");
     } else if (value === sortBy) {
       const newOrder = sortOrder === "asc" ? "desc" : "asc";
-      console.log(`SORT: Toggling order to ${newOrder}`);
+      logger.log(`SORT: Toggling order to ${newOrder}`);
       setSortOrder(newOrder);
     } else {
-      console.log(`SORT: Setting new field to ${value}, order asc`);
+      logger.log(`SORT: Setting new field to ${value}, order asc`);
       setSortBy(value as any);
       setSortOrder("asc");
     }

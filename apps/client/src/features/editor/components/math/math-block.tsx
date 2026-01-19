@@ -9,6 +9,7 @@ import { v4 } from "uuid";
 import { IconTrashX } from "@tabler/icons-react";
 import { useDebouncedValue } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export default function MathBlockView(props: NodeViewProps) {
   const { t } = useTranslation();
@@ -32,7 +33,7 @@ export default function MathBlockView(props: NodeViewProps) {
       });
       setError(null);
     } catch (e) {
-      //console.error(e.message);
+      //logger.error(e.message);
       setError(e.message);
     }
   };

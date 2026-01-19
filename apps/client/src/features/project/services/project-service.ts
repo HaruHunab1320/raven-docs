@@ -4,6 +4,8 @@ import {
   CreateTaskParams,
   Project,
   ProjectListParams,
+  ProjectRecapParams,
+  ProjectRecapResponse,
   Task,
   TaskListBySpaceParams,
   TaskListParams,
@@ -12,6 +14,7 @@ import {
   TaskTriageSummary,
 } from "../types";
 import { IPagination } from "@/lib/types";
+import { mcpError, mcpLog } from "@/features/websocket/utils/mcp-log";
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env?.DEV;
@@ -23,14 +26,14 @@ const shouldLog =
 // Helper function to conditionally log
 const conditionalLog = (message: string, data?: any) => {
   if (shouldLog) {
-    console.log(message, data);
+    mcpLog(message, data);
   }
 };
 
 // Helper function to conditionally log errors
 const conditionalErrorLog = (message: string, error?: any) => {
   if (shouldLog || error?.response?.status >= 400) {
-    console.error(message, error);
+    mcpError(message, error);
   }
 };
 
@@ -61,21 +64,19 @@ export const projectService = {
 
   async listProjects(params: ProjectListParams): Promise<any> {
     conditionalLog("Project service: listProjects called with params:", params);
-    console.log("Fetching projects with params:", params);
 
     try {
       const response = await api.post(`${PROJECTS_ENDPOINT}/list`, params);
 
-      console.log("Project listProjects API response:", {
+      conditionalLog("Project listProjects API response:", {
         status: response.status,
-        fullResponse: response,
         data: response.data,
         keys: Object.keys(response.data),
       });
 
       return response.data;
     } catch (error) {
-      console.error("Project listProjects API error:", {
+      conditionalErrorLog("Project listProjects API error:", {
         message: error.message,
         status: error?.response?.status,
         statusText: error?.response?.statusText,
@@ -88,25 +89,29 @@ export const projectService = {
   },
 
   async createProject(params: CreateProjectParams): Promise<Project> {
-    console.time("project-creation");
-    console.log(
-      "Project service: Starting createProject API call",
-      new Date().toISOString()
-    );
+    const start = performance.now();
+    conditionalLog("Project service: Starting createProject API call", {
+      timestamp: new Date().toISOString(),
+    });
 
     try {
       const { data } = await api.post(`${PROJECTS_ENDPOINT}/create`, params);
-      console.log(
-        "Project service: Completed createProject API call",
-        new Date().toISOString()
-      );
-      console.timeEnd("project-creation");
+      conditionalLog("Project service: Completed createProject API call", {
+        timestamp: new Date().toISOString(),
+        durationMs: Math.round(performance.now() - start),
+      });
       return data;
     } catch (error) {
-      console.error("Project service: Error in createProject", error);
-      console.timeEnd("project-creation");
+      conditionalErrorLog("Project service: Error in createProject", error);
       throw error;
     }
+  },
+
+  async generateProjectRecap(
+    params: ProjectRecapParams
+  ): Promise<ProjectRecapResponse> {
+    const { data } = await api.post(`${PROJECTS_ENDPOINT}/recap`, params);
+    return data;
   },
 
   async updateProject(params: UpdateProjectParams): Promise<Project> {
@@ -116,7 +121,7 @@ export const projectService = {
     );
 
     // Enhanced debugging
-    console.log("UpdateProject API request details:", {
+    conditionalLog("UpdateProject API request details:", {
       endpoint: `${PROJECTS_ENDPOINT}/update`,
       fullParams: params,
       projectId: params.projectId,
@@ -124,7 +129,9 @@ export const projectService = {
 
     try {
       // Log the actual API call
-      console.log(`Making POST request to: /api/${PROJECTS_ENDPOINT}/update`);
+      conditionalLog(
+        `Making POST request to: /api/${PROJECTS_ENDPOINT}/update`
+      );
 
       const { data } = await api.post(`${PROJECTS_ENDPOINT}/update`, params);
 
@@ -135,7 +142,7 @@ export const projectService = {
       return data;
     } catch (error) {
       conditionalErrorLog("Project service: updateProject error:", error);
-      console.error("Full error details:", {
+      conditionalErrorLog("Full error details:", {
         message: error.message,
         status: error?.response?.status,
         statusText: error?.response?.statusText,
@@ -248,7 +255,7 @@ export const projectService = {
       const { data } = await api.post(`${TASKS_ENDPOINT}/byPage`, { pageId });
       return data ?? null;
     } catch (error) {
-      console.error("Error fetching task by page:", error);
+      conditionalErrorLog("Error fetching task by page:", error);
       return null;
     }
   },
@@ -256,7 +263,7 @@ export const projectService = {
   async listTasksByProject(params: TaskListParams): Promise<IPagination<Task>> {
     // Validate that projectId is not empty
     if (!params.projectId) {
-      console.error(
+      conditionalErrorLog(
         "Project service: listTasksByProject called with empty projectId"
       );
       return {
@@ -277,7 +284,7 @@ export const projectService = {
       );
       return data;
     } catch (error) {
-      console.error("Error fetching tasks by project:", error);
+      conditionalErrorLog("Error fetching tasks by project:", error);
       return {
         items: [],
         meta: {
@@ -295,7 +302,7 @@ export const projectService = {
   ): Promise<IPagination<Task>> {
     // Validate that spaceId is not empty
     if (!params.spaceId) {
-      console.error(
+      conditionalErrorLog(
         "Project service: listTasksBySpace called with empty spaceId"
       );
       return {
@@ -316,7 +323,7 @@ export const projectService = {
       );
       return data;
     } catch (error) {
-      console.error("Error fetching tasks by space:", error);
+      conditionalErrorLog("Error fetching tasks by space:", error);
       return {
         items: [],
         meta: {

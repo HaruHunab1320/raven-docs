@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { ProjectRepo } from '../../../database/repos/project/project.repo';
 import { SpaceRepo } from '../../../database/repos/space/space.repo';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
@@ -14,6 +19,7 @@ import { PageService } from '../../page/services/page.service';
 import { executeTx } from '@raven-docs/db/utils';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
+import { sql } from 'kysely';
 import { AgentMemoryService } from '../../agent-memory/agent-memory.service';
 import { TaskService } from './task.service';
 import { AIService } from '../../../integrations/ai/ai.service';
@@ -21,6 +27,40 @@ import { resolveAgentSettings } from '../../agent/agent-settings';
 
 @Injectable()
 export class ProjectService {
+  private readonly logger = new Logger(ProjectService.name);
+
+  private formatISODate(date: Date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private async getUniqueRecapTitle(spaceId: string, baseTitle: string) {
+    const exists = await this.db
+      .selectFrom('pages')
+      .select(['id'])
+      .where('spaceId', '=', spaceId)
+      .where('title', '=', baseTitle)
+      .executeTakeFirst();
+
+    if (!exists) {
+      return baseTitle;
+    }
+
+    for (let i = 2; i <= 20; i += 1) {
+      const candidate = `${baseTitle} (${i})`;
+      const match = await this.db
+        .selectFrom('pages')
+        .select(['id'])
+        .where('spaceId', '=', spaceId)
+        .where('title', '=', candidate)
+        .executeTakeFirst();
+      if (!match) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
   private normalizeTitle(value?: string | null) {
     return (value || '')
       .toLowerCase()
@@ -64,6 +104,85 @@ export class ProjectService {
         },
       ],
     });
+  }
+
+  private buildRecapPageContent(input: {
+    summary: string;
+    highlights: string[];
+    completedTasks: string[];
+    createdTasks: string[];
+    overdueTasks: string[];
+  }) {
+    const buildList = (items: string[]) => ({
+      type: 'bulletList',
+      content: items.map((text) => ({
+        type: 'listItem',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text }],
+          },
+        ],
+      })),
+    });
+
+    const content: any[] = [
+      {
+        type: 'heading',
+        attrs: { level: 2 },
+        content: [{ type: 'text', text: 'Summary' }],
+      },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: input.summary }],
+      },
+    ];
+
+    if (input.highlights.length > 0) {
+      content.push(
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Highlights' }],
+        },
+        buildList(input.highlights),
+      );
+    }
+
+    if (input.completedTasks.length > 0) {
+      content.push(
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Completed Tasks' }],
+        },
+        buildList(input.completedTasks),
+      );
+    }
+
+    if (input.createdTasks.length > 0) {
+      content.push(
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'New Tasks' }],
+        },
+        buildList(input.createdTasks),
+      );
+    }
+
+    if (input.overdueTasks.length > 0) {
+      content.push(
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Overdue Tasks' }],
+        },
+        buildList(input.overdueTasks),
+      );
+    }
+
+    return JSON.stringify({ type: 'doc', content });
   }
   private getMemoryText(memory: any): string {
     if (!memory) return '';
@@ -405,7 +524,7 @@ export class ProjectService {
       endDate?: Date;
     },
   ): Promise<Project> {
-    console.log('ProjectService.create called with:', {
+    this.logger.debug('ProjectService.create called with:', {
       userId,
       workspaceId,
       data,
@@ -417,7 +536,7 @@ export class ProjectService {
       throw new Error('Space not found or does not belong to the workspace');
     }
 
-    console.log('Space found:', {
+    this.logger.debug('Space found:', {
       id: space.id,
       name: space.name,
       workspaceId: space.workspaceId,
@@ -436,7 +555,7 @@ export class ProjectService {
       isArchived: false,
     };
 
-    console.log(
+    this.logger.debug(
       'Creating project with data:',
       JSON.stringify(projectData, null, 2),
     );
@@ -483,7 +602,10 @@ export class ProjectService {
       // Memory ingestion should not block project creation.
     }
 
-    console.log('Project created result:', JSON.stringify(result, null, 2));
+    this.logger.debug(
+      'Project created result:',
+      JSON.stringify(result, null, 2),
+    );
     return result;
   }
 
@@ -535,7 +657,10 @@ export class ProjectService {
       endDate?: Date;
     },
   ): Promise<Project | undefined> {
-    console.log('ProjectService.update called with:', { projectId, data });
+    this.logger.debug('ProjectService.update called with:', {
+      projectId,
+      data,
+    });
     const updateData: UpdatableProject = {
       ...(data.name && { name: data.name }),
       ...(data.description !== undefined && { description: data.description }),
@@ -545,11 +670,14 @@ export class ProjectService {
       ...(data.startDate !== undefined && { startDate: data.startDate }),
       ...(data.endDate !== undefined && { endDate: data.endDate }),
     };
-    console.log('ProjectService.update: prepared updateData:', updateData);
+    this.logger.debug(
+      'ProjectService.update: prepared updateData:',
+      updateData,
+    );
 
     try {
       const result = await this.projectRepo.update(projectId, updateData);
-      console.log('ProjectService.update: result:', result);
+      this.logger.debug('ProjectService.update: result:', result);
 
       if (result) {
         try {
@@ -574,7 +702,7 @@ export class ProjectService {
 
       return result;
     } catch (error) {
-      console.error('ProjectService.update: error:', error);
+      this.logger.error('ProjectService.update: error:', error);
       throw error;
     }
   }
@@ -591,7 +719,7 @@ export class ProjectService {
             deletedById,
           );
         } catch (error) {
-          console.error(
+          this.logger.error(
             'ProjectService.delete: failed to delete project pages:',
             error,
           );
@@ -683,7 +811,7 @@ export class ProjectService {
       try {
         await this.pageService.restoreTree(project.homePageId, restoredById);
       } catch (error) {
-        console.error(
+        this.logger.error(
           'ProjectService.restore: failed to restore project pages:',
           error,
         );
@@ -1175,6 +1303,160 @@ export class ProjectService {
       missingInfo: normalizedMissing,
       readiness,
       confidence,
+    };
+  }
+
+  async generateProjectRecap(
+    projectId: string,
+    userId: string,
+    options?: { days?: number; includeOpenTasks?: boolean },
+  ): Promise<{
+    pageId: string;
+    title: string;
+    summary: string;
+    stats: Record<string, number>;
+  }> {
+    const project = await this.projectRepo.findById(projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const days = options?.days ?? 7;
+    const includeOpenTasks = options?.includeOpenTasks ?? true;
+    const now = new Date();
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    const baseQuery = this.db
+      .selectFrom('tasks')
+      .where('projectId', '=', projectId)
+      .where('deletedAt', 'is', null);
+
+    const counts = await baseQuery
+      .select([
+        sql<number>`count(*)`.as('total'),
+        sql<number>`sum(case when ${sql.ref('createdAt')} >= ${since} then 1 else 0 end)`.as(
+          'createdCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('completedAt')} >= ${since} then 1 else 0 end)`.as(
+          'completedCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('updatedAt')} >= ${since} then 1 else 0 end)`.as(
+          'updatedCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('dueDate')} < ${now} and ${sql.ref('isCompleted')} = false then 1 else 0 end)`.as(
+          'overdueCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('status')} = 'blocked' then 1 else 0 end)`.as(
+          'blockedCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('status')} = 'in_progress' then 1 else 0 end)`.as(
+          'inProgressCount',
+        ),
+        sql<number>`sum(case when ${sql.ref('status')} = 'todo' then 1 else 0 end)`.as(
+          'todoCount',
+        ),
+      ])
+      .executeTakeFirst();
+
+    const completedTasks = await baseQuery
+      .select(['title', 'completedAt'])
+      .where('completedAt', '>=', since)
+      .orderBy('completedAt', 'desc')
+      .limit(10)
+      .execute();
+
+    const createdTasks = await baseQuery
+      .select(['title', 'createdAt'])
+      .where('createdAt', '>=', since)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .execute();
+
+    const overdueTasks = await baseQuery
+      .select(['title', 'dueDate'])
+      .where('dueDate', '<', now)
+      .where('isCompleted', '=', false)
+      .orderBy('dueDate', 'asc')
+      .limit(10)
+      .execute();
+
+    const summary = `Last ${days} days: ${
+      counts?.completedCount || 0
+    } completed, ${counts?.createdCount || 0} added, ${
+      counts?.overdueCount || 0
+    } overdue.`;
+
+    const highlights: string[] = [
+      `Total tasks: ${counts?.total || 0}`,
+      `In progress: ${counts?.inProgressCount || 0}`,
+      `Blocked: ${counts?.blockedCount || 0}`,
+    ];
+
+    if (includeOpenTasks) {
+      highlights.push(`To do: ${counts?.todoCount || 0}`);
+    }
+
+    const recapTitle = `${project.name} Recap ${this.formatISODate(now)}`;
+    const title = await this.getUniqueRecapTitle(project.spaceId, recapTitle);
+    if (!title) {
+      throw new BadRequestException('Recap already exists for today');
+    }
+
+    const content = this.buildRecapPageContent({
+      summary,
+      highlights,
+      completedTasks: completedTasks.map((task) => task.title),
+      createdTasks: createdTasks.map((task) => task.title),
+      overdueTasks: overdueTasks.map((task) => task.title),
+    });
+
+    const recapPage = await this.pageService.create(
+      userId,
+      project.workspaceId,
+      {
+        title,
+        icon: project.icon || undefined,
+        spaceId: project.spaceId,
+        parentPageId: project.homePageId || undefined,
+        content,
+      },
+    );
+
+    try {
+      await this.agentMemoryService.ingestMemory({
+        workspaceId: project.workspaceId,
+        spaceId: project.spaceId,
+        creatorId: userId,
+        source: 'project.recap',
+        summary: `Project recap generated: ${project.name}`,
+        tags: ['project', 'recap'],
+        content: {
+          projectId: project.id,
+          pageId: recapPage.id,
+          days,
+          createdCount: counts?.createdCount || 0,
+          completedCount: counts?.completedCount || 0,
+          overdueCount: counts?.overdueCount || 0,
+        },
+      });
+    } catch {
+      // Memory ingestion should not block recap creation.
+    }
+
+    return {
+      pageId: recapPage.id,
+      title: recapPage.title,
+      summary,
+      stats: {
+        total: Number(counts?.total || 0),
+        created: Number(counts?.createdCount || 0),
+        completed: Number(counts?.completedCount || 0),
+        updated: Number(counts?.updatedCount || 0),
+        overdue: Number(counts?.overdueCount || 0),
+        blocked: Number(counts?.blockedCount || 0),
+        inProgress: Number(counts?.inProgressCount || 0),
+        todo: Number(counts?.todoCount || 0),
+      },
     };
   }
 }

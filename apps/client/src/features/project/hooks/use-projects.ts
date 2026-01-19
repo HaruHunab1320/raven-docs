@@ -4,10 +4,12 @@ import {
   CreateProjectParams,
   Project,
   ProjectListParams,
+  ProjectRecapParams,
   UpdateProjectParams,
 } from "../types";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env?.DEV;
@@ -19,14 +21,14 @@ const shouldLog =
 // Helper function to conditionally log
 const conditionalLog = (message: string, data?: any) => {
   if (shouldLog) {
-    console.log(message, data);
+    logger.log(message, data);
   }
 };
 
 // Helper function to conditionally log errors
 const conditionalErrorLog = (message: string, error?: any) => {
   if (shouldLog || error?.response?.status >= 400) {
-    console.error(message, error);
+    logger.error(message, error);
   }
 };
 
@@ -38,12 +40,12 @@ export function useProjects(params: ProjectListParams) {
     queryKey: [PROJECTS_QUERY_KEY, params],
     queryFn: async () => {
       conditionalLog("Fetching projects with params:", params);
-      console.log("PROJECT LIST DEBUG - Fetching with params:", params);
+      logger.log("PROJECT LIST DEBUG - Fetching with params:", params);
 
       const result = await projectService.listProjects(params);
 
-      console.log("PROJECT LIST DEBUG - Raw API response:", result);
-      console.log("PROJECT LIST DEBUG - Projects data structure:", {
+      logger.log("PROJECT LIST DEBUG - Raw API response:", result);
+      logger.log("PROJECT LIST DEBUG - Projects data structure:", {
         hasDataProperty: !!result.data,
         hasItemsProperty: !!result.items,
         dataIsArray: Array.isArray(result.data),
@@ -58,12 +60,12 @@ export function useProjects(params: ProjectListParams) {
 
       // If we have projects data, log the first few projects to see their names
       if (Array.isArray(result.data) && result.data.length > 0) {
-        console.log(
+        logger.log(
           "PROJECT LIST DEBUG - First projects from data:",
           result.data.slice(0, 3)
         );
       } else if (Array.isArray(result.items) && result.items.length > 0) {
-        console.log(
+        logger.log(
           "PROJECT LIST DEBUG - First projects from items:",
           result.items.slice(0, 3)
         );
@@ -73,7 +75,7 @@ export function useProjects(params: ProjectListParams) {
         result.data.items &&
         Array.isArray(result.data.items)
       ) {
-        console.log(
+        logger.log(
           "PROJECT LIST DEBUG - First projects from data.items:",
           result.data.items.slice(0, 3)
         );
@@ -107,7 +109,7 @@ export function useCreateProjectMutation() {
   return useMutation({
     mutationFn: async (params: CreateProjectParams) => {
       const startTime = performance.now();
-      console.log(
+      logger.log(
         `Create project mutation started at ${new Date().toISOString()}`
       );
 
@@ -117,14 +119,14 @@ export function useCreateProjectMutation() {
         conditionalLog("Project created:", result);
 
         const endTime = performance.now();
-        console.log(
+        logger.log(
           `Create project mutation completed in ${endTime - startTime}ms at ${new Date().toISOString()}`
         );
 
         return result;
       } catch (error) {
         const endTime = performance.now();
-        console.error(
+        logger.error(
           `Create project mutation failed after ${endTime - startTime}ms at ${new Date().toISOString()}`,
           error
         );
@@ -132,10 +134,10 @@ export function useCreateProjectMutation() {
       }
     },
     onMutate: () => {
-      console.log(`onMutate callback started at ${new Date().toISOString()}`);
+      logger.log(`onMutate callback started at ${new Date().toISOString()}`);
     },
     onSuccess: (data, variables) => {
-      console.log(`onSuccess callback started at ${new Date().toISOString()}`);
+      logger.log(`onSuccess callback started at ${new Date().toISOString()}`);
 
       const queryParams = { spaceId: variables.spaceId };
       conditionalLog(
@@ -161,12 +163,12 @@ export function useCreateProjectMutation() {
         color: "green",
       });
 
-      console.log(
+      logger.log(
         `onSuccess callback completed at ${new Date().toISOString()}`
       );
     },
     onError: (error) => {
-      console.log(`onError callback started at ${new Date().toISOString()}`);
+      logger.log(`onError callback started at ${new Date().toISOString()}`);
 
       conditionalErrorLog("Project creation error:", error);
       notifications.show({
@@ -175,7 +177,7 @@ export function useCreateProjectMutation() {
         color: "red",
       });
 
-      console.log(`onError callback completed at ${new Date().toISOString()}`);
+      logger.log(`onError callback completed at ${new Date().toISOString()}`);
     },
   });
 }
@@ -207,6 +209,29 @@ export function useUpdateProjectMutation() {
       notifications.show({
         title: t("Error"),
         message: t("Failed to update project"),
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useGenerateProjectRecapMutation() {
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (params: ProjectRecapParams) =>
+      projectService.generateProjectRecap(params),
+    onSuccess: (data) => {
+      notifications.show({
+        title: t("Recap created"),
+        message: t("Recap page {{title}} is ready", { title: data.title }),
+        color: "green",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: t("Error"),
+        message: t("Failed to generate project recap"),
         color: "red",
       });
     },

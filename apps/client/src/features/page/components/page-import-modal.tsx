@@ -13,6 +13,7 @@ import { buildTree } from "@/features/page/tree/utils";
 import { IPage } from "@/features/page/types/page.types.ts";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 interface PageImportModalProps {
   spaceId: string;
@@ -83,7 +84,7 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
         pages.push(page);
         pageCount += 1;
       } catch (err) {
-        console.log("Failed to import page", err);
+        logger.log("Failed to import page", err);
       }
     }
 

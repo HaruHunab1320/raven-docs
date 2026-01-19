@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { TaskRepo } from '../../../database/repos/task/task.repo';
 import { TaskLabelRepo } from '../../../database/repos/task/task-label.repo';
@@ -24,6 +25,8 @@ import { extractTaskItems } from '../../../common/helpers/prosemirror/utils';
 
 @Injectable()
 export class TaskService {
+  private readonly logger = new Logger(TaskService.name);
+
   constructor(
     private readonly taskRepo: TaskRepo,
     private readonly taskLabelRepo: TaskLabelRepo,
@@ -62,7 +65,7 @@ export class TaskService {
       includeLabels?: boolean;
     },
   ): Promise<Paginated<Task>> {
-    console.log('[TaskService] findByProjectId called with:', {
+    this.logger.debug('[TaskService] findByProjectId called with:', {
       projectId,
       projectIdType: typeof projectId,
       projectIdLength: projectId?.length,
@@ -76,13 +79,13 @@ export class TaskService {
         pagination,
         options,
       );
-      console.log('[TaskService] findByProjectId succeeded:', {
+      this.logger.debug('[TaskService] findByProjectId succeeded:', {
         resultDataCount: result?.data?.length,
         pagination: result?.pagination,
       });
       return result;
     } catch (error: any) {
-      console.error('[TaskService] findByProjectId error:', {
+      this.logger.error('[TaskService] findByProjectId error:', {
         error: error.message || String(error),
         stack: error.stack || 'No stack trace',
         projectId,
@@ -115,7 +118,7 @@ export class TaskService {
       includeLabels?: boolean;
     },
   ): Promise<Paginated<Task>> {
-    console.log('[TaskService] findBySpaceId called with:', {
+    this.logger.debug('[TaskService] findBySpaceId called with:', {
       spaceId,
       spaceIdType: typeof spaceId,
       spaceIdLength: spaceId?.length,
@@ -129,13 +132,13 @@ export class TaskService {
         pagination,
         options,
       );
-      console.log('[TaskService] findBySpaceId succeeded:', {
+      this.logger.debug('[TaskService] findBySpaceId succeeded:', {
         resultDataCount: result?.data?.length,
         pagination: result?.pagination,
       });
       return result;
     } catch (error: any) {
-      console.error('[TaskService] findBySpaceId error:', {
+      this.logger.error('[TaskService] findBySpaceId error:', {
         error: error.message || String(error),
         stack: error.stack || 'No stack trace',
         spaceId,

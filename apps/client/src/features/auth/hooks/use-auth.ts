@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import api from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 export default function useAuth() {
   const { t } = useTranslation();
@@ -68,7 +69,7 @@ export default function useAuth() {
       navigate(APP_ROUTE.HOME);
     } catch (err) {
       setIsLoading(false);
-      console.log(err);
+      logger.log(err);
       notifications.show({
         message: err.response?.data.message,
         color: "red",
@@ -143,7 +144,7 @@ export default function useAuth() {
 
       return true;
     } catch (err) {
-      console.log(err);
+      logger.log(err);
       setIsLoading(false);
       notifications.show({
         message: err.response?.data.message,
@@ -161,7 +162,7 @@ export default function useAuth() {
       await verifyUserToken(data);
       setIsLoading(false);
     } catch (err) {
-      console.log(err);
+      logger.log(err);
       setIsLoading(false);
       notifications.show({
         message: err.response?.data.message,

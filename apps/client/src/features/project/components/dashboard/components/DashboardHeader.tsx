@@ -1,17 +1,20 @@
 import { Group, Title, Button } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 interface DashboardHeaderProps {
   onCreateProject: () => void;
   onViewProjects?: () => void;
   onQuickAddTask?: () => void;
+  onGenerateRecaps?: () => void;
 }
 
 export function DashboardHeader({
   onCreateProject,
   onViewProjects,
   onQuickAddTask,
+  onGenerateRecaps,
 }: DashboardHeaderProps) {
   const { t } = useTranslation();
 
@@ -29,10 +32,15 @@ export function DashboardHeader({
             {t("Add task")}
           </Button>
         )}
+        {onGenerateRecaps && (
+          <Button variant="light" onClick={onGenerateRecaps} size="sm">
+            {t("Generate recaps")}
+          </Button>
+        )}
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={() => {
-            console.log("Create Project button clicked");
+            logger.log("Create Project button clicked");
             onCreateProject();
           }}
           size="sm"

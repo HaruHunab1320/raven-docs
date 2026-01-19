@@ -48,9 +48,9 @@ Workflow map of REST endpoints and MCP tools.
 
 Production readiness checklist with pass/fail steps.
 
-### 0.9 [Agentic Roadmap + Project Playbook](./Agentic_Roadmap.md)
+### 0.9 [Agentic Roadmap](./Agentic_Roadmap.md)
 
-State-of-the-art agentic behavior, memory intelligence, and delivery playbooks.
+State-of-the-art agentic behavior, memory intelligence, and delivery planning.
 
 ### 4. [GTD + Second Brain UI](./GTD_SecondBrain_UI.md)
 

@@ -5,6 +5,7 @@ import { useResolveCommentMutation } from "@/features/comment/queries/comment-qu
 import { useTranslation } from "react-i18next";
 import { useAtomValue } from "jotai";
 import { pageEditorAtom } from "@/features/editor/atoms/editor-atoms";
+import { logger } from "@/lib/logger";
 
 function ResolveComment({ commentId, resolvedAt }) {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ function ResolveComment({ commentId, resolvedAt }) {
         editor?.commands.unsetComment(commentId);
       }
     } catch (error) {
-      console.error("Failed to toggle resolved state:", error);
+      logger.error("Failed to toggle resolved state:", error);
     }
   };
 

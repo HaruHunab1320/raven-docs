@@ -1,7 +1,9 @@
+import { Logger } from '@nestjs/common';
 import { WebSocketServer } from 'ws';
 
 export class CollabWsAdapter {
   private readonly wss: WebSocketServer;
+  private readonly logger = new Logger(CollabWsAdapter.name);
 
   constructor() {
     this.wss = new WebSocketServer({ noServer: true });
@@ -37,7 +39,7 @@ export class CollabWsAdapter {
       });
       this.wss.close();
     } catch (err) {
-      console.error(err);
+      this.logger.error(err);
     }
   }
 }

@@ -75,7 +75,7 @@ support required to ship them safely.
 
 ## Remaining Gaps
 
-- Project recap generator still depends on agent suggestions.
+- Project recap generator is now data-driven; verify recap coverage in QA.
 - Task extraction from page checklists uses stable pageTaskId values with
   legacy title fallback; validate legacy behavior in QA.
 - Agent policy rules need UX education (what is safe vs destructive).

@@ -59,6 +59,7 @@ import { useDeletePageModal } from "@/features/page/hooks/use-delete-page-modal.
 import { useTranslation } from "react-i18next";
 import ExportModal from "@/components/common/export-modal";
 import MovePageModal from "../../components/move-page-modal.tsx";
+import { logger } from "@/lib/logger";
 
 interface SpaceTreeProps {
   spaceId: string;
@@ -108,14 +109,14 @@ export default function SpaceTree({
         .filter((item) => !excludedPageIds.includes(item.id));
       const treeData = buildTree(allItems);
 
-      console.log(
+      logger.log(
         "%c[SpaceTree] Processing updated pages data",
         "background: #2196F3; color: white; padding: 3px; border-radius: 3px;"
       );
 
       if (data.length < 1 || data?.[0].spaceId !== spaceId) {
         // Initial data load
-        console.log(
+        logger.log(
           "%c[SpaceTree] Initial data load for space",
           "background: #4CAF50; color: white; padding: 3px; border-radius: 3px;"
         );
@@ -124,7 +125,7 @@ export default function SpaceTree({
         setOpenTreeNodes({});
       } else {
         // Handle updates to existing data
-        console.log(
+        logger.log(
           "%c[SpaceTree] Updating existing tree data",
           "background: #FF9800; color: white; padding: 3px; border-radius: 3px;"
         );
@@ -134,7 +135,7 @@ export default function SpaceTree({
         const newNodes = treeData.filter((node) => !currentIds.has(node.id));
 
         if (newNodes.length > 0) {
-          console.log(
+          logger.log(
             "%c[SpaceTree] New nodes found, updating tree",
             "background: #FF9800; color: white; padding: 3px; border-radius: 3px;",
             newNodes
@@ -324,7 +325,7 @@ function Node({ node, style, dragHandle, tree }: NodeRendererProps<any>) {
 
       setTreeData(updatedTreeData);
     } catch (error) {
-      console.error("Failed to fetch children:", error);
+      logger.error("Failed to fetch children:", error);
     }
   }
 
@@ -364,7 +365,7 @@ function Node({ node, style, dragHandle, tree }: NodeRendererProps<any>) {
         });
       }, 50);
     } catch (error) {
-      console.error("Error updating page title:", error);
+      logger.error("Error updating page title:", error);
     }
   };
 

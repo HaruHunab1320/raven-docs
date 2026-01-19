@@ -14,6 +14,7 @@ import { useCollabToken } from "@/features/auth/queries/auth-query.tsx";
 import { Error404 } from "@/components/ui/error-404.tsx";
 import { MCPSocketProvider } from "@/features/websocket/providers/mcp-socket-provider.tsx";
 import { RavenDocsThemeProvider } from "./providers/theme-provider";
+import { logger } from "@/lib/logger";
 
 export function UserProvider({ children }: React.PropsWithChildren) {
   const [, setCurrentUser] = useAtom(currentUserAtom);
@@ -38,11 +39,11 @@ export function UserProvider({ children }: React.PropsWithChildren) {
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-      console.log("ws connected");
+      logger.log("ws connected");
     });
 
     return () => {
-      console.log("ws disconnected");
+      logger.log("ws disconnected");
       newSocket.disconnect();
     };
   }, [isError, isLoading]);

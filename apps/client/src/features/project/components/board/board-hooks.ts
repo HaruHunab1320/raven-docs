@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useBoardContext } from "./board-context";
+import { logger } from "@/lib/logger";
 
 // Add dayjs plugins
 dayjs.extend(isSameOrAfter);
@@ -57,7 +58,7 @@ export function useFilteredTasks({
   });
 
   const filteredTasks = useMemo(() => {
-    console.log(
+    logger.log(
       `FILTER/SORT: Applying filters/sort. SortBy: ${sortBy}, SortOrder: ${sortOrder}`
     );
     if (!tasksData) return [];
@@ -130,7 +131,7 @@ export function useFilteredTasks({
     }
 
     // Apply sorting
-    console.log(
+    logger.log(
       `FILTER/SORT: Sorting ${filtered.length} tasks by ${sortBy} (${sortOrder})`
     );
     filtered.sort((a, b) => {
@@ -167,7 +168,7 @@ export function useFilteredTasks({
       }
     });
 
-    console.log(
+    logger.log(
       `FILTER/SORT: Final filtered/sorted task count: ${filtered.length}`
     );
     return filtered;
@@ -340,7 +341,7 @@ export function useTaskOperations() {
   const updateTaskStatus = useCallback(
     (taskId: string, status: TaskStatus) => {
       // Log for debugging
-      console.log(`Updating task status: ${taskId} to ${status}`);
+      logger.log(`Updating task status: ${taskId} to ${status}`);
 
       updateTaskMutation.mutate({
         taskId,
@@ -358,7 +359,7 @@ export function useTaskOperations() {
       spaceId?: string
     ) => {
       // Log position for debugging
-      console.log(`Updating position for task ${taskId}:`, {
+      logger.log(`Updating position for task ${taskId}:`, {
         position,
         projectId,
         spaceId,

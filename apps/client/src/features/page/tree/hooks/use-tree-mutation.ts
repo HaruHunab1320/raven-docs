@@ -22,6 +22,7 @@ import { SpaceTreeNode } from "@/features/page/tree/types.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { getSpaceUrl } from "@/lib/config.ts";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
+import { logger } from "@/lib/logger";
 
 export function useTreeMutation<T>(spaceId: string) {
   const [data, setData] = useAtom(treeDataAtom);
@@ -191,7 +192,7 @@ export function useTreeMutation<T>(spaceId: string) {
         });
       }, 50);
     } catch (error) {
-      console.error("Error moving page:", error);
+      logger.error("Error moving page:", error);
     }
   };
 
@@ -202,7 +203,7 @@ export function useTreeMutation<T>(spaceId: string) {
     try {
       updatePageMutation.mutateAsync({ pageId: id, title: name });
     } catch (error) {
-      console.error("Error updating page title:", error);
+      logger.error("Error updating page title:", error);
     }
   };
 
@@ -231,7 +232,7 @@ export function useTreeMutation<T>(spaceId: string) {
         });
       }, 50);
     } catch (error) {
-      console.error("Failed to delete page:", error);
+      logger.error("Failed to delete page:", error);
     }
   };
 

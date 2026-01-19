@@ -66,7 +66,19 @@ export class AgentMemoryService {
         return { text: value };
       }
     }
-    return value;
+    if (typeof value === 'bigint') {
+      return value.toString();
+    }
+    if (typeof value === 'function' || typeof value === 'symbol') {
+      return { text: String(value) };
+    }
+    try {
+      JSON.stringify(value);
+      return value;
+    } catch {
+      this.logger.warn('Agent memory payload was not JSON-serializable. Storing as text.');
+      return { text: String(value) };
+    }
   }
 
   private safeJsonStringify(value: any) {

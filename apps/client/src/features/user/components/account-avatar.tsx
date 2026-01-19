@@ -7,6 +7,7 @@ import { FileButton, Tooltip, Loader } from "@mantine/core";
 import { uploadAvatar } from "@/features/user/services/user-service.ts";
 import { useTranslation } from "react-i18next";
 import { getAvatarUrl } from "@/lib/config.ts";
+import { logger } from "@/lib/logger";
 
 const userAtom = focusAtom(currentUserAtom, (optic) => optic.prop("user"));
 
@@ -68,7 +69,7 @@ export default function AccountAvatar() {
         serverUpdateTimeoutRef.current = null;
       }, 1500); // Give enough time for the server image to load
     } catch (err) {
-      console.log(err);
+      logger.log(err);
       // Keep local preview in case of error
     } finally {
       setIsLoading(false);

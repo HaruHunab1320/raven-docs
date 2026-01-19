@@ -3,27 +3,27 @@ import {
   Box,
   Container,
   Group,
-  Paper,
-  Title,
   Text,
   Breadcrumbs,
   Anchor,
   Button,
-  Flex,
+  Modal,
+  Stack,
+  Checkbox,
+  ScrollArea,
+  NumberInput,
 } from "@mantine/core";
 import { ProjectList } from "../components/project-list";
 import { ProjectBoard } from "../components/project-board";
 import { Project } from "../types";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useCurrentSpace } from "@/features/space/hooks/use-current-space";
 import { useCurrentWorkspace } from "@/features/workspace/hooks/use-current-workspace";
-import { Dashboard } from "../components/dashboard/components/Dashboard";
 import { DashboardMetrics } from "../components/dashboard/components/DashboardMetrics";
 import { DashboardCharts } from "../components/dashboard/components/DashboardCharts";
 import { useDashboardData } from "../components/dashboard/dashboard-hooks";
 import { DashboardHeader } from "../components/dashboard/components/DashboardHeader";
-import { useCreateProjectMutation } from "../hooks/use-projects";
 import { useDisclosure } from "@mantine/hooks";
 import ProjectFormModal from "../components/project-form-modal";
 import { QuickTaskModal } from "../components/quick-task-modal";
@@ -37,6 +37,9 @@ import {
   buildActivityStats,
   ActivityStats,
 } from "@/features/agent-memory/utils/activity-metrics";
+import { logger } from "@/lib/logger";
+import { notifications } from "@mantine/notifications";
+import { projectService } from "@/features/project/services/project-service";
 
 export function ProjectManagementPage() {
   const { t } = useTranslation();
@@ -51,6 +54,12 @@ export function ProjectManagementPage() {
   const [quickTaskProjectId, setQuickTaskProjectId] = useState<string | null>(
     null
   );
+  const [recapModalOpened, recapModalHandlers] = useDisclosure(false);
+  const [recapAllProjects, setRecapAllProjects] = useState(true);
+  const [recapProjectIds, setRecapProjectIds] = useState<string[]>([]);
+  const [recapDays, setRecapDays] = useState<number | string>(7);
+  const [includeOpenTasks, setIncludeOpenTasks] = useState(true);
+  const [isGeneratingRecaps, setIsGeneratingRecaps] = useState(false);
   const { upsertTab } = usePageTabs();
 
   // Use useDisclosure with a stable reference
@@ -58,7 +67,7 @@ export function ProjectManagementPage() {
 
   // Create stable callback references to prevent re-renders
   const openCreateModal = useCallback(() => {
-    console.log("Opening create project modal with spaceId:", spaceId);
+    logger.log("Opening create project modal with spaceId:", spaceId);
     createModalHandlers.open();
   }, [spaceId, createModalHandlers]);
 
@@ -66,8 +75,6 @@ export function ProjectManagementPage() {
     createModalHandlers.close();
   }, [createModalHandlers]);
 
-  // Initialize the createProject mutation
-  const createProjectMutation = useCreateProjectMutation();
 
   const {
     projects,
@@ -77,6 +84,11 @@ export function ProjectManagementPage() {
     taskDistributionByOwner,
     isLoading,
   } = useDashboardData({ spaceId });
+
+  const activeProjects = useMemo(
+    () => (projects || []).filter((project) => !project.isArchived),
+    [projects],
+  );
 
   const activityRange = useMemo(() => {
     const now = new Date();
@@ -165,10 +177,10 @@ export function ProjectManagementPage() {
   }, [selectedProject, showDashboard, spaceId, t, upsertTab]);
 
   // Debug logging
-  console.log("ProjectManagementPage - spaceId:", spaceId);
-  console.log("ProjectManagementPage - spaceData:", spaceData);
-  console.log("ProjectManagementPage - workspaceData:", workspaceData);
-  console.log("ProjectManagementPage - showDashboard:", showDashboard);
+  logger.log("ProjectManagementPage - spaceId:", spaceId);
+  logger.log("ProjectManagementPage - spaceData:", spaceData);
+  logger.log("ProjectManagementPage - workspaceData:", workspaceData);
+  logger.log("ProjectManagementPage - showDashboard:", showDashboard);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
@@ -177,6 +189,68 @@ export function ProjectManagementPage() {
 
   const handleBackToProjects = () => {
     setSelectedProject(null);
+  };
+
+  const openRecapModal = () => {
+    recapModalHandlers.open();
+  };
+
+  const closeRecapModal = () => {
+    recapModalHandlers.close();
+  };
+
+  const handleGenerateRecaps = async () => {
+    const days = typeof recapDays === "number" ? recapDays : Number(recapDays);
+    const clampedDays = Number.isFinite(days)
+      ? Math.min(Math.max(days, 1), 90)
+      : 7;
+    const selected = recapAllProjects
+      ? activeProjects
+      : activeProjects.filter((project) => recapProjectIds.includes(project.id));
+
+    if (!selected.length) {
+      notifications.show({
+        title: t("No projects selected"),
+        message: t("Select at least one project to generate recaps."),
+        color: "yellow",
+      });
+      return;
+    }
+
+    setIsGeneratingRecaps(true);
+    const failures: string[] = [];
+    for (const project of selected) {
+      try {
+        await projectService.generateProjectRecap({
+          projectId: project.id,
+          days: clampedDays,
+          includeOpenTasks,
+        });
+      } catch {
+        failures.push(project.name);
+      }
+    }
+    setIsGeneratingRecaps(false);
+
+    if (failures.length) {
+      notifications.show({
+        title: t("Some recaps failed"),
+        message: t("Failed to recap: {{names}}", {
+          names: failures.join(", "),
+        }),
+        color: "red",
+      });
+    } else {
+      notifications.show({
+        title: t("Recaps created"),
+        message: t("Generated recaps for {{count}} projects.", {
+          count: selected.length,
+        }),
+        color: "green",
+      });
+    }
+
+    closeRecapModal();
   };
 
   const handleToggleDashboard = () => {
@@ -249,6 +323,7 @@ export function ProjectManagementPage() {
               onCreateProject={openCreateModal}
               onViewProjects={() => setShowDashboard(false)}
               onQuickAddTask={() => openQuickTask()}
+              onGenerateRecaps={openRecapModal}
             />
           </Group>
           <Box mt="xl">
@@ -315,6 +390,79 @@ export function ProjectManagementPage() {
 
         {/* Use memoized modal */}
         {projectFormModalMemo}
+        <Modal
+          opened={recapModalOpened}
+          onClose={closeRecapModal}
+          title={t("Generate project recaps")}
+          size="md"
+        >
+          <Stack gap="md">
+            <Checkbox
+              checked={recapAllProjects}
+              label={t("All active projects")}
+              onChange={(event) => {
+                const nextValue = event.currentTarget.checked;
+                setRecapAllProjects(nextValue);
+                if (nextValue) {
+                  setRecapProjectIds([]);
+                }
+              }}
+            />
+            {!recapAllProjects && (
+              <ScrollArea h={200} type="auto">
+                <Stack gap="xs">
+                  {activeProjects.map((project) => (
+                    <Checkbox
+                      key={project.id}
+                      checked={recapProjectIds.includes(project.id)}
+                      label={project.name}
+                      onChange={(event) => {
+                        setRecapProjectIds((prev) =>
+                          event.currentTarget.checked
+                            ? [...prev, project.id]
+                            : prev.filter((id) => id !== project.id)
+                        );
+                      }}
+                    />
+                  ))}
+                  {!activeProjects.length && (
+                    <Text size="sm" c="dimmed">
+                      {t("No active projects available.")}
+                    </Text>
+                  )}
+                </Stack>
+              </ScrollArea>
+            )}
+            <Group grow>
+              <NumberInput
+                label={t("Days")}
+                min={1}
+                max={90}
+                value={recapDays}
+                onChange={setRecapDays}
+              />
+              <Checkbox
+                checked={includeOpenTasks}
+                label={t("Include open tasks")}
+                onChange={(event) =>
+                  setIncludeOpenTasks(event.currentTarget.checked)
+                }
+                mt={24}
+              />
+            </Group>
+            <Group justify="flex-end">
+              <Button variant="subtle" onClick={closeRecapModal}>
+                {t("Cancel")}
+              </Button>
+              <Button
+                onClick={handleGenerateRecaps}
+                loading={isGeneratingRecaps}
+              >
+                {t("Generate recaps")}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
         <QuickTaskModal
           opened={quickTaskOpened}
           onClose={() => setQuickTaskOpened(false)}

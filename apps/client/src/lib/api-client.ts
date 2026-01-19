@@ -1,11 +1,12 @@
 import axios, { AxiosInstance } from "axios";
 import APP_ROUTE from "@/lib/app-route.ts";
 import { isCloud } from "@/lib/config.ts";
+import { logger } from "@/lib/logger";
 
 // Always use a relative base so Vite proxy (dev) or reverse proxy (prod) applies.
 const API_BASE_URL = "/api";
 
-console.log("API client configured with base URL:", API_BASE_URL);
+logger.log("API client configured with base URL:", API_BASE_URL);
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -46,7 +47,7 @@ api.interceptors.response.use(
               .toLowerCase()
               .includes("workspace not found")
           ) {
-            console.log("workspace not found");
+            logger.log("workspace not found");
             if (
               !isCloud() &&
               window.location.pathname != APP_ROUTE.AUTH.SETUP

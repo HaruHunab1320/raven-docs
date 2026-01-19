@@ -687,6 +687,8 @@ export class MCPService {
         return this.projectHandler.archiveProject(params, userId);
       case 'createPage':
         return this.projectHandler.createProjectPage(params, userId);
+      case 'recap':
+        return this.projectHandler.generateProjectRecap(params, userId);
       default:
         throw createMethodNotFoundError(`project.${operation}`);
     }

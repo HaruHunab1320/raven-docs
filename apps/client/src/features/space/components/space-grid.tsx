@@ -40,6 +40,7 @@ import SpaceSettingsModal from "@/features/space/components/settings-modal";
 import ExportModal from "@/components/common/export-modal";
 import DeleteSpaceModal from "@/features/space/components/delete-space-modal";
 import { useDisclosure, useClipboard } from "@mantine/hooks";
+import { logger } from "@/lib/logger";
 
 export default function SpaceGrid() {
   const { t } = useTranslation();
@@ -68,7 +69,7 @@ export default function SpaceGrid() {
           event.type === MCPEventType.UPDATED ||
           event.type === MCPEventType.DELETED)
       ) {
-        console.log(
+        logger.log(
           "🔄 SpaceGrid: Space event detected, refreshing spaces...",
           event
         );
@@ -90,7 +91,7 @@ export default function SpaceGrid() {
       };
     } else {
       // Socket not available, force a one-time refresh
-      console.log(
+      logger.log(
         "🔍 SpaceGrid: Socket not available, forcing one-time refresh"
       );
       refetch();
@@ -99,14 +100,14 @@ export default function SpaceGrid() {
 
   // Force a refetch when the component mounts and set up periodic refreshes
   useEffect(() => {
-    console.log("🔍 SpaceGrid: Component mounted, fetching spaces...");
+    logger.log("🔍 SpaceGrid: Component mounted, fetching spaces...");
     // Refetch immediately on mount
     refetch();
 
     // Setup an interval for periodic checks - use a shorter interval if no socket
     const refreshInterval = setInterval(
       () => {
-        console.log("⏱️ SpaceGrid: Periodic refresh triggered");
+        logger.log("⏱️ SpaceGrid: Periodic refresh triggered");
         refetch();
       },
       socket ? 30000 : 10000
@@ -119,7 +120,7 @@ export default function SpaceGrid() {
 
   // Force a manual refetch when refresh button is clicked
   const handleManualRefresh = () => {
-    console.log("👆 SpaceGrid: Manual refresh triggered");
+    logger.log("👆 SpaceGrid: Manual refresh triggered");
     setRefreshing(true);
     refetch().finally(() => setRefreshing(false));
   };

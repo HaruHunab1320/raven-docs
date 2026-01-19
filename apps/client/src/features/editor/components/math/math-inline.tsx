@@ -7,6 +7,7 @@ import { Popover, Textarea } from "@mantine/core";
 import classes from "./math.module.css";
 import { v4 } from "uuid";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export default function MathInlineView(props: NodeViewProps) {
   const { t } = useTranslation();
@@ -26,7 +27,7 @@ export default function MathInlineView(props: NodeViewProps) {
       katex.render(katexString, container);
       setError(null);
     } catch (e) {
-      //console.error(e);
+      //logger.error(e);
       setError(e.message);
     }
   };

@@ -14,6 +14,7 @@ import { saveAs } from "file-saver";
 import { notifications } from "@mantine/notifications";
 import { generatePdfFilename } from "@/lib/pdf-export";
 import html2pdf from "html2pdf.js";
+import { logger } from "@/lib/logger";
 
 export async function createPage(data: Partial<IPage>): Promise<IPage> {
   const req = await api.post<IPage>("/pages/create", data);
@@ -190,7 +191,7 @@ export async function exportPage(data: IExportPageParams): Promise<void> {
         message: "PDF Export failed",
         color: "red",
       });
-      console.error("PDF export error", err);
+      logger.error("PDF export error", err);
       return;
     }
   }

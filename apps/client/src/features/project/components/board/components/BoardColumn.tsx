@@ -34,6 +34,7 @@ import { useRef, useState, useMemo } from "react";
 import { useCreateTaskMutation } from "../../../hooks/use-tasks";
 import { useBoardContext } from "../board-context";
 import { Goal } from "@/features/goal/types";
+import { logger } from "@/lib/logger";
 
 interface BoardColumnProps {
   status: TaskStatus;
@@ -100,12 +101,12 @@ export function BoardColumn({
   // Handle mock actions (these would be implemented with real functionality)
   const handleDeleteColumn = () => {
     // This would be implemented with actual delete logic
-    console.log("Delete column:", status);
+    logger.log("Delete column:", status);
   };
 
   const handleHideGroup = () => {
     // This would be implemented with actual hide logic
-    console.log("Hide group:", status);
+    logger.log("Hide group:", status);
   };
 
   return (

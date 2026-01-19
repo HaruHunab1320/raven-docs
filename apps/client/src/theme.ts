@@ -1,4 +1,5 @@
 import {
+import { logger } from "@/lib/logger";
   createTheme,
   CSSVariablesResolver,
   MantineColorsTuple,
@@ -352,7 +353,7 @@ export const RAVEN_DOCS_THEMES: RavenDocsTheme[] = [
 export const getThemeById = (themeId: string): RavenDocsTheme => {
   const theme = RAVEN_DOCS_THEMES.find((theme) => theme.id === themeId);
   if (!theme) {
-    console.warn(`Theme ${themeId} not found, using default theme`);
+    logger.warn(`Theme ${themeId} not found, using default theme`);
     return RAVEN_DOCS_THEMES[0];
   }
   return theme;

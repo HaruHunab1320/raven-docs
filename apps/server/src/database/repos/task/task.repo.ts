@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectKysely } from '../../../lib/kysely/nestjs-kysely';
 import { Kysely, Transaction } from 'kysely';
 import { DB, TaskStatus } from '../../types/db';
@@ -10,6 +10,8 @@ import { paginate } from '../../../lib/pagination/paginate';
 
 @Injectable()
 export class TaskRepo {
+  private readonly logger = new Logger(TaskRepo.name);
+
   constructor(@InjectKysely() private readonly db: Kysely<DB>) {}
 
   // Helper method to validate UUID
@@ -187,17 +189,19 @@ export class TaskRepo {
     },
     trx?: Transaction<DB>,
   ): Promise<Paginated<Task>> {
-    console.log('[TaskRepo] findByProjectId started:', {
-      projectId,
-      projectIdType: typeof projectId,
-      projectIdLength: projectId?.length,
-      pagination,
-      hasOptions: !!options,
-    });
+    this.logger.debug(
+      `[TaskRepo] findByProjectId started ${JSON.stringify({
+        projectId,
+        projectIdType: typeof projectId,
+        projectIdLength: projectId?.length,
+        pagination,
+        hasOptions: !!options,
+      })}`,
+    );
 
     // Validate UUID
     if (!this.isValidUuid(projectId)) {
-      console.log('[TaskRepo] Invalid projectId, returning empty result');
+      this.logger.warn('[TaskRepo] Invalid projectId, returning empty result');
       return this.createEmptyPaginatedResult<Task>(pagination);
     }
 
@@ -251,29 +255,31 @@ export class TaskRepo {
           ]);
       }
 
-      // Log the SQL query before executing (for debugging)
-      console.log(
-        '[TaskRepo] About to execute query for projectId:',
-        projectId,
+      this.logger.debug(
+        `[TaskRepo] About to execute query for projectId: ${projectId}`,
       );
 
       const result = await paginate(query, pagination);
       if (options?.includeLabels) {
         await this.attachLabelsToTasks(result.data, trx);
       }
-      console.log('[TaskRepo] findByProjectId succeeded:', {
-        resultCount: result?.data?.length,
-        pagination: result?.pagination,
-      });
+      this.logger.debug(
+        `[TaskRepo] findByProjectId succeeded ${JSON.stringify({
+          resultCount: result?.data?.length,
+          pagination: result?.pagination,
+        })}`,
+      );
 
       return result;
     } catch (error: any) {
-      console.error('[TaskRepo] findByProjectId error:', {
-        error: error.message || String(error),
-        stack: error.stack || 'No stack trace',
-        projectId,
-        query: error.query || 'No query info',
-      });
+      this.logger.error(
+        `[TaskRepo] findByProjectId error ${JSON.stringify({
+          error: error.message || String(error),
+          projectId,
+          query: error.query || 'No query info',
+        })}`,
+        error?.stack,
+      );
       throw error;
     }
   }
@@ -353,17 +359,19 @@ export class TaskRepo {
     },
     trx?: Transaction<DB>,
   ): Promise<Paginated<Task>> {
-    console.log('[TaskRepo] findBySpaceId started:', {
-      spaceId,
-      spaceIdType: typeof spaceId,
-      spaceIdLength: spaceId?.length,
-      pagination,
-      hasOptions: !!options,
-    });
+    this.logger.debug(
+      `[TaskRepo] findBySpaceId started ${JSON.stringify({
+        spaceId,
+        spaceIdType: typeof spaceId,
+        spaceIdLength: spaceId?.length,
+        pagination,
+        hasOptions: !!options,
+      })}`,
+    );
 
     // Validate UUID
     if (!this.isValidUuid(spaceId)) {
-      console.log('[TaskRepo] Invalid spaceId, returning empty result');
+      this.logger.warn('[TaskRepo] Invalid spaceId, returning empty result');
       return this.createEmptyPaginatedResult<Task>(pagination);
     }
 
@@ -424,26 +432,31 @@ export class TaskRepo {
           ]);
       }
 
-      // Log the SQL query before executing (for debugging)
-      console.log('[TaskRepo] About to execute query for spaceId:', spaceId);
+      this.logger.debug(
+        `[TaskRepo] About to execute query for spaceId: ${spaceId}`,
+      );
 
       const result = await paginate(query, pagination);
       if (options?.includeLabels) {
         await this.attachLabelsToTasks(result.data, trx);
       }
-      console.log('[TaskRepo] findBySpaceId succeeded:', {
-        resultCount: result?.data?.length,
-        pagination: result?.pagination,
-      });
+      this.logger.debug(
+        `[TaskRepo] findBySpaceId succeeded ${JSON.stringify({
+          resultCount: result?.data?.length,
+          pagination: result?.pagination,
+        })}`,
+      );
 
       return result;
     } catch (error: any) {
-      console.error('[TaskRepo] findBySpaceId error:', {
-        error: error.message || String(error),
-        stack: error.stack || 'No stack trace',
-        spaceId,
-        query: error.query || 'No query info',
-      });
+      this.logger.error(
+        `[TaskRepo] findBySpaceId error ${JSON.stringify({
+          error: error.message || String(error),
+          spaceId,
+          query: error.query || 'No query info',
+        })}`,
+        error?.stack,
+      );
       throw error;
     }
   }

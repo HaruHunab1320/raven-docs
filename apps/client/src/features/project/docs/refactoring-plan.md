@@ -18,7 +18,7 @@ This document tracks the refactoring progress for the `apps/client/src/features/
 | project-file-sidebar.tsx | 12KB, 438 lines | Not Started | | |
 | project-tree.tsx | 9.6KB, 372 lines | Not Started | | Consider consolidating with project-file-tree.tsx |
 | project-file-view.tsx | 9.9KB, 335 lines | Not Started | | |
-| project-detail.tsx | 9.4KB, 311 lines | Not Started | | |
+| project-detail.tsx | Removed | Complete | Removed unused legacy component | |
 | project-list.tsx | 8.1KB, 284 lines | Not Started | | |
 | project-file-tree.tsx | 8.5KB, 307 lines | Not Started | | Consider consolidating with project-tree.tsx |
 | task-card.tsx | 2.6KB, 104 lines | Not Started | | Move to task folder |
@@ -103,15 +103,10 @@ These components are similar and could be consolidated.
   - `FileActions` - For file-related actions
   - `file-hooks.ts` - Custom hooks for file operations
 
-### 7. `project-detail.tsx` (9.4KB, 311 lines)
+### 7. `project-detail.tsx` (Removed)
 
-**Refactoring Strategy:**
-- Create a `detail` folder
-- Break down into:
-  - `DetailHeader` - Project detail header
-  - `DetailContent` - Main content component
-  - `DetailSidebar` - Sidebar specific to detail view
-  - `detail-hooks.ts` - Custom hooks for detail view
+This legacy component was not routed or referenced. It has been removed to
+reduce maintenance overhead.
 
 ### 8. `project-list.tsx` (8.1KB, 284 lines)
 
@@ -160,8 +155,6 @@ project/
 │   │   └── ...
 │   └── index.ts
 ├── file-view/
-│   └── ...
-├── detail/
 │   └── ...
 ├── list/
 │   └── ...
@@ -213,7 +206,7 @@ project/
 - [ ] Refactor project-metrics.tsx
 - [ ] Refactor project-file-sidebar.tsx and project-file-tree.tsx
 - [ ] Refactor project-file-view.tsx
-- [ ] Refactor project-detail.tsx
+- [x] Remove unused project-detail.tsx
 - [ ] Refactor project-list.tsx
 - [ ] Move task-related components to task folder
 - [ ] Move modal components to modals folder

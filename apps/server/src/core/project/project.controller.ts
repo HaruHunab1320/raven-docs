@@ -7,6 +7,7 @@ import {
   UseGuards,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { ProjectService } from './services/project.service';
 import {
@@ -19,6 +20,7 @@ import {
   ProjectPlaybookDraftDto,
   ProjectPlaybookChatDraftDto,
   ProjectPlaybookChatSummaryDto,
+  ProjectRecapDto,
 } from './dto/project.dto';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -33,6 +35,8 @@ import SpaceAbilityFactory from '../casl/abilities/space-ability.factory';
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
 export class ProjectController {
+  private readonly logger = new Logger(ProjectController.name);
+
   constructor(
     private readonly projectService: ProjectService,
     private readonly spaceAbility: SpaceAbilityFactory,
@@ -63,13 +67,14 @@ export class ProjectController {
   @HttpCode(HttpStatus.OK)
   @Post('/list')
   async listProjects(@Body() dto: ProjectListDto, @AuthUser() user: User) {
-    console.log('=== PROJECT LISTING DEBUG ===');
-    console.log('ListProjects request from user:', {
+    this.logger.debug('Project list requested', {
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
+      spaceId: dto.spaceId,
+      page: dto.page,
+      limit: dto.limit,
     });
-    console.log('List parameters:', dto);
 
     const ability = await this.spaceAbility.createForUser(user, dto.spaceId);
     if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
@@ -87,11 +92,12 @@ export class ProjectController {
       },
     );
 
-    console.log('Projects found:', result.data.length);
+    this.logger.debug('Project list response', {
+      count: result.data.length,
+    });
     if (result.data.length > 0) {
-      console.log(
-        'First few projects:',
-        result.data.slice(0, 3).map((p) => ({
+      this.logger.debug('Project list sample', {
+        projects: result.data.slice(0, 3).map((p) => ({
           id: p.id,
           name: p.name,
           description:
@@ -99,7 +105,7 @@ export class ProjectController {
               (p.description?.length > 20 ? '...' : '') || '',
           createdAt: p.createdAt,
         })),
-      );
+      });
     }
 
     return result;
@@ -112,16 +118,10 @@ export class ProjectController {
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    console.log('=== PROJECT CREATION DEBUG ===');
-    console.log('Received DTO:', JSON.stringify(dto, null, 2));
-    console.log('User:', {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    });
-    console.log('Workspace:', {
-      id: workspace.id,
-      name: workspace.name,
+    this.logger.debug('Project create requested', {
+      project: dto,
+      userId: user.id,
+      workspaceId: workspace.id,
     });
 
     const ability = await this.spaceAbility.createForUser(user, dto.spaceId);
@@ -129,12 +129,11 @@ export class ProjectController {
       throw new ForbiddenException();
     }
 
-    console.log('Before service.create call, name:', dto.name);
     const result = await this.projectService.create(user.id, workspace.id, dto);
-    console.log(
-      'After service.create call, result:',
-      JSON.stringify(result, null, 2),
-    );
+    this.logger.debug('Project created', {
+      projectId: result?.id,
+      name: result?.name,
+    });
     return result;
   }
 
@@ -168,18 +167,14 @@ export class ProjectController {
   @HttpCode(HttpStatus.OK)
   @Post('/update')
   async updateProject(@Body() dto: UpdateProjectDto, @AuthUser() user: User) {
-    console.log('=============================================');
-    console.log('ProjectController.updateProject: received dto:', dto);
-    console.log('ProjectController.updateProject: user:', {
-      id: user.id,
-      email: user.email,
-      name: user.name,
+    this.logger.debug('Project update requested', {
+      projectId: dto.projectId,
+      userId: user.id,
     });
-    console.log('=============================================');
 
     const project = await this.projectService.findById(dto.projectId);
     if (!project) {
-      console.error(`Project not found with ID: ${dto.projectId}`);
+      this.logger.warn(`Project not found: ${dto.projectId}`);
       throw new NotFoundException('Project not found');
     }
 
@@ -192,20 +187,19 @@ export class ProjectController {
     }
 
     const { projectId, ...updateData } = dto;
-    console.log('ProjectController.updateProject: calling service with:', {
+    this.logger.debug('Project update payload', {
       projectId,
       updateData,
     });
 
     try {
       const result = await this.projectService.update(projectId, updateData);
-      console.log(
-        'ProjectController.updateProject: success, returning:',
-        result,
-      );
+      this.logger.debug('Project update completed', {
+        projectId,
+      });
       return result;
     } catch (error) {
-      console.error('ProjectController.updateProject: error:', error);
+      this.logger.error('Project update failed', error as Error);
       throw error;
     }
   }
@@ -291,6 +285,31 @@ export class ProjectController {
     } else {
       return this.projectService.unarchive(dto.projectId);
     }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/recap')
+  async generateProjectRecap(
+    @Body() dto: ProjectRecapDto,
+    @AuthUser() user: User,
+  ) {
+    const project = await this.projectService.findById(dto.projectId);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(
+      user,
+      project.spaceId,
+    );
+    if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.projectService.generateProjectRecap(dto.projectId, user.id, {
+      days: dto.days,
+      includeOpenTasks: dto.includeOpenTasks,
+    });
   }
 
   @HttpCode(HttpStatus.OK)

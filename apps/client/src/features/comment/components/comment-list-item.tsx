@@ -16,6 +16,7 @@ import {
 import { IComment } from "@/features/comment/types/comment.types";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
+import { logger } from "@/lib/logger";
 
 interface CommentListItemProps {
   comment: IComment;
@@ -41,7 +42,7 @@ function CommentListItem({ comment }: CommentListItemProps) {
       await updateCommentMutation.mutateAsync(commentToUpdate);
       setIsEditing(false);
     } catch (error) {
-      console.error("Failed to update comment:", error);
+      logger.error("Failed to update comment:", error);
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +53,7 @@ function CommentListItem({ comment }: CommentListItemProps) {
       await deleteCommentMutation.mutateAsync(comment.id);
       editor?.commands.unsetComment(comment.id);
     } catch (error) {
-      console.error("Failed to delete comment:", error);
+      logger.error("Failed to delete comment:", error);
     }
   }
 

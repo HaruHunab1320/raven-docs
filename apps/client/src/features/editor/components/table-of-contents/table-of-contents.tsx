@@ -5,6 +5,7 @@ import classes from "./table-of-contents.module.css";
 import clsx from "clsx";
 import { Box, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 type TableOfContentsProps = {
   editor: ReturnType<typeof useEditor>;
@@ -126,7 +127,7 @@ export const TableOfContents: FC<TableOfContentsProps> = (props) => {
         });
       };
     } catch (err) {
-      console.log(err);
+      logger.log(err);
     }
   }, [headingDOMNodes, props.editor]);
 

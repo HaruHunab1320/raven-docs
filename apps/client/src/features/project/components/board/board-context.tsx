@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { Project, Task, TaskPriority, TaskStatus } from "../../types";
+import { logger } from "@/lib/logger";
 
 type ViewMode = "kanban" | "swimlane" | "list" | "timeline" | "columns";
 type GroupBy = "status" | "assignee" | "priority" | "date" | "labels";
@@ -77,7 +78,7 @@ export function BoardProvider({
   onBack,
 }: BoardProviderProps) {
   // Debug log
-  console.log(
+  logger.log(
     "BoardProvider rendering with project:",
     project?.id,
     project?.name

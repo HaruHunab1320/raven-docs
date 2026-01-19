@@ -78,7 +78,8 @@ what is stable, and what still needs work.
 **Agent memory**
 - Status: Implemented.
 - Notes: Postgres stores full memory payloads, Memgraph stores embeddings and
-  entity relationships. Query/graph/preview endpoints are live.
+  entity relationships. Query/graph/preview endpoints are live. Memory payloads
+  are normalized to avoid invalid JSON inserts.
 
 **Approvals**
 - Status: Implemented.
@@ -107,7 +108,7 @@ what is stable, and what still needs work.
 
 **Mail**
 - Status: Implemented.
-- Notes: SMTP/Postmark/Resend drivers.
+- Notes: SMTP/Postmark/Resend drivers (Resend primary).
 
 **Import/Export**
 - Status: Implemented.
@@ -179,8 +180,8 @@ what is stable, and what still needs work.
 
 ## Readiness Risks (Code Scan)
 
-- **Client logging**: MCP event hooks emit extensive console logs; should be
-  gated behind a dev flag to reduce noise and CPU overhead.
+- **Client logging**: MCP event logs are gated behind `VITE_ENABLE_LOGS`;
+  keep disabled in production to avoid noise and CPU overhead.
 - **Autonomy scheduling**: Cron runs hourly; schedule settings must be set or
   runs are skipped (ensure timezone + cadence are configured).
 - **Memgraph dependency**: Memory insights require Memgraph connectivity; when
@@ -194,7 +195,7 @@ what is stable, and what still needs work.
   validate legacy title fallback behavior during runtime QA.
 - Documentation cleanup is complete; verify MCP Standard references during QA.
 - UI audit items still need runtime confirmation (see `docs/ManualTest_Runbook.md`).
-- Security settings require a runtime pass to confirm plan-gating UX.
+- Autonomy schedule UX needs a runtime pass to confirm cadence + timezone clarity.
 
 ## Consistency Notes
 

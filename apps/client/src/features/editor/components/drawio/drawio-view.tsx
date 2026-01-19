@@ -22,6 +22,7 @@ import { decodeBase64ToSvgString, svgStringToFile } from "@/lib/utils";
 import clsx from "clsx";
 import { IconEdit } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export default function DrawioView(props: NodeViewProps) {
   const { t } = useTranslation();
@@ -54,7 +55,7 @@ export default function DrawioView(props: NodeViewProps) {
         };
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     } finally {
       open();
     }

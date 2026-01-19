@@ -72,6 +72,8 @@ import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 import api from "@/lib/api-client.ts";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useAtom } from "jotai";
+import { logger } from "@/lib/logger";
+import { useGenerateProjectRecapMutation } from "@/features/project/hooks/use-projects";
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env?.DEV;
@@ -83,14 +85,14 @@ const shouldLog =
 // Helper function to conditionally log
 const conditionalLog = (message: string, data?: any) => {
   if (shouldLog) {
-    console.log(message, data);
+    logger.log(message, data);
   }
 };
 
 // Helper function to conditionally log errors
 const conditionalErrorLog = (message: string, error?: any) => {
   if (shouldLog || error?.response?.status >= 400) {
-    console.error(message, error);
+    logger.error(message, error);
   }
 };
 
@@ -258,6 +260,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
   // Mutations
   const updateProjectMutation = useUpdateProjectMutation();
   const silentUpdateProjectMutation = useSilentUpdateProjectMutation();
+  const recapMutation = useGenerateProjectRecapMutation();
 
   // Get workspace users
   const { data: workspaceUsers = [] } = useWorkspaceUsers({
@@ -289,7 +292,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
   const updateProject = (data: any) => {
     conditionalLog("Updating project with data:", data);
     // Log the full project details including the ID
-    console.log("Project details for debugging:", {
+    logger.log("Project details for debugging:", {
       projectId: project.id,
       projectName: project.name,
       fullProject: project,
@@ -331,6 +334,10 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
       projectId: project.id,
       ...data,
     });
+  };
+
+  const handleGenerateRecap = () => {
+    recapMutation.mutate({ projectId: project.id });
   };
 
   // Handle title update
@@ -468,11 +475,11 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
 
       // Verify spaceId exists before attempting upload
       if (!project.spaceId) {
-        console.error("Missing spaceId for project:", project);
+        logger.error("Missing spaceId for project:", project);
         throw new Error("Space ID is required for image upload");
       }
 
-      console.log("Uploading cover image with spaceId:", project.spaceId);
+      logger.log("Uploading cover image with spaceId:", project.spaceId);
 
       // Create a FormData instance
       const formData = new FormData();
@@ -501,7 +508,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
         },
       });
 
-      console.log("Upload response:", JSON.stringify(response, null, 2));
+      logger.log("Upload response:", JSON.stringify(response, null, 2));
 
       // Success notification - update the existing toast
       notifications.update({
@@ -523,13 +530,13 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
         if ("fileName" in response) {
           // Use the standardized path format based on attachment type
           imageUrl = `/api/attachments/img/project-cover/${response.fileName}`;
-          console.log("Using constructed image URL:", imageUrl);
+          logger.log("Using constructed image URL:", imageUrl);
         } else if ("filePath" in response) {
           // If we have a full file path, use it directly
           imageUrl = `/api/attachments/img/project-cover/${(response.filePath as string).split("/").pop()}`;
-          console.log("Using file path-based URL:", imageUrl);
+          logger.log("Using file path-based URL:", imageUrl);
         } else {
-          console.error("Invalid response format from image upload:", response);
+          logger.error("Invalid response format from image upload:", response);
           throw new Error("Invalid response format from server");
         }
 
@@ -542,14 +549,14 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           // since we still want to display the image
           setObjectUrl(null);
 
-          console.log("Updating cover image URL to:", imageUrl);
+          logger.log("Updating cover image URL to:", imageUrl);
           setCoverImageUrl(imageUrl);
 
           // Update the project with the actual image URL from the server
           updateProject({ coverImage: imageUrl });
         }
       } else {
-        console.error("Invalid response format from image upload:", response);
+        logger.error("Invalid response format from image upload:", response);
         throw new Error("Invalid response format from server");
       }
 
@@ -567,7 +574,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
         loading: false,
         autoClose: 3000,
       });
-      console.error("Error uploading file:", error);
+      logger.error("Error uploading file:", error);
     } finally {
       // Reset the upload state regardless of success or failure
       setIsUploadingCover(false);
@@ -1237,20 +1244,21 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
       {/* Project title */}
       <Group justify="space-between" mb="md">
         {isEditingTitle ? (
-          <TextInput
-            ref={titleInputRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleTitleUpdate}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleTitleUpdate();
-              }
-            }}
-            placeholder={t("Project Title")}
-            style={{ flex: 1 }}
-            autoFocus
-          />
+          <Box style={{ flex: 1 }}>
+            <TextInput
+              ref={titleInputRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={handleTitleUpdate}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleTitleUpdate();
+                }
+              }}
+              placeholder={t("Project Title")}
+              autoFocus
+            />
+          </Box>
         ) : (
           <Group>
             <Title order={1}>{project.name}</Title>
@@ -1266,6 +1274,16 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           </Group>
         )}
 
+        <Group gap="xs">
+          <Button
+            size="xs"
+            variant="light"
+            onClick={handleGenerateRecap}
+            loading={recapMutation.isPending}
+          >
+            {t("Generate recap")}
+          </Button>
+        </Group>
       </Group>
 
       {/* Project description */}

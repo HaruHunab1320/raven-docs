@@ -52,7 +52,7 @@ Raven Docs today.
 
 - Task extraction from document checklists uses stable pageTaskId values with
   legacy title fallback; validate legacy behavior in QA.
-- Some advanced review surfaces (project recap, time tracking) remain in roadmap.
+- Some advanced review surfaces (time tracking) remain in roadmap.
 
 ## Design Principles (Applied)
 

@@ -6,6 +6,7 @@ import { getAppName } from "@/lib/config.ts";
 import { Helmet } from "react-helmet-async";
 import { Error404 } from "@/components/ui/error-404.tsx";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export default function SpaceHome() {
   const { t } = useTranslation();
@@ -24,7 +25,7 @@ export default function SpaceHome() {
 
   // Handle error state or no space data
   if (isError || !space) {
-    console.error("Error loading space:", error);
+    logger.error("Error loading space:", error);
     return <Error404 />;
   }
 

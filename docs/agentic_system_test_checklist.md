@@ -2,25 +2,12 @@
 
 Use this checklist to validate everything added since the manual runbook.
 
-## Playbook Wizard + Sessions
-- [ ] Create a new project.
-- [ ] Open the Playbook Wizard from the project header.
-- [ ] Click **Start playbook chat** and verify the agent chat drawer opens with “Playbook chat: <project>”.
-- [ ] Ask several questions in the chat to build context.
-- [ ] Refresh the page and reopen the wizard; confirm the session is still active (session persists).
-- [ ] Click **Summarize agent chat** and verify you get:
-  - [ ] Summary text
-  - [ ] Readiness badge
-  - [ ] Confidence badge
-  - [ ] “Open questions” list (if applicable)
-- [ ] Click **Generate from agent chat** and verify playbook pages are populated.
-- [ ] Click **Generate from brief** and verify playbook pages are populated.
-
-## Playbook Content Quality
-- [ ] Open each playbook page (Project Brief, Architecture, Delivery Plan, Backlog, Risks).
-- [ ] Confirm there is no duplicate title in the page body.
-- [ ] Confirm each page has 1 summary paragraph + bullet list.
-- [ ] Confirm the playbook root page title includes the project name (e.g., “Project X Playbook”).
+## Agent Chat Drawer
+- [ ] Open the global agent chat drawer from the top bar.
+- [ ] Confirm the drawer stays open while you navigate pages.
+- [ ] Confirm the message list scrolls independently (page scroll remains unaffected when hovering the drawer).
+- [ ] Confirm the input stays pinned to the bottom of the drawer.
+- [ ] Send a message and verify markdown renders (lists, headings, bold).
 
 ## Agent Chat Tooling
 - [ ] In agent chat, toggle **Auto-approve tool actions** OFF.
@@ -40,7 +27,7 @@ Use this checklist to validate everything added since the manual runbook.
 ## Chat Draft Limit & Warnings
 - [ ] Go to Workspace → Agent Settings and locate **Chat draft message limit**.
 - [ ] Change the value and save; confirm it persists.
-- [ ] In a playbook chat session, send enough messages to hit the limit.
+- [ ] Send enough messages to hit the limit.
 - [ ] Confirm a warning appears in chat with **Increase limit**.
 - [ ] Click **Increase limit** and confirm it updates successfully.
 
@@ -49,8 +36,7 @@ Use this checklist to validate everything added since the manual runbook.
 - [ ] Approve from inline chat; confirm the approval is removed and the action applied.
 - [ ] Reject from inline chat; confirm it’s removed and you can add more context.
 
-## Agent Readiness & Confidence
-- [ ] In normal agent chat (not playbook wizard), confirm the last two lines still show:
-  - [ ] “Draft readiness: …”
-  - [ ] “Confidence: …”
-- [ ] Confirm these lines are not duplicated in the chat bubble (badges show instead).
+## Memory Context Chips
+- [ ] Send a message and confirm the response includes context chips.
+- [ ] Verify chips list memory sources with counts.
+- [ ] Expand/collapse sources and confirm the list stays within the drawer.

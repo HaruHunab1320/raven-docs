@@ -48,6 +48,7 @@ import { TaskDrawer } from "../../../components/task-drawer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listGoalsForTasks } from "@/features/goal/services/goal-service";
 import { Goal } from "@/features/goal/types";
+import { logger } from "@/lib/logger";
 
 // CSS class name for when we need to disable scrolling
 const NO_SCROLL_CLASS = "raven-docs-board-no-scroll";
@@ -78,7 +79,7 @@ function BoardContent({ project, spaceId }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  console.log(
+  logger.log(
     "BoardContent rendering with project:",
     project,
     "spaceId:",
@@ -351,7 +352,7 @@ function BoardContent({ project, spaceId }) {
     before: string | null,
     after: string | null
   ): string {
-    console.log(`POS_GEN: Inputs - Before: ${before}, After: ${after}`);
+    logger.log(`POS_GEN: Inputs - Before: ${before}, After: ${after}`);
 
     // Simplified LexoRank-like key generation (using lowercase alphabet a-z)
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
@@ -359,7 +360,7 @@ function BoardContent({ project, spaceId }) {
 
     // Case 1: No neighbors (first item in an empty list)
     if (!before && !after) {
-      console.log("POS_GEN: Case 1 - First item");
+      logger.log("POS_GEN: Case 1 - First item");
       return midChar; // 'm'
     }
 
@@ -367,19 +368,19 @@ function BoardContent({ project, spaceId }) {
     if (!before) {
       // If 'after' looks like an ID (long hex string), generate position before 'm'
       if (after && after.length > 10 && /^[a-f0-9-]+$/.test(after)) {
-        console.log("POS_GEN: Case 2a - Before ID, placing before 'm'");
+        logger.log("POS_GEN: Case 2a - Before ID, placing before 'm'");
         return alphabet[Math.floor(alphabet.indexOf(midChar) / 2)]; // e.g., 'f'
       }
       // If 'after' is a valid position string
       const firstChar = after![0];
       const prevCharIndex = alphabet.indexOf(firstChar) - 1;
       if (prevCharIndex >= 0) {
-        console.log(
+        logger.log(
           `POS_GEN: Case 2b - Before valid pos '${after}', placing one char before`
         );
         return alphabet[prevCharIndex];
       } else {
-        console.log(
+        logger.log(
           `POS_GEN: Case 2c - Before smallest pos '${after}', prepending 'a'`
         );
         return "a" + after; // Cannot go before 'a', so prepend 'a'
@@ -390,7 +391,7 @@ function BoardContent({ project, spaceId }) {
     if (!after) {
       // If 'before' looks like an ID, generate position after 'm'
       if (before && before.length > 10 && /^[a-f0-9-]+$/.test(before)) {
-        console.log("POS_GEN: Case 3a - After ID, placing after 'm'");
+        logger.log("POS_GEN: Case 3a - After ID, placing after 'm'");
         return alphabet[
           Math.floor((alphabet.indexOf(midChar) + alphabet.length) / 2)
         ]; // e.g., 't'
@@ -399,12 +400,12 @@ function BoardContent({ project, spaceId }) {
       const lastChar = before[before.length - 1];
       const nextCharIndex = alphabet.indexOf(lastChar) + 1;
       if (nextCharIndex < alphabet.length) {
-        console.log(
+        logger.log(
           `POS_GEN: Case 3b - After valid pos '${before}', placing one char after`
         );
         return before.substring(0, before.length - 1) + alphabet[nextCharIndex];
       } else {
-        console.log(
+        logger.log(
           `POS_GEN: Case 3c - After largest pos '${before}', appending 'z'`
         );
         return before + "z"; // Cannot go after 'z', so append 'z'
@@ -415,7 +416,7 @@ function BoardContent({ project, spaceId }) {
     // This requires a more complex fractional indexing or string comparison logic
     // For simplicity here, let's just append the midChar to the 'before' string
     // This isn't perfectly balanced but avoids the ID prefix issue.
-    console.log(
+    logger.log(
       `POS_GEN: Case 4 - Between '${before}' and '${after}', simple append`
     );
     // Basic check: If inputs look like IDs, return something predictable
@@ -423,7 +424,7 @@ function BoardContent({ project, spaceId }) {
       (before.length > 10 && /^[a-f0-9-]+$/.test(before)) ||
       (after.length > 10 && /^[a-f0-9-]+$/.test(after))
     ) {
-      console.log(
+      logger.log(
         "POS_GEN: Case 4a - Inputs look like IDs, returning predictable middle"
       );
       return before + midChar; // Append 'm' to the 'before' ID (crude but avoids prefix issue)
@@ -445,13 +446,13 @@ function BoardContent({ project, spaceId }) {
 
     if (indexAfter - indexBefore > 1) {
       const midIndex = Math.floor((indexBefore + indexAfter) / 2);
-      console.log(
+      logger.log(
         `POS_GEN: Case 4b - Found space, middle char: ${alphabet[midIndex]}`
       );
       return prefix + alphabet[midIndex];
     } else {
       // No space, extend 'before' by adding the middle character
-      console.log(
+      logger.log(
         `POS_GEN: Case 4c - No space, extending before with '${midChar}'`
       );
       return before + midChar;
@@ -462,13 +463,13 @@ function BoardContent({ project, spaceId }) {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     // Add more detail to the initial log
-    console.log("DRAG_END: Event received", {
+    logger.log("DRAG_END: Event received", {
       active: { id: active?.id, data: active?.data.current },
       over: { id: over?.id, data: over?.data.current }, // Log data associated with the drop target
     });
 
     if (!active || !over) {
-      console.log("DRAG_END: No active or over, exiting.");
+      logger.log("DRAG_END: No active or over, exiting.");
       setActiveId(null);
       setActiveDragData(null);
       return;
@@ -481,27 +482,27 @@ function BoardContent({ project, spaceId }) {
     ) as TaskWithPosition;
 
     if (!activeTask) {
-      console.error("DRAG_END: Active task not found!");
+      logger.error("DRAG_END: Active task not found!");
       setActiveId(null);
       setActiveDragData(null);
       return;
     }
 
-    console.log(
+    logger.log(
       `DRAG_END: Active Task ID: ${activeId}, Status: ${activeTask.status}`
     );
-    console.log(`DRAG_END: Over ID: ${overId}, Over Data:`, over.data.current);
+    logger.log(`DRAG_END: Over ID: ${overId}, Over Data:`, over.data.current);
 
     // Check if dropping onto a column drop zone (using the data we set in useDroppable)
     if (over.data.current?.type === "column") {
       const newStatus = over.data.current.status as TaskStatus;
       if (activeTask.status !== newStatus) {
-        console.log(
+        logger.log(
           `DRAG_END: *** Status Change Detected *** Moving task ${activeId} from ${activeTask.status} to ${newStatus} (Dropped on column)`
         );
         updateTaskStatus(activeId, newStatus);
       } else {
-        console.log(
+        logger.log(
           `DRAG_END: Dropped on same status column (${newStatus}), no status change needed.`
         );
       }
@@ -513,7 +514,7 @@ function BoardContent({ project, spaceId }) {
         (task) => task.id === overId
       ) as TaskWithPosition;
       if (overTask && activeTask.status === overTask.status) {
-        console.log(
+        logger.log(
           `DRAG_END: *** Reorder Detected *** Reordering task ${activeId} relative to ${overId} in status ${activeTask.status} (Dropped on task)`
         );
         // --- Reordering Logic ---
@@ -531,14 +532,14 @@ function BoardContent({ project, spaceId }) {
         const overIndex = sortedTasks.findIndex((t) => t.id === overId);
 
         if (activeIndex === -1 || overIndex === -1) {
-          console.error("DRAG_END: Reorder failed - task index not found.");
+          logger.error("DRAG_END: Reorder failed - task index not found.");
           // Reset state without returning might be needed
           setActiveId(null);
           setActiveDragData(null);
           return;
         }
         if (activeIndex === overIndex) {
-          console.log("DRAG_END: Dropped on self, no reorder needed.");
+          logger.log("DRAG_END: Dropped on self, no reorder needed.");
           // Reset state without returning might be needed
           setActiveId(null);
           setActiveDragData(null);
@@ -547,14 +548,14 @@ function BoardContent({ project, spaceId }) {
 
         let newPosition: string;
         const targetIndex = activeIndex < overIndex ? overIndex : overIndex;
-        console.log(
+        logger.log(
           `DRAG_END: Reorder indices - Active: ${activeIndex}, Over: ${overIndex}, Target for calculation: ${targetIndex}`
         );
 
         if (targetIndex === 0) {
           const afterTask = sortedTasks[0];
           const afterPosition = afterTask.position || afterTask.id;
-          console.log(
+          logger.log(
             `DRAG_END: Reordering to top. Before: null, After: ${afterPosition}`
           );
           newPosition = generatePositionBetween(null, afterPosition);
@@ -565,16 +566,16 @@ function BoardContent({ project, spaceId }) {
           const afterPosition = afterTask
             ? afterTask.position || afterTask.id
             : null;
-          console.log(
+          logger.log(
             `DRAG_END: Reordering between/end. Before: ${beforePosition}, After: ${afterPosition}`
           );
           newPosition = generatePositionBetween(beforePosition, afterPosition);
         }
 
-        console.log(
+        logger.log(
           `DRAG_END: Generated new position: ${newPosition} for task ${activeId}`
         );
-        console.log(
+        logger.log(
           `DRAG_END: Calling updateTaskPosition with taskId: ${activeId}, newPosition: ${newPosition}`
         );
         updateTaskPosition(activeId, newPosition);
@@ -604,13 +605,13 @@ function BoardContent({ project, spaceId }) {
           }
         );
       } else {
-        console.log(
+        logger.log(
           `DRAG_END: Drop detected, but not a valid reorder target (different status or task not found). Over ID: ${overId}, Over Data:`,
           over.data.current
         );
       }
     } else {
-      console.log(
+      logger.log(
         `DRAG_END: Drop detected onto an unknown target type. Over ID: ${overId}, Over Data:`,
         over.data.current
       );

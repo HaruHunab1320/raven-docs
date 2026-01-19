@@ -3,6 +3,7 @@ import { projectService } from "../services/project-service";
 import { CreateTaskParams, Task, UpdateTaskParams } from "../types";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { logger } from "@/lib/logger";
 
 export function useCreateTaskMutation() {
   const queryClient = useQueryClient();
@@ -25,7 +26,7 @@ export function useCreateTaskMutation() {
         message: t("Failed to create task"),
         color: "red",
       });
-      console.error("Error creating task:", error);
+      logger.error("Error creating task:", error);
     },
   });
 }
@@ -54,7 +55,7 @@ export function useUpdateTaskMutation() {
         message: t("Failed to update task"),
         color: "red",
       });
-      console.error("Error updating task:", error);
+      logger.error("Error updating task:", error);
     },
   });
 }
@@ -91,7 +92,7 @@ export function useDeleteTaskMutation() {
         message: t("Failed to delete task"),
         color: "red",
       });
-      console.error("Error deleting task:", error);
+      logger.error("Error deleting task:", error);
     },
   });
 }

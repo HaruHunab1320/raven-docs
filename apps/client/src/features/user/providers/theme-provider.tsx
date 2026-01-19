@@ -21,6 +21,7 @@ import {
   theme as baseTheme,
 } from "@/theme";
 import {
+import { logger } from "@/lib/logger";
   clearManualThemeApplied,
   isManualThemeApplied,
   setManualThemeApplied,
@@ -219,7 +220,7 @@ export function RavenDocsThemeProvider({ children }: ThemeProviderProps) {
       setManualThemeApplied(true);
       applyThemeToSystem(theme);
     } catch (error) {
-      console.error("Error setting theme:", error);
+      logger.error("Error setting theme:", error);
     }
   };
 

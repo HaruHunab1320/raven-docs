@@ -5,8 +5,10 @@ const rounds = 10;
 
 bcrypt.hash(password, rounds, (err, hash) => {
   if (err) {
-    console.error('Error generating hash:', err);
+    process.stderr.write(
+      `Error generating hash: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(1);
   }
-  console.log(hash);
+  process.stdout.write(`${hash}\n`);
 });

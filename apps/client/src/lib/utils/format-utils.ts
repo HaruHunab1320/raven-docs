@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Format a date to a readable string
  * @param date Date to format
@@ -11,7 +12,7 @@ export function formatDate(date: Date): string {
       day: "numeric",
     }).format(date);
   } catch (error) {
-    console.error("Error formatting date:", error);
+    logger.error("Error formatting date:", error);
     return "";
   }
 }
@@ -31,7 +32,7 @@ export function formatDateTime(date: Date): string {
       minute: "numeric",
     }).format(date);
   } catch (error) {
-    console.error("Error formatting date and time:", error);
+    logger.error("Error formatting date and time:", error);
     return "";
   }
 }

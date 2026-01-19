@@ -27,6 +27,7 @@ import { RAVEN_DOCS_THEMES, getThemeById } from "@/theme";
 import { useTranslation } from "react-i18next";
 import { setManualThemeApplied } from "../hooks/use-current-user";
 import { useColorScheme } from "@mantine/hooks";
+import { logger } from "@/lib/logger";
 
 export function ThemeSwitcher() {
   const { t } = useTranslation();
@@ -126,7 +127,7 @@ export function ThemeSwitcher() {
         selectedTheme.secondaryColor || "red"
       );
     } catch (error) {
-      console.error("Failed to update theme:", error);
+      logger.error("Failed to update theme:", error);
     }
   };
 

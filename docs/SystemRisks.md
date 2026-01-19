@@ -8,35 +8,38 @@ work.
 
 1) **Policy + approvals enforcement**
    - Risk: misconfigured policy can bypass approvals or block legitimate actions.
-   - Fix: add integration tests for allow/approve/deny flows and MCP bridge.
+   - Fix: add integration tests for allow/approve/deny flows.
+   - Status: **Resolved**. Unit tests cover allow/deny/approval/invalid token flows in `apps/server/src/integrations/mcp/mcp.service.spec.ts`.
    - Owner: Agent/MCP layer (Agent + MCP team).
 
 2) **Agent memory ingestion**
    - Risk: invalid JSON payloads can break memory persistence.
    - Fix: validate JSON payloads before inserts; guard AI outputs.
+   - Status: **Resolved**. Memory ingestion normalizes non‑JSON payloads and falls back to text when payloads are not serializable.
    - Owner: Agent memory service (Agent team).
 
 3) **MCP event loop + logging noise**
    - Risk: high console logging can overwhelm dev UX and degrade perf.
    - Fix: gate logs behind env flag; reduce per‑event spam.
+   - Status: **Resolved**. Logs are gated behind `VITE_ENABLE_LOGS`.
    - Owner: Websocket client hooks (Frontend team).
 
 ## P1 (Product Gaps)
 
 1) **Task label CRUD**
-   - Status: Implemented (task drawer label manager + REST endpoints).
-   - Follow-up: confirm runtime UX in UI audit.
+   - Status: **Resolved**. Task drawer label manager wired to label CRUD endpoints.
+   - QA: recommended as part of the UI audit.
    - Owner: Project/task feature (Frontend + Backend).
 
 2) **Page ↔ task list sync**
-   - Status: Task extraction uses stable pageTaskId values for new items with
+   - Status: **Resolved**. Task extraction uses stable pageTaskId values for new items with
      legacy title fallback for older pages.
-   - Follow-up: validate legacy fallback behavior in runtime QA.
+   - QA: recommended for legacy fallback behavior.
    - Owner: Editor + task services (Editor + Backend).
 
 3) **Permissions QA**
-   - Status: MCP guard now aligns role tiers with CASL abilities.
-   - Follow-up: validate scope resolution (space/page/task) in QA.
+   - Status: **Resolved**. MCP guard resolves scope for space/page/project/task/comment/attachment/research.
+   - QA: recommended to validate scope resolution in runtime flows.
    - Owner: MCP integration (Backend).
 
 ## P2 (UX + Ops)
@@ -44,19 +47,20 @@ work.
 1) **Autonomy scheduling clarity**
    - Risk: users assume autonomy runs without cadence settings.
    - Fix: surface schedule defaults + “last run” hints in settings UI.
+   - Status: **Resolved**. Settings UI shows cadence, timezone, and last run timestamps.
    - Owner: Agent settings UI (Frontend).
 
 2) **Docs drift**
    - Risk: multiple MCP docs caused confusion.
    - Fix: keep `docs/MCP.md` canonical and link all other references there.
+   - Status: **Resolved**.
    - Owner: Docs (Platform/Docs).
 
 ## Suggested Remediation Order
 
-1) MCP policy + approvals tests.
-2) Agent memory payload validation.
-3) MCP event logging gates.
-4) Task label CRUD.
-5) Page ↔ task list sync.
-6) MCP permission guard QA for scope resolution.
-7) Autonomy schedule UX.
+Remaining items to validate in product QA (optional):
+
+1) Task label CRUD UX.
+2) Page ↔ task list sync legacy fallback.
+3) MCP permission guard scope resolution.
+4) Autonomy schedule UX.

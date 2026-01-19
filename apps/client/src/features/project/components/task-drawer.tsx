@@ -118,6 +118,7 @@ import {
 } from "@/features/goal/services/goal-service";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
 import PageEditor from "@/features/editor/page-editor";
+import { logger } from "@/lib/logger";
 // Lazy load Picker from emoji-mart to avoid SSR issues
 const Picker = lazy(() => import("@emoji-mart/react"));
 
@@ -893,7 +894,7 @@ export function TaskDrawer({
 
       // Verify spaceId exists before attempting upload
       if (!spaceId) {
-        console.error("Missing spaceId for task:", task);
+        logger.error("Missing spaceId for task:", task);
         throw new Error("Space ID is required for image upload");
       }
 
@@ -924,7 +925,7 @@ export function TaskDrawer({
         },
       });
 
-      console.log("Upload response:", response);
+      logger.log("Upload response:", response);
 
       // Success notification - update the existing toast
       notifications.update({
@@ -1001,7 +1002,7 @@ export function TaskDrawer({
         loading: false,
         autoClose: 3000,
       });
-      console.error("Error uploading file:", error);
+      logger.error("Error uploading file:", error);
     } finally {
       // Reset the upload state regardless of success or failure
       setIsUploadingCover(false);

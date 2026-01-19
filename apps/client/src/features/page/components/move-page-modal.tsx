@@ -8,6 +8,7 @@ import { queryClient } from "@/main.tsx";
 import { SpaceSelect } from "@/features/space/components/sidebar/space-select.tsx";
 import { useNavigate } from "react-router-dom";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
+import { logger } from "@/lib/logger";
 
 interface MovePageModalProps {
   pageId: string;
@@ -51,7 +52,7 @@ export default function MovePageModal({
         message: err.response?.data.message || "An error occurred",
         color: "red",
       });
-      console.log(err);
+      logger.log(err);
     }
     setTargetSpace(null);
   };
