@@ -99,6 +99,11 @@ raven-docs/
 
 Raven Docs is licensed under AGPL-3.0-only. See `LICENSE` for details.
 
+## Acknowledgements
+
+Raven Docs began as a fork of Docmost and still includes portions of the original codebase.
+We are grateful to the Docmost maintainers and contributors for their foundational work.
+
 ## Contributing
 
 See `CONTRIBUTING.md` if present, and the docs above for architecture and workflows.
