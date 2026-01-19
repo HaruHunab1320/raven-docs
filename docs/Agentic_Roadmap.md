@@ -36,8 +36,8 @@ We will evolve into a multi-loop, policy-driven system with explicit artifacts:
    - Surfaces long-term interests, constraints, and risk signals.
 
 2) **Project Planning Loop**
-   - Converts a project brief into a structured delivery plan.
-   - Outputs phases, milestones, tasks, risks, and definitions of done.
+   - Uses agent chat inside the project context to shape planning.
+   - Produces optional artifacts (phases, milestones, tasks, risks) on demand.
 
 3) **Planning + Execution Loop**
    - Generates daily/weekly plans using the user model and project plan.
@@ -95,29 +95,29 @@ Multi-layer retrieval (not just one vector search):
 
 ### Planning Artifacts (Outputs)
 
-When a project is created with a solid brief, the system should generate:
+When a project has enough context (via chat or docs), the system can generate:
 
-1) **Project Brief**
+1) **Project Brief** (optional)
    - Problem statement, success criteria, constraints.
 
-2) **User Stories + Use Cases**
+2) **User Stories + Use Cases** (optional)
    - Personas, user journeys, acceptance criteria.
 
-3) **Technical Architecture**
+3) **Technical Architecture** (optional)
    - System diagram, data model, integration map.
    - Non-functional requirements (security, scale, reliability).
 
-4) **Risk + Assumptions**
+4) **Risk + Assumptions** (optional)
    - Unknowns, dependencies, mitigation steps.
 
-5) **Delivery Plan**
+5) **Delivery Plan** (optional)
    - Phases, milestones, estimates, and timeline.
 
-6) **Backlog + Sprint Plan**
+6) **Backlog + Sprint Plan** (optional)
    - Epics -> stories -> tasks.
    - Definition of ready and done.
 
-7) **Review Cadence**
+7) **Review Cadence** (optional)
    - Weekly review checklist, retrospectives, quality gates.
 
 ### Planning Phases (Template)
@@ -179,7 +179,7 @@ better analytics and automation.
 
 ## Required MCP + API Expansions
 
-To enable the playbook and memory intelligence, add tools for:
+To enable planning and memory intelligence, add tools for:
 
 - `project.create` enhancements (brief, goals, constraints)
 - `goal.create` and `goal.link`
@@ -203,8 +203,8 @@ Add a dedicated Journal page with:
 - Multi-layer memory retrieval API.
 
 ### Phase 2: Project Planning MVP
-- Project brief template + architecture template.
-- Plan generator (create pages + tasks).
+- Agent-guided planning via chat inside project context.
+- Optional templates for brief/architecture when requested.
 - Policy gating for auto-created artifacts.
 
 ### Phase 3: Adaptive Planning
@@ -222,21 +222,23 @@ Add a dedicated Journal page with:
 ### Completed
 - Journal daily pages + capture UI.
 - Profile distillation job -> User Profile page.
+- Profile distillation coverage across users/spaces.
 - Insights trait radar (user + people admin view).
 - MCP Standard research tools + report appends to host page.
 - Inline research block (slash command + page-attached research runs).
 - Research outputs organized under a space-level Research page + enriched tags.
 - Unified agent chat drawer (global entry point; approvals, context chips).
+- Project recap generator (data-driven, creates recap pages).
+- Multi-layer memory retrieval helper (short-term + long-term + topic-specific).
 
 ### In Progress
-- Memory profile distillation coverage across users/spaces.
-- Multi-layer memory retrieval (short-term + long-term + topic-specific).
+ 
  
 
 ### Next Up
 - Research MCP Standard tooling + deep research UI surface.
 - Agent-initiated research projects with structured storage.
-- Project planning MVP (brief -> architecture -> backlog -> phases).
+- Chat-native project planning (optional artifacts on demand).
 
 ## Success Metrics
 

@@ -20,6 +20,7 @@ import { MCPService } from '../../integrations/mcp/mcp.service';
 import { MCPSchemaService } from '../../integrations/mcp/services/mcp-schema.service';
 import { MCPErrorCode } from '../../integrations/mcp/utils/error.utils';
 import { AgentChatContextDto } from './agent-chat-context.dto';
+import { AgentMemoryContextService } from './agent-memory-context.service';
 
 @Injectable()
 export class AgentService {
@@ -36,6 +37,7 @@ export class AgentService {
     private readonly pageService: PageService,
     private readonly mcpService: MCPService,
     private readonly mcpSchemaService: MCPSchemaService,
+    private readonly memoryContextService: AgentMemoryContextService,
   ) {}
 
   private getAgentModel() {
@@ -142,82 +144,34 @@ export class AgentService {
     message?: string;
     pageTitle?: string | null;
   }) {
-    const pageChatTag = params.pageId
-      ? `agent-chat-page:${params.pageId}`
-      : 'agent-chat';
-    const sessionChatTag = params.sessionId
-      ? `agent-chat-session:${params.sessionId}`
-      : null;
-    const chatTag = sessionChatTag || pageChatTag;
-    const projectChatTag = params.projectId
-      ? `project:${params.projectId}`
-      : null;
-    const pageTag = params.pageId ? `page:${params.pageId}` : null;
-    const userTag = `user:${params.userId}`;
-
-    const recentMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: params.workspaceId,
-        spaceId: params.spaceId,
-        tags: [chatTag],
-        limit: 5,
-      },
-      undefined,
-    );
-    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const shortTermMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: params.workspaceId,
-        spaceId: params.spaceId,
-        from: shortTermSince,
-        limit: 8,
-      },
-      undefined,
-    );
-    const projectMemories = projectChatTag
-      ? await this.memoryService.queryMemories(
-          {
-            workspaceId: params.workspaceId,
-            spaceId: params.spaceId,
-            tags: [projectChatTag],
-            limit: 6,
-          },
-          undefined,
-        )
-      : [];
-    const topicQuery = params.message || params.pageTitle || '';
-    const topicMemories = topicQuery
-      ? await this.memoryService.queryMemories(
-          {
-            workspaceId: params.workspaceId,
-            spaceId: params.spaceId,
-            limit: 6,
-          },
-          topicQuery,
-        )
-      : [];
-    const profileMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: params.workspaceId,
-        spaceId: params.spaceId,
-        tags: [userTag],
-        limit: 1,
-      },
-      undefined,
-    );
+    const context = await this.memoryContextService.buildContext({
+      workspaceId: params.workspaceId,
+      spaceId: params.spaceId,
+      userId: params.userId,
+      pageId: params.pageId,
+      projectId: params.projectId ?? null,
+      sessionId: params.sessionId,
+      message: params.message,
+      pageTitle: params.pageTitle ?? null,
+      recentLimit: 5,
+      shortTermLimit: 8,
+      projectLimit: 6,
+      topicLimit: 6,
+      profileLimit: 1,
+    });
 
     return {
-      pageChatTag,
-      sessionChatTag,
-      chatTag,
-      projectChatTag,
-      pageTag,
-      userTag,
-      recentMemories,
-      shortTermMemories,
-      projectMemories,
-      topicMemories,
-      profileMemories,
+      pageChatTag: context.tags.pageChatTag,
+      sessionChatTag: context.tags.sessionChatTag,
+      chatTag: context.tags.chatTag,
+      projectChatTag: context.tags.projectChatTag,
+      pageTag: context.tags.pageTag,
+      userTag: context.tags.userTag ?? `user:${params.userId}`,
+      recentMemories: context.memories.recentMemories,
+      shortTermMemories: context.memories.shortTermMemories,
+      projectMemories: context.memories.projectMemories,
+      topicMemories: context.memories.topicMemories,
+      profileMemories: context.memories.profileMemories,
     };
   }
 

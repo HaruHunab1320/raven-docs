@@ -4,6 +4,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { AIService } from '../../integrations/ai/ai.service';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
+import { AgentMemoryContextService } from './agent-memory-context.service';
 import { TaskService } from '../project/services/task.service';
 import { resolveAgentSettings } from './agent-settings';
 import { AgentReviewPromptsService } from './agent-review-prompts.service';
@@ -27,6 +28,7 @@ export class AgentPlannerService {
     private readonly memoryService: AgentMemoryService,
     private readonly taskService: TaskService,
     private readonly reviewPromptService: AgentReviewPromptsService,
+    private readonly memoryContextService: AgentMemoryContextService,
   ) {}
 
   private getAgentModel() {
@@ -255,33 +257,27 @@ export class AgentPlannerService {
       space.id,
       space.workspaceId,
     );
-    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const shortTermMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: space.workspaceId,
-        spaceId: space.id,
-        from: shortTermSince,
-        limit: 12,
-      },
-      undefined,
+    const memoryContext = await this.memoryContextService.buildContext({
+      workspaceId: space.workspaceId,
+      spaceId: space.id,
+      includeRecent: false,
+      includeProject: false,
+      includeTopic: false,
+      shortTermLimit: 12,
+      profileTags: ['user-profile'],
+      profileLimit: 1,
+    });
+    const profileContext = this.formatProfileContext(
+      memoryContext.memories.profileMemories[0],
     );
-
-    const profileMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: space.workspaceId,
-        spaceId: space.id,
-        tags: ['user-profile'],
-        limit: 1,
-      },
-      undefined,
-    );
-    const profileContext = this.formatProfileContext(profileMemories[0]);
 
     const goalSummary = goals
       .map((goal) => `${goal.name} (${goal.horizon})`)
       .slice(0, 10)
       .join(', ');
-    const memorySummary = this.formatMemorySummary(shortTermMemories);
+    const memorySummary = this.formatMemorySummary(
+      memoryContext.memories.shortTermMemories,
+    );
 
     const goalFocusSummary = Array.isArray((triage as any).goalFocus)
       ? (triage as any).goalFocus

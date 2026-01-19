@@ -40,3 +40,4 @@ Use this checklist to validate everything added since the manual runbook.
 - [ ] Send a message and confirm the response includes context chips.
 - [ ] Verify chips list memory sources with counts.
 - [ ] Expand/collapse sources and confirm the list stays within the drawer.
+- [ ] Verify the chips include layered sources (recent chat, short-term activity, project context, topic matches, profile memory) as available.

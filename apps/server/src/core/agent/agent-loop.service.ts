@@ -3,6 +3,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { AIService } from '../../integrations/ai/ai.service';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
+import { AgentMemoryContextService } from './agent-memory-context.service';
 import { TaskService } from '../project/services/task.service';
 import { resolveAgentSettings } from './agent-settings';
 import { AgentPolicyService } from './agent-policy.service';
@@ -112,6 +113,7 @@ export class AgentLoopService {
     private readonly reviewPromptService: AgentReviewPromptsService,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
+    private readonly memoryContextService: AgentMemoryContextService,
   ) {}
 
   private getAgentModel() {
@@ -248,31 +250,26 @@ export class AgentLoopService {
         };
 
     const { goals } = await this.buildContext(spaceId, workspace.id);
-    const profileMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: workspace.id,
-        spaceId,
-        tags: [`user:${user.id}`],
-        limit: 1,
-      },
-      undefined,
+    const memoryContext = await this.memoryContextService.buildContext({
+      workspaceId: workspace.id,
+      spaceId,
+      userId: user.id,
+      includeRecent: false,
+      includeProject: false,
+      includeTopic: false,
+      shortTermLimit: 10,
+      profileLimit: 1,
+    });
+    const profileContext = this.formatProfileContext(
+      memoryContext.memories.profileMemories[0],
     );
-    const shortTermSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const shortTermMemories = await this.memoryService.queryMemories(
-      {
-        workspaceId: workspace.id,
-        spaceId,
-        from: shortTermSince,
-        limit: 10,
-      },
-      undefined,
-    );
-    const profileContext = this.formatProfileContext(profileMemories[0]);
     const sanitizedGoals = goals.map((goal) => ({
       ...goal,
       keywords: Array.isArray(goal.keywords) ? goal.keywords : [],
     }));
-    const memorySummary = this.formatMemorySummary(shortTermMemories);
+    const memorySummary = this.formatMemorySummary(
+      memoryContext.memories.shortTermMemories,
+    );
     const triageSummary = `inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}, overdue=${triage.overdue.length}, dueToday=${triage.dueToday.length}`;
     const goalFocusSummary = Array.isArray((triage as any).goalFocus)
       ? (triage as any).goalFocus
