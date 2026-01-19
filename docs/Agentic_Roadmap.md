@@ -225,7 +225,9 @@ Add a dedicated Journal page with:
 - Profile distillation coverage across users/spaces.
 - Insights trait radar (user + people admin view).
 - MCP Standard research tools + report appends to host page.
+- Research MCP Standard tooling + deep research UI surface.
 - Inline research block (slash command + page-attached research runs).
+- Agent-initiated research projects with structured storage.
 - Research outputs organized under a space-level Research page + enriched tags.
 - Unified agent chat drawer (global entry point; approvals, context chips).
 - Project recap generator (data-driven, creates recap pages).
@@ -236,8 +238,6 @@ Add a dedicated Journal page with:
  
 
 ### Next Up
-- Research MCP Standard tooling + deep research UI surface.
-- Agent-initiated research projects with structured storage.
 - Chat-native project planning (optional artifacts on demand).
 
 ## Success Metrics

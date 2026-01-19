@@ -55,6 +55,7 @@ import {
   IconTrash,
   IconEye,
   IconEyeOff,
+  IconSearch,
 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { Label, Project, TaskPriority } from "../types";
@@ -74,6 +75,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useAtom } from "jotai";
 import { logger } from "@/lib/logger";
 import { useGenerateProjectRecapMutation } from "@/features/project/hooks/use-projects";
+import { ResearchJobModal } from "@/features/research/components/research-job-modal";
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env?.DEV;
@@ -254,6 +256,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
   const [propertiesModalOpened, setPropertiesModalOpened] = useState(false);
 
   const [opened, { open, close }] = useDisclosure(false);
+  const [researchOpened, researchHandlers] = useDisclosure(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1283,6 +1286,14 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           >
             {t("Generate recap")}
           </Button>
+          <Button
+            size="xs"
+            variant="subtle"
+            leftSection={<IconSearch size={14} />}
+            onClick={researchHandlers.open}
+          >
+            {t("Start research")}
+          </Button>
         </Group>
       </Group>
 
@@ -1677,6 +1688,15 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
           </Group>
         </Stack>
       </Modal>
+
+      <ResearchJobModal
+        opened={researchOpened}
+        onClose={researchHandlers.close}
+        workspaceId={project.workspaceId}
+        spaceId={project.spaceId}
+        initialTopic={project.name}
+        reportPageId={project.homePageId || undefined}
+      />
     </Box>
   );
 }
