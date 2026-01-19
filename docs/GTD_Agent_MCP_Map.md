@@ -73,11 +73,4 @@ Exposed tool categories (from docs):
 ## Data Model Notes (Current)
 
 - Tasks include a `bucket` enum: `inbox | waiting | someday | none`.
-- Legacy localStorage buckets are migrated into the task bucket field.
 
-## Next Implementation Steps
-
-1) Add MCP Standard tools for projects and tasks.
-2) Persist GTD bucket server-side.
-3) Wire agent workflows to MCP standard tools.
-4) Add server-side endpoints for daily/weekly summaries if needed.
