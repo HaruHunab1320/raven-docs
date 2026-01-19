@@ -27,6 +27,7 @@ import {
   Modal,
   FileInput,
   MultiSelect,
+  Anchor,
 } from "@mantine/core";
 import { Label, LabelColor, Task, TaskPriority, TaskStatus } from "../types";
 import { getTaskBucket } from "@/features/gtd/utils/task-buckets";
@@ -117,6 +118,7 @@ import {
   unassignGoal,
 } from "@/features/goal/services/goal-service";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
+import { projectService } from "@/features/project/services/project-service";
 import PageEditor from "@/features/editor/page-editor";
 import { logger } from "@/lib/logger";
 // Lazy load Picker from emoji-mart to avoid SSR issues
@@ -180,6 +182,7 @@ export function TaskDrawer({
 }: TaskDrawerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { spaceSlug } = useParams();
   const theme = useMantineTheme();
   const { colorScheme } = useMantineColorScheme();
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
@@ -388,6 +391,16 @@ export function TaskDrawer({
   });
   const taskEntityLinks =
     (taskId && entityLinksQuery.data?.taskLinks?.[taskId]) || [];
+  const taskBacklinksQuery = useQuery({
+    queryKey: ["task-backlinks", taskId, workspaceId],
+    queryFn: () =>
+      projectService.listTaskBacklinks({
+        taskId: taskId || "",
+        limit: 6,
+      }),
+    enabled: !!taskId && !!workspaceId,
+  });
+  const taskBacklinkPages = taskBacklinksQuery.data || [];
   const allGoalsQuery = useQuery({
     queryKey: ["goals", workspaceId, spaceId],
     queryFn: () =>
@@ -1725,6 +1738,43 @@ export function TaskDrawer({
                       >
                         {entity.entityName || "Entity"}
                       </Badge>
+                    ))
+                  ) : (
+                    <Text size="xs" c="dimmed">
+                      {t("None")}
+                    </Text>
+                  )}
+                </Box>
+              </Box>
+
+              <Box style={propertyRowTopAlignStyle}>
+                <Text fw={500} size="sm" style={{ width: propertyLabelWidth }}>
+                  {t("Referenced in")}
+                </Text>
+                <Box
+                  style={{
+                    ...propertyControlStyle,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: theme.spacing.xs,
+                  }}
+                >
+                  {taskBacklinksQuery.isLoading ? (
+                    <Text size="xs" c="dimmed">
+                      {t("Loading...")}
+                    </Text>
+                  ) : taskBacklinkPages.length ? (
+                    taskBacklinkPages.map((page) => (
+                      <Anchor
+                        key={page.id}
+                        size="xs"
+                        underline="never"
+                        c="dimmed"
+                        href={buildPageUrl(spaceSlug, page.slugId, page.title)}
+                      >
+                        {page.icon ? `${page.icon} ` : ""}
+                        {page.title || t("Untitled")}
+                      </Anchor>
                     ))
                   ) : (
                     <Text size="xs" c="dimmed">

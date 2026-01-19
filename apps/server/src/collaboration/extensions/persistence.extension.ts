@@ -20,9 +20,13 @@ import { Queue } from 'bullmq';
 import {
   extractMentions,
   extractPageMentions,
+  extractTaskMentions,
 } from '../../common/helpers/prosemirror/utils';
 import { isDeepStrictEqual } from 'node:util';
-import { IPageBacklinkJob } from '../../integrations/queue/constants/queue.interface';
+import {
+  IPageBacklinkJob,
+  ITaskBacklinkJob,
+} from '../../integrations/queue/constants/queue.interface';
 import { Page } from '@raven-docs/db/types/entity.types';
 import { EventName } from '../../common/events/event.contants';
 
@@ -163,12 +167,19 @@ export class PersistenceExtension implements Extension {
 
       const mentions = extractMentions(tiptapJson);
       const pageMentions = extractPageMentions(mentions);
+      const taskMentions = extractTaskMentions(mentions);
 
       await this.generalQueue.add(QueueJob.PAGE_BACKLINKS, {
         pageId: pageId,
         workspaceId: page.workspaceId,
         mentions: pageMentions,
       } as IPageBacklinkJob);
+
+      await this.generalQueue.add(QueueJob.TASK_BACKLINKS, {
+        pageId: pageId,
+        workspaceId: page.workspaceId,
+        mentions: taskMentions,
+      } as ITaskBacklinkJob);
     }
   }
 

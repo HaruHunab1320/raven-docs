@@ -12,13 +12,9 @@ This index links to the canonical Raven Docs documentation. See
 - `docs/RepoReview.md` for release readiness and doc cleanup.
 - `docs/Agentic_Roadmap.md` for agentic evolution and next steps.
 
-### 0. [Architecture Overview](./ArchitectureOverview.md)
+### 0.1 [Architecture Overview](./ArchitectureOverview.md)
 
 System map, module breakdown, data flows, and MCP integration summary.
-
-### 0.1 [System Status Audit](./SystemStatus.md)
-
-System-by-system inventory and current implementation status.
 
 ### 0.2 [MCP (Canonical)](./MCP.md)
 
@@ -36,34 +32,22 @@ Primary user flows (capture, triage, plan, review) and agent/approval lifecycles
 
 Enable the agent, run loops, and handle approvals.
 
-### 0.6 [System Risks + Remediation](./SystemRisks.md)
-
-Stability gaps and recommended remediation order.
-
-### 0.7 [Testing Matrix](./TestingMatrix.md)
+### 0.6 [Testing Matrix](./TestingMatrix.md)
 
 Workflow map of REST endpoints and MCP tools.
 
-### 0.8 [Manual Test Runbook](./ManualTest_Runbook.md)
-
-Production readiness checklist with pass/fail steps.
-
-### 0.9 [Agentic Roadmap](./Agentic_Roadmap.md)
-
-State-of-the-art agentic behavior, memory intelligence, and delivery planning.
-
-### 4. [GTD + Second Brain UI](./GTD_SecondBrain_UI.md)
+### 0.7 [GTD + Second Brain UI](./GTD_SecondBrain_UI.md)
 
 Current GTD surfaces and remaining gaps.
 
-### 5. [GTD Agent Automations](./GTD_Agent_Automations.md)
+### 0.8 [GTD Agent Automations](./GTD_Agent_Automations.md)
 
 Daily/weekly agent flows, inputs/outputs, and MCP dependencies.
 
-### 6. [Project Management](./ProjectManagement.md)
+### 0.9 [Project Management](./ProjectManagement.md)
 
 Current project/task system status and remaining work.
 
-### 7. [Product Vision + Methodology](./ProductVision.md)
+### 1.0 [Product Vision + Methodology](./ProductVision.md)
 
 Intended use cases, GTD principles, and autonomy boundaries.

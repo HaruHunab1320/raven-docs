@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useSearchSuggestionsQuery } from "@/features/search/queries/search-query.ts";
+import { useQuery } from "@tanstack/react-query";
 import {
   ActionIcon,
   Group,
@@ -18,12 +19,13 @@ import {
 import clsx from "clsx";
 import classes from "./mention.module.css";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
-import { IconFileDescription } from "@tabler/icons-react";
+import { IconFileDescription, IconListDetails } from "@tabler/icons-react";
 import { useSpaceQuery } from "@/features/space/queries/space-query.ts";
 import { useParams } from "react-router-dom";
 import { v7 as uuid7 } from "uuid";
 import { useAtom } from "jotai";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
+import { projectService } from "@/features/project/services/project-service";
 import {
   MentionListProps,
   MentionSuggestionItem,
@@ -45,8 +47,24 @@ const MentionList = forwardRef<any, MentionListProps>((props, ref) => {
     limit: 10,
   });
 
+  const taskSuggestionsQuery = useQuery({
+    queryKey: ["task-mention-suggestions", space?.id, props.query],
+    queryFn: () =>
+      projectService
+        .listTasksBySpace({
+          spaceId: space?.id || "",
+          page: 1,
+          limit: 8,
+          searchTerm: props.query,
+        })
+        .then((result) => result.items || []),
+    enabled: !!space?.id && Boolean(props.query?.trim()),
+  });
+
+  const taskSuggestions = taskSuggestionsQuery.data || [];
+
   useEffect(() => {
-    if (suggestion && !isLoading) {
+    if (!isLoading) {
       let items: MentionSuggestionItem[] = [];
 
       if (suggestion?.users?.length > 0) {
@@ -77,11 +95,24 @@ const MentionList = forwardRef<any, MentionListProps>((props, ref) => {
         );
       }
 
+      if (taskSuggestions.length > 0) {
+        items.push({ entityType: "header", label: "Tasks" });
+        items = items.concat(
+          taskSuggestions.map((task) => ({
+            id: uuid7(),
+            label: task.title,
+            entityType: "task",
+            entityId: task.id,
+            projectId: task.projectId,
+          })),
+        );
+      }
+
       setRenderItems(items);
       // update editor storage
       props.editor.storage.mentionItems = items;
     }
-  }, [suggestion, isLoading]);
+  }, [suggestion, isLoading, taskSuggestions]);
 
   const selectItem = useCallback(
     (index: number) => {
@@ -103,6 +134,15 @@ const MentionList = forwardRef<any, MentionListProps>((props, ref) => {
             entityType: "page",
             entityId: item.entityId,
             slugId: item.slugId,
+            creatorId: currentUser?.user.id,
+          });
+        }
+        if (item.entityType === "task") {
+          props.command({
+            id: item.id,
+            label: item.label,
+            entityType: "task",
+            entityId: item.entityId,
             creatorId: currentUser?.user.id,
           });
         }
@@ -251,6 +291,33 @@ const MentionList = forwardRef<any, MentionListProps>((props, ref) => {
                         <IconFileDescription size={18} />
                       </ActionIcon>
                     )}
+                  </ActionIcon>
+
+                  <div style={{ flex: 1 }}>
+                    <Text size="sm" fw={500}>
+                      {item.label}
+                    </Text>
+                  </div>
+                </Group>
+              </UnstyledButton>
+            );
+          } else if (item.entityType === "task") {
+            return (
+              <UnstyledButton
+                data-item-index={index}
+                key={index}
+                onClick={() => selectItem(index)}
+                className={clsx(classes.menuBtn, {
+                  [classes.selectedItem]: index === selectedIndex,
+                })}
+              >
+                <Group>
+                  <ActionIcon
+                    variant="default"
+                    component="div"
+                    aria-label={item.label}
+                  >
+                    <IconListDetails size={18} />
                   </ActionIcon>
 
                   <div style={{ flex: 1 }}>

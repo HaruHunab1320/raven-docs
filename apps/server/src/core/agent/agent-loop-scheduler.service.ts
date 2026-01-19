@@ -5,6 +5,7 @@ import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { AgentLoopService } from './agent-loop.service';
 import { resolveAgentSettings } from './agent-settings';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
+import { WeeklyReviewService } from './weekly-review.service';
 
 @Injectable()
 export class AgentLoopSchedulerService {
@@ -14,6 +15,7 @@ export class AgentLoopSchedulerService {
     @InjectKysely() private readonly db: KyselyDB,
     private readonly agentLoopService: AgentLoopService,
     private readonly workspaceRepo: WorkspaceRepo,
+    private readonly weeklyReviewService: WeeklyReviewService,
   ) {}
 
   private getZonedParts(date: Date, timeZone: string) {
@@ -75,6 +77,14 @@ export class AgentLoopSchedulerService {
     return !this.isSameDayInZone(schedule.lastWeeklyRun, now, timeZone);
   }
 
+  private shouldRunWeeklyReview(now: Date, schedule: any, timeZone: string) {
+    if (!schedule.weeklyEnabled) return false;
+    const parts = this.getZonedParts(now, timeZone);
+    if (parts.weekday !== schedule.weeklyDay) return false;
+    if (parts.hour !== schedule.dailyHour) return false;
+    return !this.isSameDayInZone(schedule.lastWeeklyReviewRun, now, timeZone);
+  }
+
   private shouldRunMonthly(now: Date, schedule: any, timeZone: string) {
     if (!schedule.monthlyEnabled) return false;
     const parts = this.getZonedParts(now, timeZone);
@@ -107,7 +117,7 @@ export class AgentLoopSchedulerService {
 
     for (const space of spaces) {
       const settings = resolveAgentSettings(space.settings);
-      if (!settings.enabled || !settings.enableAutonomousLoop) {
+      if (!settings.enabled) {
         continue;
       }
 
@@ -117,12 +127,20 @@ export class AgentLoopSchedulerService {
         ...(override?.autonomySchedule || {}),
       };
       const timeZone = schedule.timezone || 'UTC';
+      const shouldCreateWeeklyReview = this.shouldRunWeeklyReview(
+        now,
+        schedule,
+        timeZone,
+      );
       const shouldRun =
         this.shouldRunDaily(now, schedule, timeZone) ||
         this.shouldRunWeekly(now, schedule, timeZone) ||
         this.shouldRunMonthly(now, schedule, timeZone);
 
-      if (!shouldRun) {
+      if (
+        (!settings.enableAutonomousLoop || !shouldRun) &&
+        !shouldCreateWeeklyReview
+      ) {
         continue;
       }
 
@@ -140,42 +158,59 @@ export class AgentLoopSchedulerService {
       }
 
       try {
-        await this.agentLoopService.runLoop(
-          space.spaceId,
-          owner as any,
-          workspace,
-        );
+        const didRunAutonomy = settings.enableAutonomousLoop && shouldRun;
+        if (didRunAutonomy) {
+          await this.agentLoopService.runLoop(
+            space.spaceId,
+            owner as any,
+            workspace,
+          );
+        }
+
+        if (shouldCreateWeeklyReview) {
+          await this.weeklyReviewService.ensureWeeklyReviewPage({
+            spaceId: space.spaceId,
+            workspaceId: workspace.id,
+            userId: owner.id,
+            date: now,
+          });
+        }
 
         const updates: Record<string, string> = {};
-        if (this.shouldRunDaily(now, schedule, timeZone)) {
+        if (didRunAutonomy && this.shouldRunDaily(now, schedule, timeZone)) {
           updates.lastDailyRun = now.toISOString();
         }
-        if (this.shouldRunWeekly(now, schedule, timeZone)) {
+        if (didRunAutonomy && this.shouldRunWeekly(now, schedule, timeZone)) {
           updates.lastWeeklyRun = now.toISOString();
         }
-        if (this.shouldRunMonthly(now, schedule, timeZone)) {
+        if (shouldCreateWeeklyReview) {
+          updates.lastWeeklyReviewRun = now.toISOString();
+        }
+        if (didRunAutonomy && this.shouldRunMonthly(now, schedule, timeZone)) {
           updates.lastMonthlyRun = now.toISOString();
         }
 
-        if (override?.autonomySchedule) {
-          await this.workspaceRepo.updateAgentSettings(workspace.id, {
-            spaceOverrides: {
-              ...settings.spaceOverrides,
-              [space.spaceId]: {
-                autonomySchedule: {
-                  ...schedule,
-                  ...updates,
+        if (Object.keys(updates).length > 0) {
+          if (override?.autonomySchedule) {
+            await this.workspaceRepo.updateAgentSettings(workspace.id, {
+              spaceOverrides: {
+                ...settings.spaceOverrides,
+                [space.spaceId]: {
+                  autonomySchedule: {
+                    ...schedule,
+                    ...updates,
+                  },
                 },
               },
-            },
-          });
-        } else {
-          await this.workspaceRepo.updateAgentSettings(workspace.id, {
-            autonomySchedule: {
-              ...schedule,
-              ...updates,
-            },
-          });
+            });
+          } else {
+            await this.workspaceRepo.updateAgentSettings(workspace.id, {
+              autonomySchedule: {
+                ...schedule,
+                ...updates,
+              },
+            });
+          }
         }
       } catch (error: any) {
         this.logger.warn(

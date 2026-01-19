@@ -8,6 +8,7 @@ import { AgentPolicyService } from './agent-policy.service';
 import { AgentHandoffService } from './agent-handoff.service';
 import { AgentReviewPromptsService } from './agent-review-prompts.service';
 import { AgentMemoryContextService } from './agent-memory-context.service';
+import { WeeklyReviewService } from './weekly-review.service';
 import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
 import { ProjectModule } from '../project/project.module';
 import { PageModule } from '../page/page.module';
@@ -36,12 +37,14 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     AgentHandoffService,
     AgentReviewPromptsService,
     AgentMemoryContextService,
+    WeeklyReviewService,
   ],
   exports: [
     AgentService,
     AgentPlannerService,
     AgentLoopService,
     AgentMemoryContextService,
+    WeeklyReviewService,
   ],
 })
 export class AgentModule {}

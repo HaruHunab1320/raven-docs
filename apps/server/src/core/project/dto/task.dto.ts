@@ -205,3 +205,13 @@ export class MoveTaskToProjectDto {
   @IsOptional()
   projectId: string | null;
 }
+
+export class TaskBacklinksDto {
+  @IsUUID()
+  taskId: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}

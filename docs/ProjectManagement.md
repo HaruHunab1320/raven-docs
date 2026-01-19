@@ -43,13 +43,6 @@ including what is implemented, how it maps to UI, and what remains.
 - Goal matching uses keyword-based rules and can be used in triage summaries.
 - Task buckets map to GTD flows (Inbox/Waiting/Someday).
 
-## Roadmap (Near-Term)
-
-1) Task list extraction from page content → tasks DB sync (implemented; needs runtime UX validation)
-2) Label CRUD UI and task label management (implemented; needs validation pass)
-3) Project recap pages (done); weekly review integration still pending
-4) Task mentions and backlinks in pages (not started)
-
 ## MCP Integration
 
 Projects and tasks are exposed via MCP Standard:

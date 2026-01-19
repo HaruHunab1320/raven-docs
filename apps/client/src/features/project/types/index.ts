@@ -93,6 +93,14 @@ export interface Task {
   labels?: Label[];
 }
 
+export interface TaskBacklinkPage {
+  id: string;
+  slugId: string;
+  title: string | null;
+  icon: string | null;
+  spaceId: string;
+}
+
 export interface ProjectListParams {
   spaceId: string;
   page?: number;
@@ -131,6 +139,11 @@ export interface TaskListBySpaceParams {
   status?: TaskStatus[];
   bucket?: TaskBucket[];
   searchTerm?: string;
+}
+
+export interface TaskBacklinkParams {
+  taskId: string;
+  limit?: number;
 }
 
 export interface CreateProjectParams {

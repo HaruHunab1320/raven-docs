@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { TaskRepo } from '../../../database/repos/task/task.repo';
 import { TaskLabelRepo } from '../../../database/repos/task/task-label.repo';
+import { TaskBacklinkRepo } from '../../../database/repos/task/task-backlink.repo';
 import { ProjectRepo } from '../../../database/repos/project/project.repo';
 import { SpaceRepo } from '../../../database/repos/space/space.repo';
 import { PageRepo } from '../../../database/repos/page/page.repo';
@@ -30,6 +31,7 @@ export class TaskService {
   constructor(
     private readonly taskRepo: TaskRepo,
     private readonly taskLabelRepo: TaskLabelRepo,
+    private readonly taskBacklinkRepo: TaskBacklinkRepo,
     private readonly projectRepo: ProjectRepo,
     private readonly spaceRepo: SpaceRepo,
     private readonly pageRepo: PageRepo,
@@ -37,6 +39,10 @@ export class TaskService {
     private readonly goalService: GoalService,
     private readonly agentMemoryService: AgentMemoryService,
   ) {}
+
+  async listBacklinkPages(taskId: string, workspaceId: string, limit = 20) {
+    return this.taskBacklinkRepo.listPagesForTask(taskId, workspaceId, limit);
+  }
 
   async findById(
     taskId: string,

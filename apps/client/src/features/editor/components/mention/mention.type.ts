@@ -25,4 +25,11 @@ export type MentionSuggestionItem =
   entityId: string;
   slugId: string;
   icon: string;
+}
+  | {
+  id: string;
+  label: string;
+  entityType: "task";
+  entityId: string;
+  projectId?: string | null;
 };

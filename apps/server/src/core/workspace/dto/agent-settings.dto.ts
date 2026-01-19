@@ -87,6 +87,7 @@ export class AgentSettingsDto {
     timezone?: string;
     lastDailyRun?: string;
     lastWeeklyRun?: string;
+    lastWeeklyReviewRun?: string;
     lastMonthlyRun?: string;
   };
 
@@ -105,6 +106,7 @@ export class AgentSettingsDto {
         timezone?: string;
         lastDailyRun?: string;
         lastWeeklyRun?: string;
+        lastWeeklyReviewRun?: string;
         lastMonthlyRun?: string;
       };
     }

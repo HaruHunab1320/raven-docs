@@ -1,6 +1,6 @@
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { ActionIcon, Anchor, Text } from "@mantine/core";
-import { IconFileDescription } from "@tabler/icons-react";
+import { IconFileDescription, IconListDetails } from "@tabler/icons-react";
 import { Link, useParams } from "react-router-dom";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
@@ -50,6 +50,21 @@ export default function MentionView(props: NodeViewProps) {
             {page?.title || label}
           </span>
         </Anchor>
+      )}
+
+      {entityType === "task" && (
+        <Text className={classes.pageMentionText} component="span">
+          <ActionIcon
+            variant="transparent"
+            color="gray"
+            component="span"
+            size={18}
+            style={{ verticalAlign: "text-bottom" }}
+          >
+            <IconListDetails size={18} />
+          </ActionIcon>
+          {label || entityId}
+        </Text>
       )}
     </NodeViewWrapper>
   );

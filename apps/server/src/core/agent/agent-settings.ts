@@ -31,6 +31,7 @@ export interface AgentSettings {
     timezone: string;
     lastDailyRun?: string;
     lastWeeklyRun?: string;
+    lastWeeklyReviewRun?: string;
     lastMonthlyRun?: string;
   };
   spaceOverrides?: Record<
@@ -74,6 +75,7 @@ export const defaultAgentSettings: AgentSettings = {
     timezone: 'UTC',
     lastDailyRun: undefined,
     lastWeeklyRun: undefined,
+    lastWeeklyReviewRun: undefined,
     lastMonthlyRun: undefined,
   },
   spaceOverrides: {},

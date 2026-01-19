@@ -17,7 +17,7 @@ export interface MentionNodeAttrs {
   /**
    * the entity type - user or page
    */
-  entityType: "user" | "page";
+  entityType: "user" | "page" | "task";
 
   /**
    * the entity id - userId or pageId

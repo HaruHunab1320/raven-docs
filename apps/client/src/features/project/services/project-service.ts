@@ -9,6 +9,8 @@ import {
   Task,
   TaskListBySpaceParams,
   TaskListParams,
+  TaskBacklinkParams,
+  TaskBacklinkPage,
   UpdateProjectParams,
   UpdateTaskParams,
   TaskTriageSummary,
@@ -46,6 +48,7 @@ const TASK_ENDPOINTS = {
   INFO: "info",
   LIST_BY_PROJECT: "listByProject",
   LIST_BY_SPACE: "listBySpace",
+  BACKLINKS: "backlinks",
   CREATE: "create",
   UPDATE: "update",
   DELETE: "delete",
@@ -333,6 +336,25 @@ export const projectService = {
           hasPrevPage: false,
         },
       };
+    }
+  },
+
+  async listTaskBacklinks(
+    params: TaskBacklinkParams
+  ): Promise<TaskBacklinkPage[]> {
+    if (!params.taskId) {
+      return [];
+    }
+
+    try {
+      const { data } = await api.post(
+        `${TASKS_ENDPOINT}/${TASK_ENDPOINTS.BACKLINKS}`,
+        params
+      );
+      return data;
+    } catch (error) {
+      conditionalErrorLog("Error fetching task backlinks:", error);
+      return [];
     }
   },
 

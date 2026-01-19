@@ -147,6 +147,15 @@ export interface Backlinks {
   workspaceId: string;
 }
 
+export interface TaskBacklinks {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  sourcePageId: string;
+  targetTaskId: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface Comments {
   content: Json | null;
   createdAt: Generated<Timestamp>;
@@ -421,6 +430,7 @@ export interface DB {
   authAccounts: AuthAccounts;
   authProviders: AuthProviders;
   backlinks: Backlinks;
+  taskBacklinks: TaskBacklinks;
   comments: Comments;
   goals: Goals;
   groups: Groups;

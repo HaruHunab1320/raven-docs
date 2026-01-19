@@ -13,5 +13,6 @@ export enum QueueJob {
   DELETE_USER_AVATARS = 'delete-user-avatars',
 
   PAGE_BACKLINKS = 'page-backlinks',
+  TASK_BACKLINKS = 'task-backlinks',
   RESEARCH_JOB = 'research-job',
 }

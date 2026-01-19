@@ -21,6 +21,7 @@ import {
   MoveTaskToProjectDto,
   TaskTriageSummaryDto,
   TaskByPageDto,
+  TaskBacklinksDto,
 } from './dto/task.dto';
 import {
   ListTaskLabelsDto,
@@ -153,6 +154,31 @@ export class TaskController {
     }
 
     return task;
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/backlinks')
+  async listTaskBacklinks(
+    @Body() dto: TaskBacklinksDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const task = await this.taskService.findById(dto.taskId);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const ability = await this.spaceAbility.createForUser(user, task.spaceId);
+    if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    return this.taskService.listBacklinkPages(
+      dto.taskId,
+      workspace.id,
+      dto.limit ?? 20,
+    );
   }
 
   @HttpCode(HttpStatus.OK)

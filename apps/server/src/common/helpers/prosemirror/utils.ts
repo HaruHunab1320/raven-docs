@@ -4,7 +4,7 @@ import { jsonToNode } from '../../../collaboration/collaboration.util';
 export interface MentionNode {
   id: string;
   label: string;
-  entityType: 'user' | 'page';
+  entityType: 'user' | 'page' | 'task';
   entityId: string;
   creatorId: string;
 }
@@ -55,6 +55,21 @@ export function extractPageMentions(mentionList: MentionNode[]): MentionNode[] {
     }
   }
   return pageMentionList as MentionNode[];
+}
+
+export function extractTaskMentions(mentionList: MentionNode[]): MentionNode[] {
+  const taskMentionList = [];
+  for (const mention of mentionList) {
+    if (
+      mention.entityType === 'task' &&
+      !taskMentionList.some(
+        (taskMention) => taskMention.entityId === mention.entityId,
+      )
+    ) {
+      taskMentionList.push(mention);
+    }
+  }
+  return taskMentionList as MentionNode[];
 }
 
 export interface TaskItemNode {
