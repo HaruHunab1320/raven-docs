@@ -73,6 +73,30 @@ export class WorkspaceRepo {
       .executeTakeFirst();
   }
 
+  async findBySlackTeamId(teamId: string): Promise<Workspace> {
+    return await this.db
+      .selectFrom('workspaces')
+      .selectAll()
+      .where(
+        sql`COALESCE(settings->'integrations'->'slack'->>'teamId', '')`,
+        '=',
+        teamId,
+      )
+      .executeTakeFirst();
+  }
+
+  async findByDiscordGuildId(guildId: string): Promise<Workspace> {
+    return await this.db
+      .selectFrom('workspaces')
+      .selectAll()
+      .where(
+        sql`COALESCE(settings->'integrations'->'discord'->>'guildId', '')`,
+        '=',
+        guildId,
+      )
+      .executeTakeFirst();
+  }
+
   async hostnameExists(
     hostname: string,
     trx?: KyselyTransaction,

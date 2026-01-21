@@ -98,6 +98,17 @@ export class UserRepo {
       .execute();
   }
 
+  async findFirstOwner(workspaceId: string): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .select(this.baseFields)
+      .where('workspaceId', '=', workspaceId)
+      .where(sql`LOWER(role)`, '=', 'owner')
+      .orderBy('createdAt', 'asc')
+      .limit(1)
+      .executeTakeFirst();
+  }
+
   async insertUser(
     insertableUser: InsertableUser,
     trx?: KyselyTransaction,

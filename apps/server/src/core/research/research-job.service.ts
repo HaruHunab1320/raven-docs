@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { CreateResearchJobDto } from './dto/research-job.dto';
@@ -15,6 +15,8 @@ import { sql } from 'kysely';
 import { PageRepo } from '@raven-docs/db/repos/page/page.repo';
 import { PageService } from '../page/services/page.service';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
+import { SlackService } from '../../integrations/slack/slack.service';
+import { DiscordService } from '../../integrations/discord/discord.service';
 
 type ResearchJobRecord = {
   id: string;
@@ -122,6 +124,10 @@ export class ResearchJobService {
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly memoryService: AgentMemoryService,
     private readonly aiService: AIService,
+    @Inject(forwardRef(() => SlackService))
+    private readonly slackService: SlackService,
+    @Inject(forwardRef(() => DiscordService))
+    private readonly discordService: DiscordService,
   ) {}
 
   async createJob(input: CreateResearchJobDto, userId: string, workspaceId: string) {
@@ -162,6 +168,15 @@ export class ResearchJobService {
     }
 
     await this.generalQueue.add(QueueJob.RESEARCH_JOB, { jobId: job.id });
+
+    await this.slackService.notifyResearchStatus(
+      workspaceId,
+      `Research queued: ${job.topic}`,
+    );
+    await this.discordService.notifyResearchStatus(
+      workspaceId,
+      `Research queued: ${job.topic}`,
+    );
     return job;
   }
 
@@ -251,6 +266,15 @@ export class ResearchJobService {
         })
         .where('id', '=', jobId)
         .execute();
+
+      await this.slackService.notifyResearchStatus(
+        job.workspaceId,
+        `Research started: ${job.topic}`,
+      );
+      await this.discordService.notifyResearchStatus(
+        job.workspaceId,
+        `Research started: ${job.topic}`,
+      );
 
       const appendToExisting = !!job.reportPageId;
       let researchProjectPageId: string | null = null;
@@ -529,6 +553,15 @@ export class ResearchJobService {
         })
         .where('id', '=', jobId)
         .execute();
+
+      await this.slackService.notifyResearchStatus(
+        job.workspaceId,
+        `Research complete: ${job.topic}`,
+      );
+      await this.discordService.notifyResearchStatus(
+        job.workspaceId,
+        `Research complete: ${job.topic}`,
+      );
     } catch (error: any) {
       this.logger.error(
         `Research job ${jobId} failed: ${error?.message || 'unknown error'}`,

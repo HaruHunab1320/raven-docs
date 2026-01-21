@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ResearchController } from './research.controller';
 import { ResearchJobService } from './research-job.service';
 import { ResearchJobProcessor } from './processors/research-job.processor';
@@ -11,6 +11,8 @@ import { PageModule } from '../page/page.module';
 import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
 import { AIModule } from '../../integrations/ai/ai.module';
 import { CaslModule } from '../casl/casl.module';
+import { SlackModule } from '../../integrations/slack/slack.module';
+import { DiscordModule } from '../../integrations/discord/discord.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { CaslModule } from '../casl/casl.module';
     AgentMemoryModule,
     AIModule,
     CaslModule,
+    forwardRef(() => SlackModule),
+    forwardRef(() => DiscordModule),
   ],
   controllers: [ResearchController],
   providers: [

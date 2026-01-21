@@ -121,6 +121,23 @@ export async function updateWorkspaceIntegrations(
       gitlabToken?: string;
       bitbucketToken?: string;
     };
+    slack?: {
+      enabled?: boolean;
+      teamId?: string;
+      botToken?: string;
+      signingSecret?: string;
+      defaultChannelId?: string;
+      defaultUserId?: string;
+    };
+    discord?: {
+      enabled?: boolean;
+      guildId?: string;
+      botToken?: string;
+      publicKey?: string;
+      applicationId?: string;
+      defaultChannelId?: string;
+      defaultUserId?: string;
+    };
   }
 ): Promise<IWorkspaceIntegrations> {
   const req = await api.post<IWorkspaceIntegrations>(

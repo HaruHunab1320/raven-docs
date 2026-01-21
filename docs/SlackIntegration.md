@@ -1,5 +1,7 @@
 # Slack Integration (MVP)
 
+Status: Implemented in server + workspace settings panel.
+
 ## Goals
 - Bring Raven Docs agent capabilities into Slack for mobile/away-from-desk use.
 - Enable lightweight approvals without opening the web app.
@@ -56,33 +58,30 @@
 - Outbound Slack notifier service for:
   - research status
   - approvals
-  - playbook or project updates
+  - project/agent updates
 
-## Data Model (new)
-- SlackIntegration
-  - workspaceId
-  - slackTeamId
-  - botToken (encrypted)
-  - signingSecret (encrypted)
-  - defaultChannelId
-  - createdAt / updatedAt
+## Data Model (current)
+Stored in `workspace.settings.integrations.slack`:
+- enabled
+- teamId
+- botToken
+- signingSecret
+- defaultChannelId
+- defaultUserId
 
-- SlackUserMap
-  - slackUserId
-  - ravenUserId
-  - slackTeamId
+`defaultUserId` is used as the Raven Docs identity for Slack-triggered actions in the MVP.
 
 ## Agent Behavior (Slack)
 - Use the same MCP tool system as the in-app agent.
 - If the agent proposes actions, respond with a preview + approval buttons.
 - Keep responses short with a deep-link to Raven Docs when needed.
 
-## MVP Implementation Steps
-1) Add Slack integration settings to workspace settings UI.
-2) Add server endpoints to receive events/commands/interactions.
-3) Add Slack service to send messages + approvals.
-4) Add minimal command router (ask/research/approve).
-5) Add logging + audit trail for Slack-driven actions.
+## MVP Implementation Steps (completed)
+1) Slack integration settings in workspace settings UI.
+2) Server endpoints for events/commands/interactions.
+3) Slack service for outbound messages + approvals.
+4) Command router (ask/research/approve/reject).
+5) Research status notifications.
 
 ## Testing Checklist
 - Install app into a test Slack workspace.

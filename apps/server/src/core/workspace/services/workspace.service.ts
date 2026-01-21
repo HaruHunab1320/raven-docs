@@ -270,11 +270,29 @@ export class WorkspaceService {
 
   private buildIntegrationResponse(integrations: any) {
     const repoTokens = integrations?.repoTokens || {};
+    const slack = integrations?.slack || {};
+    const discord = integrations?.discord || {};
     return {
       repoTokens: {
         githubToken: Boolean(repoTokens.githubToken),
         gitlabToken: Boolean(repoTokens.gitlabToken),
         bitbucketToken: Boolean(repoTokens.bitbucketToken),
+      },
+      slack: {
+        enabled: slack.enabled === true,
+        configured: Boolean(slack.botToken && slack.signingSecret && slack.teamId),
+        teamId: slack.teamId || null,
+        defaultChannelId: slack.defaultChannelId || null,
+        defaultUserId: slack.defaultUserId || null,
+      },
+      discord: {
+        enabled: discord.enabled === true,
+        configured: Boolean(
+          discord.botToken && discord.publicKey && discord.applicationId,
+        ),
+        guildId: discord.guildId || null,
+        defaultChannelId: discord.defaultChannelId || null,
+        defaultUserId: discord.defaultUserId || null,
       },
     };
   }

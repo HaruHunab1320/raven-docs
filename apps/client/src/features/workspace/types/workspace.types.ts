@@ -74,4 +74,18 @@ export interface IWorkspaceIntegrations {
     gitlabToken?: boolean;
     bitbucketToken?: boolean;
   };
+  slack?: {
+    enabled?: boolean;
+    configured?: boolean;
+    teamId?: string | null;
+    defaultChannelId?: string | null;
+    defaultUserId?: string | null;
+  };
+  discord?: {
+    enabled?: boolean;
+    configured?: boolean;
+    guildId?: string | null;
+    defaultChannelId?: string | null;
+    defaultUserId?: string | null;
+  };
 }

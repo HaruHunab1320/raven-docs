@@ -67,6 +67,8 @@ async function bootstrap() {
         '/api/workspace/joined',
         '/api/api-keys/register',
         '/api/mcp-standard',
+        '/api/integrations/slack',
+        '/api/integrations/discord',
       ];
 
       if (
