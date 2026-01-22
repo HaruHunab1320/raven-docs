@@ -33,6 +33,32 @@ export type TaskStatus = "blocked" | "done" | "in_progress" | "in_review" | "tod
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface AgentMemories {
+  content: Json | null;
+  createdAt: Generated<Timestamp>;
+  creatorId: string | null;
+  id: Generated<string>;
+  source: string | null;
+  spaceId: string | null;
+  summary: string | null;
+  tags: Json | null;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
+export interface AgentReviewPrompts {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  metadata: Json | null;
+  question: string;
+  resolvedAt: Timestamp | null;
+  source: string | null;
+  spaceId: string;
+  status: Generated<string>;
+  weekKey: string;
+  workspaceId: string;
+}
+
 export interface Attachments {
   createdAt: Generated<Timestamp>;
   creatorId: string;
@@ -44,7 +70,6 @@ export interface Attachments {
   id: Generated<string>;
   mimeType: string | null;
   pageId: string | null;
-  pageTaskId: string | null;
   spaceId: string | null;
   type: string | null;
   updatedAt: Generated<Timestamp>;
@@ -80,64 +105,6 @@ export interface AuthProviders {
   workspaceId: string;
 }
 
-export interface AgentMemories {
-  content: Json | null;
-  createdAt: Generated<Timestamp>;
-  creatorId: string | null;
-  id: Generated<string>;
-  source: string | null;
-  spaceId: string | null;
-  summary: string | null;
-  tags: Json | null;
-  updatedAt: Generated<Timestamp>;
-  workspaceId: string;
-}
-
-export interface AgentReviewPrompts {
-  createdAt: Generated<Timestamp>;
-  id: Generated<string>;
-  metadata: Json | null;
-  question: string;
-  resolvedAt: Timestamp | null;
-  source: string | null;
-  spaceId: string;
-  status: Generated<string>;
-  weekKey: string;
-  workspaceId: string;
-}
-
-export interface ResearchJobs {
-  completedAt: Timestamp | null;
-  createdAt: Generated<Timestamp>;
-  creatorId: string | null;
-  goal: string | null;
-  id: Generated<string>;
-  logPageId: string | null;
-  outputMode: Generated<string>;
-  reportPageId: string | null;
-  repoTargets: Json | null;
-  sources: Json | null;
-  spaceId: string;
-  startedAt: Timestamp | null;
-  status: Generated<string>;
-  timeBudgetMinutes: Generated<number>;
-  topic: string;
-  updatedAt: Generated<Timestamp>;
-  workspaceId: string;
-}
-
-export interface Goals {
-  createdAt: Generated<Timestamp>;
-  description: string | null;
-  horizon: string;
-  id: Generated<string>;
-  keywords: Json | null;
-  name: string;
-  spaceId: string | null;
-  updatedAt: Generated<Timestamp>;
-  workspaceId: string;
-}
-
 export interface Backlinks {
   createdAt: Generated<Timestamp>;
   id: Generated<string>;
@@ -147,11 +114,27 @@ export interface Backlinks {
   workspaceId: string;
 }
 
-export interface TaskBacklinks {
+export interface Billing {
+  amount: Int8 | null;
+  cancelAt: Timestamp | null;
+  cancelAtPeriodEnd: boolean | null;
+  canceledAt: Timestamp | null;
   createdAt: Generated<Timestamp>;
+  currency: string | null;
+  deletedAt: Timestamp | null;
+  endedAt: Timestamp | null;
   id: Generated<string>;
-  sourcePageId: string;
-  targetTaskId: string;
+  interval: string | null;
+  metadata: Json | null;
+  periodEndAt: Timestamp | null;
+  periodStartAt: Timestamp;
+  quantity: Int8 | null;
+  status: string;
+  stripeCustomerId: string | null;
+  stripeItemId: string | null;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  stripeSubscriptionId: string;
   updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
@@ -168,6 +151,18 @@ export interface Comments {
   resolvedAt: Timestamp | null;
   selection: string | null;
   type: string | null;
+  workspaceId: string;
+}
+
+export interface Goals {
+  createdAt: Generated<Timestamp>;
+  description: string | null;
+  horizon: string;
+  id: Generated<string>;
+  keywords: Json | null;
+  name: string;
+  spaceId: string | null;
+  updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
 
@@ -273,6 +268,26 @@ export interface ProjectViews {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface ResearchJobs {
+  completedAt: Timestamp | null;
+  createdAt: Generated<Timestamp>;
+  creatorId: string | null;
+  goal: string | null;
+  id: Generated<string>;
+  logPageId: string | null;
+  outputMode: Generated<string>;
+  reportPageId: string | null;
+  repoTargets: Json | null;
+  sources: Json | null;
+  spaceId: string;
+  startedAt: Timestamp | null;
+  status: Generated<string>;
+  timeBudgetMinutes: Generated<number>;
+  topic: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface SpaceMembers {
   addedById: string | null;
   createdAt: Generated<Timestamp>;
@@ -307,17 +322,17 @@ export interface TaskDependencies {
   taskId: string;
 }
 
-export interface TaskLabelAssignments {
-  createdAt: Generated<Timestamp>;
-  id: Generated<string>;
-  labelId: string;
-  taskId: string;
-}
-
 export interface TaskGoalAssignments {
   createdAt: Generated<Timestamp>;
   goalId: string;
   id: Generated<string>;
+  taskId: string;
+}
+
+export interface TaskLabelAssignments {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  labelId: string;
   taskId: string;
 }
 
@@ -343,6 +358,7 @@ export interface Tasks {
   id: Generated<string>;
   isCompleted: Generated<boolean>;
   pageId: string | null;
+  pageTaskId: string | null;
   parentTaskId: string | null;
   position: string | null;
   priority: Generated<TaskPriority>;
@@ -350,6 +366,15 @@ export interface Tasks {
   spaceId: string;
   status: Generated<TaskStatus>;
   title: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
+export interface TaskBacklinks {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  sourcePageId: string;
+  targetTaskId: string;
   updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
@@ -406,6 +431,7 @@ export interface WorkspaceInvitations {
 }
 
 export interface Workspaces {
+  billingEmail: string | null;
   createdAt: Generated<Timestamp>;
   customDomain: string | null;
   defaultRole: Generated<string>;
@@ -413,12 +439,17 @@ export interface Workspaces {
   deletedAt: Timestamp | null;
   description: string | null;
   emailDomains: Generated<string[] | null>;
+  enforceSso: Generated<boolean>;
   hostname: string | null;
   id: Generated<string>;
+  licenseKey: string | null;
   logo: string | null;
   name: string | null;
+  plan: string | null;
   settings: Json | null;
   status: string | null;
+  stripeCustomerId: string | null;
+  trialEndAt: Timestamp | null;
   updatedAt: Generated<Timestamp>;
 }
 
@@ -426,11 +457,10 @@ export interface DB {
   agentMemories: AgentMemories;
   agentReviewPrompts: AgentReviewPrompts;
   attachments: Attachments;
-  researchJobs: ResearchJobs;
   authAccounts: AuthAccounts;
   authProviders: AuthProviders;
   backlinks: Backlinks;
-  taskBacklinks: TaskBacklinks;
+  billing: Billing;
   comments: Comments;
   goals: Goals;
   groups: Groups;
@@ -440,6 +470,7 @@ export interface DB {
   pages: Pages;
   projects: Projects;
   projectViews: ProjectViews;
+  researchJobs: ResearchJobs;
   spaceMembers: SpaceMembers;
   spaces: Spaces;
   taskDependencies: TaskDependencies;
@@ -447,6 +478,7 @@ export interface DB {
   taskLabelAssignments: TaskLabelAssignments;
   taskLabels: TaskLabels;
   tasks: Tasks;
+  taskBacklinks: TaskBacklinks;
   taskWatchers: TaskWatchers;
   users: Users;
   userTokens: UserTokens;

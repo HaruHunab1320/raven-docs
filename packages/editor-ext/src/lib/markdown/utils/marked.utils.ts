@@ -32,17 +32,12 @@ marked.use({
   extensions: [calloutExtension, mathBlockExtension, mathInlineExtension],
 });
 
-export function markdownToHtml(
-  markdownInput: string,
-): string | Promise<string> {
+export function markdownToHtml(markdownInput: string): string {
   const YAML_FONT_MATTER_REGEX = /^\s*---[\s\S]*?---\s*/;
 
   const markdown = markdownInput
     .replace(YAML_FONT_MATTER_REGEX, "")
     .trimStart();
 
-  return marked
-    .options({ breaks: true })
-    .parse(markdown)
-    .toString();
+  return marked.parse(markdown, { breaks: true, async: false }) as string;
 }

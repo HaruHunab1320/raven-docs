@@ -41,8 +41,7 @@ import { AgentChatContextResponse } from "@/features/agent/types/agent.types";
 marked.use({
   gfm: true,
   breaks: true,
-  headerIds: false,
-  mangle: false,
+  async: false,
 });
 
 interface AgentChatPanelProps {
@@ -193,7 +192,6 @@ export function AgentChatPanel({
     error: chatError,
     stop,
     regenerate,
-    reload,
   } = useChat({
     id: chatId,
     transport,
@@ -312,7 +310,13 @@ export function AgentChatPanel({
     }
     const nextMessage = message.trim();
     setMessage("");
-    const files = attachedFiles.length ? attachedFiles : undefined;
+    const files = attachedFiles.length
+      ? attachedFiles.map((file) => ({
+          type: "file" as const,
+          mediaType: file.type,
+          url: URL.createObjectURL(file),
+        }))
+      : undefined;
     setAttachedFiles([]);
     if (nextMessage) {
       contextMutation.mutate(nextMessage);
@@ -351,7 +355,7 @@ export function AgentChatPanel({
             <TypographyStylesProvider className={classes.markdown}>
               <div
                 dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(marked.parse(textContent)),
+                  __html: DOMPurify.sanitize(marked.parse(textContent) as string),
                 }}
               />
             </TypographyStylesProvider>
@@ -627,7 +631,7 @@ export function AgentChatPanel({
             <Text size="xs" c="red">
               Something went wrong. Please try again.
             </Text>
-            <Button size="xs" variant="light" onClick={() => reload()}>
+            <Button size="xs" variant="light" onClick={() => regenerate()}>
               Retry
             </Button>
           </Group>

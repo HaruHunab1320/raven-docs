@@ -1,5 +1,5 @@
 import { Board } from "./board";
-import { Project } from "../types";
+import { Project } from "../types/index";
 
 interface ProjectBoardProps {
   project: Project;

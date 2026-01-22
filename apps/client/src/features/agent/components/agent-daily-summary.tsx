@@ -8,8 +8,7 @@ import classes from "./agent-daily-summary.module.css";
 marked.use({
   gfm: true,
   breaks: true,
-  headerIds: false,
-  mangle: false,
+  async: false,
 });
 
 interface AgentDailySummaryProps {
@@ -32,7 +31,7 @@ export function AgentDailySummary({ workspaceId, spaceId }: AgentDailySummaryPro
 
   const summary = summaryQuery.data?.[0];
   const content = summary?.content as { text?: string } | undefined;
-  const html = content?.text ? marked.parse(content.text) : "";
+  const html = content?.text ? (marked.parse(content.text) as string) : "";
   const sanitized = content?.text ? DOMPurify.sanitize(html) : "";
 
   return (

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTasksBySpace } from "../../hooks/use-tasks";
 import { useProjects } from "../../hooks/use-projects";
-import { Project, Task } from "../../types";
+import { Project, Task } from "../../types/index";
 import { useWorkspaceUsers } from "@/features/user/hooks/use-workspace-users";
 import { useCurrentWorkspace } from "@/features/workspace/hooks/use-current-workspace";
 import { getProjectsArray } from "../../utils/project-data";

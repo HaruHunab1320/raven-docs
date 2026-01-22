@@ -153,7 +153,7 @@ export function BoardColumns({
 
     return (
       <Text size="sm" c={isPastDue ? "red" : undefined}>
-        {formatDate(task.dueDate)}
+        {formatDate(new Date(task.dueDate))}
       </Text>
     );
   };

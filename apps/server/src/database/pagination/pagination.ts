@@ -33,7 +33,7 @@ export async function executeWithPagination<O, DB, TB extends keyof DB>(
       .clearSelect()
       .select((eb) => eb.ref(deferredJoinPrimaryKey).as('primaryKey'))
       .execute();
-    const primaryKeys = (rows as Array<{ primaryKey: string | number }>).map(
+    const primaryKeys = (rows as unknown as Array<{ primaryKey: string | number }>).map(
       (row) => row.primaryKey,
     );
 

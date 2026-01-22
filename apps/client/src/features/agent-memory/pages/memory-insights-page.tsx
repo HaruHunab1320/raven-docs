@@ -84,10 +84,10 @@ function parseCsv(input: string) {
     .filter(Boolean);
 }
 
-function groupByDay(items: Array<{ timestamp?: string }>) {
-  return items.reduce<Record<string, typeof items>>((acc, item) => {
-    const date = item.timestamp ? new Date(item.timestamp) : new Date();
-    const key = date.toLocaleDateString();
+function groupByDay<T extends { timestamp?: string | Date }>(items: T[]) {
+  return items.reduce<Record<string, T[]>>((acc, item) => {
+    const ts = item.timestamp instanceof Date ? item.timestamp : item.timestamp ? new Date(item.timestamp) : new Date();
+    const key = ts.toLocaleDateString();
     if (!acc[key]) {
       acc[key] = [];
     }

@@ -1,0 +1,91 @@
+# =============================================================================
+# Raven Docs - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to version control.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required: GCP Project Configuration
+# -----------------------------------------------------------------------------
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+environment = "production"
+
+# -----------------------------------------------------------------------------
+# Required: Application Configuration
+# -----------------------------------------------------------------------------
+
+# Generate with: openssl rand -hex 32
+app_secret = "your-32-character-minimum-secret-here"
+
+# Container image (after pushing to GCR/Artifact Registry)
+# Example: gcr.io/your-project/raven-docs:latest
+container_image = "gcr.io/your-project/raven-docs:latest"
+
+# -----------------------------------------------------------------------------
+# Required: Database Configuration
+# -----------------------------------------------------------------------------
+
+# Generate a strong password: openssl rand -base64 24
+db_password = "your-secure-database-password"
+
+# Optional: customize database settings
+# db_tier = "db-f1-micro"        # Use db-g1-small or larger for production
+# db_name = "raven_docs"
+# db_user = "raven_docs"
+# db_deletion_protection = true  # Set to false only for testing
+
+# -----------------------------------------------------------------------------
+# Optional: Custom Domain
+# -----------------------------------------------------------------------------
+
+# app_domain = "docs.yourcompany.com"
+
+# -----------------------------------------------------------------------------
+# Optional: Cloud Run Scaling
+# -----------------------------------------------------------------------------
+
+# cloud_run_cpu = "1"
+# cloud_run_memory = "1Gi"
+# cloud_run_min_instances = 0     # Set to 1+ to avoid cold starts
+# cloud_run_max_instances = 10
+
+# -----------------------------------------------------------------------------
+# Optional: Redis Configuration
+# -----------------------------------------------------------------------------
+
+# redis_memory_size_gb = 1
+# redis_version = "REDIS_7_0"
+
+# -----------------------------------------------------------------------------
+# Optional: Memgraph Configuration
+# -----------------------------------------------------------------------------
+
+# memgraph_machine_type = "e2-small"   # e2-medium for better performance
+# memgraph_disk_size_gb = 20
+
+# -----------------------------------------------------------------------------
+# Optional: Storage Configuration
+# -----------------------------------------------------------------------------
+
+# storage_location = "US"
+# storage_class = "STANDARD"
+
+# -----------------------------------------------------------------------------
+# Optional: Email Configuration (choose one driver)
+# -----------------------------------------------------------------------------
+
+# mail_driver = "smtp"  # or "postmark"
+# mail_from_address = "noreply@yourcompany.com"
+# mail_from_name = "Raven Docs"
+
+# SMTP Configuration (if mail_driver = "smtp")
+# smtp_host = "smtp.gmail.com"
+# smtp_port = 587
+# smtp_username = "your-smtp-username"
+# smtp_password = "your-smtp-password"
+
+# Postmark Configuration (if mail_driver = "postmark")
+# postmark_token = "your-postmark-api-token"

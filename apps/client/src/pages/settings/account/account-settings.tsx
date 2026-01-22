@@ -17,7 +17,7 @@ export default function AccountSettings() {
   const { t } = useTranslation();
   const [currentUser] = useAtom(currentUserAtom);
   const workspaceId = currentUser?.workspace?.id;
-  const userId = currentUser?.id;
+  const userId = currentUser?.user?.id;
 
   const eraseMutation = useMutation({
     mutationFn: () =>

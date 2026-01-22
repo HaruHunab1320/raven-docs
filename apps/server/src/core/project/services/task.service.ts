@@ -323,6 +323,7 @@ export class TaskService {
       projectId?: string;
       parentTaskId?: string;
       pageId?: string;
+      pageTaskId?: string;
       assigneeId?: string;
       spaceId: string;
       estimatedTime?: number;

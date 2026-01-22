@@ -80,7 +80,7 @@
     "y-prosemirror": "^1.2.11",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.20",
-    "zod": "^4.3.5"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@nx/js": "20.4.5",
@@ -90,7 +90,8 @@
     "concurrently": "^9.1.2",
     "nx": "20.4.5",
     "pg": "^8.13.3",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
   },
   "workspaces": {
     "packages": [

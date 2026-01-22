@@ -5,6 +5,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { SpaceService } from '../../space/services/space.service';
@@ -28,6 +30,7 @@ import { v4 } from 'uuid';
 import { AgentSettingsDto } from '../dto/agent-settings.dto';
 import { WorkspaceIntegrationSettingsDto } from '../dto/workspace-integration-settings.dto';
 import { resolveAgentSettings } from '../../agent/agent-settings';
+import { QueueJob, QueueName } from '../../../integrations/queue/constants';
 
 @Injectable()
 export class WorkspaceService {

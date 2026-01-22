@@ -1,5 +1,5 @@
 import { Drawer, Group, Text, Title } from "@mantine/core";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   agentChatContextAtom,
   agentChatDrawerAtom,
@@ -7,13 +7,13 @@ import {
 import { useParams } from "react-router-dom";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { usePageQuery } from "@/features/page/queries/page-query";
-import { useAtomValue } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
 import { AgentChatPanel } from "@/features/agent/components/agent-chat-panel";
 
 export function AgentChatDrawer() {
   const [opened, setOpened] = useAtom(agentChatDrawerAtom);
-  const [chatContext, setChatContext] = useAtom(agentChatContextAtom);
+  const chatContext = useAtomValue(agentChatContextAtom);
+  const setChatContext = useSetAtom(agentChatContextAtom);
   const workspace = useAtomValue(workspaceAtom);
   const params = useParams<{
     spaceId?: string;

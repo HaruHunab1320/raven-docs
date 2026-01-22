@@ -3,6 +3,7 @@ import { QueryParams } from "@/lib/types.ts";
 
 export interface IComment {
   id: string;
+  commentId?: string; // Used for update operations
   content: string;
   selection?: string;
   type?: string;

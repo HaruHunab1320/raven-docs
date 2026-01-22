@@ -12,6 +12,7 @@ export interface ISpace {
   icon: string;
   slug: string;
   hostname: string;
+  workspaceId: string;
   creatorId: string;
   createdAt: Date;
   updatedAt: Date;

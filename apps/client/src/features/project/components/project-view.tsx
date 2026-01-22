@@ -41,9 +41,10 @@ export function ProjectView({ projectId, spaceId }: ProjectViewProps) {
     page: 1,
     limit: 500,
   });
-  const { data: workspaceUsers = [] } = useWorkspaceUsers({
+  const { data: workspaceUsersData } = useWorkspaceUsers({
     workspaceId: workspace?.id || "",
   });
+  const workspaceUsers = workspaceUsersData?.items || [];
 
   // Get the current view from the URL query params
   const searchParams = new URLSearchParams(location.search);

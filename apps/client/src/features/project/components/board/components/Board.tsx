@@ -125,7 +125,7 @@ function BoardContent({ project, spaceId }) {
     sortBy,
     sortOrder,
   });
-  const taskIds = tasksData?.items?.map((task) => task.id) || [];
+  const taskIds = tasksData?.map((task) => task.id) || [];
   const goalsQuery = useQuery({
     queryKey: ["task-goals", project.id, project.workspaceId, taskIds],
     queryFn: () =>
@@ -170,7 +170,7 @@ function BoardContent({ project, spaceId }) {
 
   const labelOptions = useMemo(() => {
     const labelsMap = new Map<string, { value: string; label: string }>();
-    tasksData?.items?.forEach((task) => {
+    tasksData?.forEach((task) => {
       (task as any).labels?.forEach((label) => {
         if (!labelsMap.has(label.id)) {
           labelsMap.set(label.id, { value: label.id, label: label.name });
@@ -178,7 +178,7 @@ function BoardContent({ project, spaceId }) {
       });
     });
     return Array.from(labelsMap.values());
-  }, [tasksData?.items]);
+  }, [tasksData]);
 
   // Prevent scrolling when dragging
   useEffect(() => {

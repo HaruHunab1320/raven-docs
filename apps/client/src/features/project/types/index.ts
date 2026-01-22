@@ -52,6 +52,11 @@ export interface Project {
   updatedAt: string;
   deletedAt?: string | null;
   creator?: IUser;
+  metadata?: {
+    propertyOrder?: any[];
+    visibleProperties?: Record<string, boolean>;
+    customProperties?: any[];
+  };
 }
 
 export interface Task {
@@ -75,6 +80,8 @@ export interface Task {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
+  icon?: string | null;
+  coverImage?: string | null;
 
   // Joined fields
   creator?: IUser;
@@ -165,6 +172,7 @@ export interface UpdateProjectParams {
   coverImage?: string | null;
   startDate?: Date;
   endDate?: Date;
+  metadata?: Record<string, any>;
 }
 
 export interface CreateTaskParams {
@@ -193,12 +201,23 @@ export interface UpdateTaskParams {
   estimatedTime?: number | null;
   assigneeId?: string | null;
   position?: string;
+  icon?: string | null;
+  coverImage?: string | null;
+  pageId?: string | null;
 }
 
 export interface TaskTriageSummary {
   inbox: Task[];
   dueToday: Task[];
   overdue: Task[];
+  goalFocus?: Array<{
+    goalId: string;
+    name: string;
+    horizon?: string;
+    taskCount: number;
+    taskIds: string[];
+    taskTitles: string[];
+  }>;
   counts: {
     inbox: number;
     waiting: number;

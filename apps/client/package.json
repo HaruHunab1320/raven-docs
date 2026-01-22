@@ -10,6 +10,9 @@
     "format": "prettier --write \"src/**/*.tsx\" \"src/**/*.ts\""
   },
   "dependencies": {
+    "prosemirror-model": "^1.23.0",
+    "prosemirror-view": "^1.37.0",
+    "highlight.js": "^11.10.0",
     "@ai-sdk/react": "^3.0.14",
     "@casl/ability": "^6.7.2",
     "@casl/react": "^4.0.0",
@@ -60,7 +63,7 @@
     "socket.io-client": "^4.8.1",
     "tippy.js": "^6.3.7",
     "tiptap-extension-global-drag-handle": "^0.1.18",
-    "zod": "^4.3.5"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

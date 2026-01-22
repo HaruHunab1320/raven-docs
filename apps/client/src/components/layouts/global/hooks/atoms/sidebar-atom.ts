@@ -24,12 +24,12 @@ export const sidebarWidthAtom = atomWithWebStorage<number>('sidebarWidth', 300);
 
 export const agentChatDrawerAtom = atom<boolean>(false);
 
-export type AgentChatContext = {
+export interface AgentChatContext {
   spaceId?: string;
   pageId?: string;
   projectId?: string;
   contextLabel?: string;
   sessionId?: string;
-} | null;
+}
 
-export const agentChatContextAtom = atom<AgentChatContext>(null);
+export const agentChatContextAtom = atom(null as AgentChatContext | null);

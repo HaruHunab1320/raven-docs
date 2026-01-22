@@ -20,8 +20,7 @@ import { agentMemoryService } from "@/features/agent-memory/services/agent-memor
 marked.use({
   gfm: true,
   breaks: true,
-  headerIds: false,
-  mangle: false,
+  async: false,
 });
 
 interface AgentMemoryDrawerProps {
@@ -196,7 +195,7 @@ export function AgentMemoryDrawer({
                   <Accordion variant="separated">
                     {memoryEntries.map((memory) => {
                       const content = renderContent(memory.content);
-                      const html = content ? marked.parse(String(content)) : "";
+                      const html = content ? (marked.parse(String(content)) as string) : "";
                       const sanitized = content
                         ? DOMPurify.sanitize(html)
                         : "";

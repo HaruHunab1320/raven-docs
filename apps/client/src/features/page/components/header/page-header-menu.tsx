@@ -14,7 +14,7 @@ import {
   IconRobot,
 } from "@tabler/icons-react";
 import React, { useEffect } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
 import { useClipboard, useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
@@ -53,8 +53,8 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
   const { data: page } = usePageQuery({
     pageId: extractPageSlugId(pageSlug),
   });
-  const [, setAgentChatOpened] = useAtom(agentChatDrawerAtom);
-  const [, setAgentChatContext] = useAtom(agentChatContextAtom);
+  const setAgentChatOpened = useSetAtom(agentChatDrawerAtom);
+  const setAgentChatContext = useSetAtom(agentChatContextAtom);
   const openAgentChat = () => {
     setAgentChatContext({
       spaceId: page?.spaceId,

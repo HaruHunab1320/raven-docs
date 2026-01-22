@@ -29,17 +29,13 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm@10.12.1
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/client/node_modules ./apps/client/node_modules
-COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
-COPY --from=deps /app/packages/*/node_modules ./packages/
+# Copy everything from deps stage (preserves pnpm workspace links)
+COPY --from=deps /app ./
 
-# Copy source code
+# Copy source code (overwrites package.json files but keeps node_modules)
 COPY . .
 
-# Build the application
-ENV NODE_ENV=production
+# Build the application (NODE_ENV must not be production during build or devDeps are skipped)
 RUN pnpm build
 
 # Stage 3: Runner

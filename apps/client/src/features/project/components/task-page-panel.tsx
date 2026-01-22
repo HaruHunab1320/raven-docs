@@ -10,6 +10,7 @@ import {
   TextInput,
   Textarea,
   useMantineTheme,
+  useMantineColorScheme,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { IconAt, IconEdit, IconPaperclip, IconSend, IconTrash, IconX } from "@tabler/icons-react";
@@ -49,6 +50,7 @@ interface TaskPagePanelProps {
 export function TaskPagePanel({ pageId }: TaskPagePanelProps) {
   const { t } = useTranslation();
   const theme = useMantineTheme();
+  const { colorScheme } = useMantineColorScheme();
   const [currentUser] = useAtom(userAtom);
   const taskQuery = useTaskByPageId(pageId);
   const task = taskQuery.data;
@@ -91,7 +93,7 @@ export function TaskPagePanel({ pageId }: TaskPagePanelProps) {
   } as const;
 
   const controlBorder = `1px solid ${
-    theme.colorScheme === "dark" ? theme.colors.dark[4] : theme.colors.gray[3]
+    colorScheme === "dark" ? theme.colors.dark[4] : theme.colors.gray[3]
   }`;
   const inputClassNames = { input: classes.inlineInput };
   const dropdownStyles = { dropdown: { border: controlBorder } };

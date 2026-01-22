@@ -125,7 +125,7 @@ export function TrashPage() {
     onRestoreParent: () => void,
     onRestoreRoot: () => void
   ) => {
-    const modalId = modals.openModal({
+    const modalId = modals.open({
       title: t("Restore page"),
       children: (
         <Stack gap="md">

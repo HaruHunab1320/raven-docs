@@ -15,7 +15,7 @@ import {
 } from "@mantine/core";
 import { ProjectList } from "../components/project-list";
 import { ProjectBoard } from "../components/project-board";
-import { Project } from "../types";
+import { Project } from "../types/index";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useCurrentSpace } from "@/features/space/hooks/use-current-space";
