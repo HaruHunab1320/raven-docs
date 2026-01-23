@@ -21,8 +21,8 @@ resource "google_cloud_run_v2_job" "migrations" {
       containers {
         image = var.container_image
 
-        command = ["sh", "-c"]
-        args    = ["npx kysely migrate:latest"]
+        command = ["node"]
+        args    = ["dist/database/run-migrations.js"]
 
         resources {
           limits = {
@@ -32,13 +32,52 @@ resource "google_cloud_run_v2_job" "migrations" {
         }
 
         env {
-          name  = "DATABASE_URL"
-          value = var.database_url
+          name  = "NODE_ENV"
+          value = "production"
         }
 
         env {
-          name  = "NODE_ENV"
-          value = "production"
+          name  = "DB_HOST"
+          value = var.db_host
+        }
+
+        env {
+          name  = "DB_PORT"
+          value = var.db_port
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = var.db_name
+        }
+
+        env {
+          name  = "DB_USER"
+          value = var.db_user
+        }
+
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = var.db_password_id
+              version = "latest"
+            }
+          }
+        }
+
+        # Mount Cloud SQL socket
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+
+      # Cloud SQL connection
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [var.database_connection_name]
         }
       }
 

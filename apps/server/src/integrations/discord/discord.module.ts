@@ -7,7 +7,7 @@ import { ResearchModule } from '../../core/research/research.module';
 import { MCPModule } from '../mcp/mcp.module';
 
 @Module({
-  imports: [DatabaseModule, AgentModule, MCPModule, forwardRef(() => ResearchModule)],
+  imports: [DatabaseModule, forwardRef(() => AgentModule), forwardRef(() => MCPModule), forwardRef(() => ResearchModule)],
   providers: [DiscordService],
   controllers: [DiscordController],
   exports: [DiscordService],

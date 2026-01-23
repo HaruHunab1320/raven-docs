@@ -207,9 +207,18 @@ module "cloud_run" {
 
   # Connection strings (built from other modules)
   database_connection_name = module.cloud_sql.connection_name
-  database_url             = "postgresql://${var.db_user}:${var.db_password}@localhost/${var.db_name}?host=/cloudsql/${module.cloud_sql.connection_name}"
   redis_url                = "redis://${module.memorystore.host}:${module.memorystore.port}"
   memgraph_url             = "bolt://${module.memgraph.internal_ip}:7687"
+
+  # App URL (set after first deployment or use custom domain)
+  app_url = var.app_url
+
+  # Individual database connection variables (app uses these, not DATABASE_URL)
+  db_host        = "/cloudsql/${module.cloud_sql.connection_name}"
+  db_port        = "5432"
+  db_name        = var.db_name
+  db_user        = var.db_user
+  db_password_id = module.secrets.db_password_id
 
   # Secret references
   app_secret_id     = module.secrets.app_secret_id

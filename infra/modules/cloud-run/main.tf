@@ -19,6 +19,13 @@ resource "google_secret_manager_secret_iam_member" "app_secret" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "db_password" {
+  project   = var.project_id
+  secret_id = var.db_password_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 resource "google_secret_manager_secret_iam_member" "smtp_username" {
   count     = var.smtp_username_id != "" ? 1 : 0
   project   = var.project_id
@@ -120,10 +127,35 @@ resource "google_cloud_run_v2_service" "main" {
         }
       }
 
-      # Database URL
+      # Individual database connection variables
       env {
-        name  = "DATABASE_URL"
-        value = var.database_url
+        name  = "DB_HOST"
+        value = var.db_host
+      }
+
+      env {
+        name  = "DB_PORT"
+        value = var.db_port
+      }
+
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+
+      env {
+        name  = "DB_USER"
+        value = var.db_user
+      }
+
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = var.db_password_id
+            version = "latest"
+          }
+        }
       }
 
       # Redis URL
@@ -200,6 +232,12 @@ resource "google_cloud_run_v2_service" "main" {
       ports {
         container_port = 3000
       }
+
+      # Mount Cloud SQL socket
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
     }
 
     # Cloud SQL connection
@@ -217,6 +255,7 @@ resource "google_cloud_run_v2_service" "main" {
 
   depends_on = [
     google_secret_manager_secret_iam_member.app_secret,
+    google_secret_manager_secret_iam_member.db_password,
     google_project_iam_member.cloud_sql_client,
     google_storage_bucket_iam_member.storage_access,
   ]

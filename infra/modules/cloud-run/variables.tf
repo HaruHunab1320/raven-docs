@@ -64,10 +64,30 @@ variable "database_connection_name" {
   type        = string
 }
 
-variable "database_url" {
-  description = "Database connection URL"
+variable "db_host" {
+  description = "Database host (socket path for Cloud SQL: /cloudsql/connection-name)"
   type        = string
-  sensitive   = true
+}
+
+variable "db_port" {
+  description = "Database port (use 5432 even for socket connections)"
+  type        = string
+  default     = "5432"
+}
+
+variable "db_name" {
+  description = "Database name"
+  type        = string
+}
+
+variable "db_user" {
+  description = "Database user"
+  type        = string
+}
+
+variable "db_password_id" {
+  description = "Secret Manager secret ID for database password"
+  type        = string
 }
 
 variable "redis_url" {

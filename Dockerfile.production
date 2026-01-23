@@ -38,6 +38,9 @@ COPY . .
 # Build the application (NODE_ENV must not be production during build or devDeps are skipped)
 RUN pnpm build
 
+# Create a standalone production deployment for the server
+RUN pnpm --filter server deploy --prod --legacy /app/deploy
+
 # Stage 3: Runner
 FROM node:20-alpine AS runner
 RUN apk add --no-cache libc6-compat curl
@@ -47,12 +50,11 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Copy necessary files
-COPY --from=builder --chown=nodejs:nodejs /app/apps/server/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/apps/server/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/apps/client/dist ./public
+# Copy the deployed server with all dependencies
+COPY --from=builder --chown=nodejs:nodejs /app/deploy ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/client/dist /client/dist
 COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/apps/server/package.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json /mcp-method-schemas.json
 
 # Create data directory
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data

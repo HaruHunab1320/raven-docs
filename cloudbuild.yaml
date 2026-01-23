@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/raven-docs:latest'
+      - '-f'
+      - 'Dockerfile.production'
+      - '.'
+images:
+  - 'gcr.io/$PROJECT_ID/raven-docs:latest'
+options:
+  machineType: 'E2_HIGHCPU_8'
+timeout: 1800s

@@ -12,6 +12,8 @@ import { plainToInstance } from 'class-transformer';
 import { Logger } from '@nestjs/common';
 
 export class EnvironmentVariables {
+  // DATABASE_URL is optional if individual DB_* vars are provided
+  @ValidateIf((obj) => !obj.DB_HOST || !obj.DB_NAME || !obj.DB_USER || !obj.DB_PASSWORD)
   @IsNotEmpty()
   @IsUrl(
     {
@@ -22,6 +24,21 @@ export class EnvironmentVariables {
     { message: 'DATABASE_URL must be a valid postgres connection string' },
   )
   DATABASE_URL: string;
+
+  @IsOptional()
+  DB_HOST: string;
+
+  @IsOptional()
+  DB_PORT: string;
+
+  @IsOptional()
+  DB_NAME: string;
+
+  @IsOptional()
+  DB_USER: string;
+
+  @IsOptional()
+  DB_PASSWORD: string;
 
   @IsNotEmpty()
   @IsUrl(

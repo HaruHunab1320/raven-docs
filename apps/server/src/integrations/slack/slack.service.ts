@@ -33,10 +33,13 @@ export class SlackService {
   constructor(
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly userRepo: UserRepo,
+    @Inject(forwardRef(() => AgentService))
     private readonly agentService: AgentService,
     @Inject(forwardRef(() => ResearchJobService))
     private readonly researchService: ResearchJobService,
+    @Inject(forwardRef(() => MCPApprovalService))
     private readonly approvalService: MCPApprovalService,
+    @Inject(forwardRef(() => MCPService))
     private readonly mcpService: MCPService,
   ) {}
 

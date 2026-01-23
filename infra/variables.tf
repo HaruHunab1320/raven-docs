@@ -35,6 +35,12 @@ variable "app_domain" {
   default     = ""
 }
 
+variable "app_url" {
+  description = "Full application URL (e.g., https://my-raven-docs-add-123456.us-central1.run.app)"
+  type        = string
+  default     = ""
+}
+
 variable "app_secret" {
   description = "Application secret for JWT signing (min 32 characters)"
   type        = string
