@@ -1,0 +1,95 @@
+---
+title: Getting Started
+sidebar_position: 2
+---
+
+# Getting Started
+
+Get up and running with Raven Docs in under 5 minutes.
+
+## Create an Account
+
+1. Go to [app.ravendocs.com](https://app.ravendocs.com)
+2. Sign up with your email or continue with Google/GitHub
+3. Create your first workspace
+
+## Create Your First Workspace
+
+A workspace is where your team collaborates. Each workspace has its own members, spaces, and settings.
+
+```
+Your Organization (Workspace)
+├── Engineering Space
+│   ├── Architecture Docs
+│   └── API Reference
+├── Product Space
+│   ├── Roadmap
+│   └── Feature Specs
+└── Team Wiki
+    ├── Onboarding
+    └── Policies
+```
+
+## Create a Space
+
+Spaces help you organize content by team, project, or topic.
+
+1. Click **New Space** in the sidebar
+2. Give it a name and optional description
+3. Set permissions (who can view/edit)
+
+## Create Your First Page
+
+1. Open a space
+2. Click **New Page** or press `Cmd/Ctrl + N`
+3. Start typing!
+
+### Editor Basics
+
+The Raven Docs editor supports:
+
+- **Slash commands**: Type `/` for a command menu
+- **Markdown**: Use `#`, `**`, `` ` `` for formatting
+- **Drag and drop**: Reorganize content easily
+- **AI assistance**: Press `Cmd/Ctrl + J` to invoke AI
+
+```markdown
+# Heading 1
+## Heading 2
+
+**Bold text** and *italic text*
+
+- Bullet list
+- Another item
+
+1. Numbered list
+2. Another item
+
+> Blockquote
+
+`inline code`
+```
+
+## Invite Your Team
+
+1. Go to **Settings** → **Members**
+2. Click **Invite Members**
+3. Enter email addresses
+4. Choose their role (Admin, Editor, Viewer)
+
+## What's Next?
+
+Now that you're set up, explore these topics:
+
+<div className="quick-links">
+  <a href="/concepts/workspaces" className="quick-link">Understand Workspaces</a>
+  <a href="/guides/editor" className="quick-link">Master the Editor</a>
+  <a href="/guides/task-management" className="quick-link">Track Tasks</a>
+  <a href="/api/overview" className="quick-link">Use the API</a>
+</div>
+
+## Need Help?
+
+- Check the [Guides](/guides/overview) for detailed walkthroughs
+- Join our [Discord](https://discord.gg/ravendocs) for community support
+- Email us at support@ravendocs.com

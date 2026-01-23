@@ -16,7 +16,10 @@
     "server:start": "nx run server:start:prod",
     "email:dev": "nx run server:email:dev",
     "dev": "pnpm concurrently -n \"frontend,backend\" -c \"cyan,green\" \"pnpm run client:dev\" \"pnpm run server:dev\"",
-    "seed:memory": "node scripts/seed-memory.js"
+    "seed:memory": "node scripts/seed-memory.js",
+    "docs:dev": "pnpm --filter @raven-docs/docs run dev",
+    "docs:build": "pnpm --filter @raven-docs/docs run build",
+    "docs:serve": "pnpm --filter @raven-docs/docs run serve"
   },
   "dependencies": {
     "@hocuspocus/extension-redis": "^2.15.2",

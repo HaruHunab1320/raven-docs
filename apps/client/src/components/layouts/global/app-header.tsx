@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Menu, Stack, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Menu, Stack, Text, Tooltip, useComputedColorScheme } from "@mantine/core";
 import classes from "./app-header.module.css";
 import React, { useEffect } from "react";
 import TopMenu from "@/components/layouts/global/top-menu.tsx";
@@ -115,7 +115,8 @@ export function AppHeader() {
   const [currentUser] = useAtom(currentUserAtom);
   const user = currentUser?.user;
   const workspace = currentUser?.workspace;
-  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+  const colorScheme = useComputedColorScheme("light");
+  const logoSrc = `${import.meta.env.BASE_URL}${colorScheme === "dark" ? "dark-mode-logo.png" : "light-mode-logo.png"}`;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -18,7 +18,7 @@ environment = "production"
 # -----------------------------------------------------------------------------
 
 # Generate with: openssl rand -hex 32
-app_secret = "your-32-character-minimum-secret-here"
+app_secret = ""
 
 # Container image (after pushing to GCR/Artifact Registry)
 # Example: gcr.io/your-project/raven-docs:latest
@@ -29,7 +29,7 @@ container_image = "gcr.io/your-project/raven-docs:latest"
 # -----------------------------------------------------------------------------
 
 # Generate a strong password: openssl rand -base64 24
-db_password = "your-secure-database-password"
+db_password = ""
 
 # Optional: customize database settings
 # db_tier = "db-f1-micro"        # Use db-g1-small or larger for production
@@ -84,8 +84,8 @@ db_password = "your-secure-database-password"
 # SMTP Configuration (if mail_driver = "smtp")
 # smtp_host = "smtp.gmail.com"
 # smtp_port = 587
-# smtp_username = "your-smtp-username"
-# smtp_password = "your-smtp-password"
+# smtp_username = ""
+# smtp_password = ""
 
 # Postmark Configuration (if mail_driver = "postmark")
-# postmark_token = "your-postmark-api-token"
+# postmark_token = ""
