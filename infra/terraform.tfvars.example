@@ -77,9 +77,12 @@ db_password = ""
 # Optional: Email Configuration (choose one driver)
 # -----------------------------------------------------------------------------
 
-# mail_driver = "smtp"  # or "postmark"
+# mail_driver = "resend"  # Options: resend, smtp, postmark, log
 # mail_from_address = "noreply@yourcompany.com"
 # mail_from_name = "Raven Docs"
+
+# Resend Configuration (recommended - if mail_driver = "resend")
+# resend_api_key = "re_xxxxxxxxxx"
 
 # SMTP Configuration (if mail_driver = "smtp")
 # smtp_host = "smtp.gmail.com"

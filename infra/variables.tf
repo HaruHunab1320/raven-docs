@@ -173,9 +173,9 @@ variable "memgraph_disk_size_gb" {
 # =============================================================================
 
 variable "mail_driver" {
-  description = "Mail driver (smtp or postmark)"
+  description = "Mail driver (smtp, postmark, resend, or log)"
   type        = string
-  default     = "smtp"
+  default     = "log"
 }
 
 variable "mail_from_address" {
@@ -218,6 +218,13 @@ variable "smtp_password" {
 
 variable "postmark_token" {
   description = "Postmark API token"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "resend_api_key" {
+  description = "Resend API key"
   type        = string
   default     = ""
   sensitive   = true

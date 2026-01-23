@@ -202,6 +202,7 @@ module "cloud_run" {
     MAIL_FROM_NAME       = var.mail_from_name
     SMTP_HOST            = var.smtp_host
     SMTP_PORT            = tostring(var.smtp_port)
+    RESEND_API_KEY       = var.resend_api_key
     DISABLE_TELEMETRY    = "true"
   }
 
