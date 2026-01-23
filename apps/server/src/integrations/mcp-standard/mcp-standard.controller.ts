@@ -8,13 +8,15 @@ import {
   UseGuards,
   Get,
   Headers,
+  Query,
 } from '@nestjs/common';
-import { MCPStandardService } from './mcp-standard.service';
+import { MCPStandardService, ToolSearchParams } from './mcp-standard.service';
 import { SkipTransform } from '../../common/decorators/skip-transform.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { MCPApiKeyGuard } from '../mcp/guards/mcp-api-key.guard';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { User } from '@raven-docs/db/types/entity.types';
+import { ToolCategory } from './tool-catalog';
 
 /**
  * Standard Model Context Protocol (MCP) Controller
@@ -31,13 +33,65 @@ export class MCPStandardController {
 
   /**
    * List available tools (MCP standard endpoint)
+   *
+   * Returns all tools. For efficient discovery with large tool sets,
+   * use search_tools or list_categories instead.
    */
   @Post('list_tools')
   @Public()
   @HttpCode(HttpStatus.OK)
-  async listTools() {
+  async listTools(@Body() body?: { category?: ToolCategory }) {
     this.logger.debug('Listing MCP tools');
-    return this.mcpStandardService.listTools();
+    return this.mcpStandardService.listTools(body);
+  }
+
+  /**
+   * Search for tools (Tool Discovery endpoint)
+   *
+   * Enables efficient tool discovery without loading the entire catalog.
+   * Supports text search, category filtering, and tag filtering.
+   *
+   * @example
+   * POST /mcp-standard/search_tools
+   * { "query": "create page", "limit": 10 }
+   *
+   * @example
+   * POST /mcp-standard/search_tools
+   * { "category": "task", "tags": ["assign"] }
+   */
+  @Post('search_tools')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async searchTools(@Body() params: ToolSearchParams) {
+    this.logger.debug('Searching MCP tools');
+    return this.mcpStandardService.searchTools(params);
+  }
+
+  /**
+   * List tool categories (Tool Discovery endpoint)
+   *
+   * Returns all available categories with descriptions and tool counts.
+   * Useful for understanding the available tool domains.
+   */
+  @Post('list_categories')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async listCategories() {
+    this.logger.debug('Listing MCP tool categories');
+    return this.mcpStandardService.listCategories();
+  }
+
+  /**
+   * Get tools by category (Tool Discovery endpoint)
+   *
+   * Returns all tools in a specific category.
+   */
+  @Post('get_tools_by_category')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async getToolsByCategory(@Body() body: { category: ToolCategory }) {
+    this.logger.debug(`Getting tools for category: ${body.category}`);
+    return this.mcpStandardService.getToolsByCategory(body.category);
   }
 
   /**

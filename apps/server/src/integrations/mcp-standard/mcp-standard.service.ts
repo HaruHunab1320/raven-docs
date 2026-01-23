@@ -1,11 +1,53 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MCPService } from '../mcp/mcp.service';
+import {
+  TOOL_CATALOG,
+  TOOL_CATEGORIES,
+  getCategoryInfo,
+  MCPToolDefinition,
+  ToolCategory,
+  ToolCategoryInfo,
+} from './tool-catalog';
+
+/**
+ * Tool search parameters
+ */
+export interface ToolSearchParams {
+  /** Text search query - matches against name, description, and tags */
+  query?: string;
+  /** Filter by category */
+  category?: ToolCategory;
+  /** Filter by tags (any match) */
+  tags?: string[];
+  /** Maximum number of results (default: 20) */
+  limit?: number;
+}
+
+/**
+ * Tool search result with relevance score
+ */
+export interface ToolSearchResult {
+  tool: {
+    name: string;
+    description: string;
+    inputSchema: Record<string, any>;
+    category: ToolCategory;
+    tags: string[];
+  };
+  score: number;
+  matchedOn: string[];
+}
 
 /**
  * MCP Standard Service
- * 
+ *
  * This service translates between the standard Model Context Protocol (MCP)
  * and our internal Master Control Program API.
+ *
+ * Features:
+ * - Tool discovery via searchTools() and listCategories()
+ * - Category-based filtering
+ * - Text search across tool names, descriptions, and tags
  */
 @Injectable()
 export class MCPStandardService {
@@ -37,10 +79,216 @@ export class MCPStandardService {
 
   /**
    * List available tools
+   *
+   * Returns all tools. For large tool sets, consider using searchTools()
+   * to find relevant tools without loading the entire catalog.
    */
-  async listTools() {
+  async listTools(params?: { category?: ToolCategory }) {
     this.logger.debug('Listing available MCP tools');
-    
+
+    let tools = TOOL_CATALOG;
+
+    // Filter by category if provided
+    if (params?.category) {
+      tools = tools.filter((t) => t.category === params.category);
+    }
+
+    // Return in standard MCP format (without internal metadata)
+    return {
+      tools: tools.map(({ name, description, inputSchema }) => ({
+        name,
+        description,
+        inputSchema,
+      })),
+    };
+  }
+
+  /**
+   * Search for tools by query, category, or tags
+   *
+   * This method enables efficient tool discovery without loading the entire catalog.
+   * Agents can search for tools relevant to their current task.
+   *
+   * @example
+   * // Search for tools related to creating content
+   * searchTools({ query: 'create page' })
+   *
+   * // Get all task management tools
+   * searchTools({ category: 'task' })
+   *
+   * // Find tools with specific tags
+   * searchTools({ tags: ['permissions', 'access'] })
+   */
+  async searchTools(params: ToolSearchParams): Promise<{
+    tools: ToolSearchResult[];
+    totalMatches: number;
+    categories: ToolCategoryInfo[];
+  }> {
+    this.logger.debug('Searching tools with params:', params);
+
+    const { query, category, tags, limit = 20 } = params;
+    const results: ToolSearchResult[] = [];
+
+    for (const tool of TOOL_CATALOG) {
+      // Category filter
+      if (category && tool.category !== category) {
+        continue;
+      }
+
+      // Tag filter (any match)
+      if (tags && tags.length > 0) {
+        const hasMatchingTag = tags.some((tag) =>
+          tool.tags.some((t) => t.toLowerCase().includes(tag.toLowerCase())),
+        );
+        if (!hasMatchingTag) {
+          continue;
+        }
+      }
+
+      // Calculate relevance score based on query
+      let score = 0;
+      const matchedOn: string[] = [];
+
+      if (query) {
+        const queryLower = query.toLowerCase();
+        const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 1);
+
+        // Exact name match (highest score)
+        if (tool.name.toLowerCase() === queryLower) {
+          score += 100;
+          matchedOn.push('name (exact)');
+        }
+        // Name contains query
+        else if (tool.name.toLowerCase().includes(queryLower)) {
+          score += 50;
+          matchedOn.push('name');
+        }
+        // Name contains query words
+        else {
+          const nameMatches = queryWords.filter((word) =>
+            tool.name.toLowerCase().includes(word),
+          ).length;
+          if (nameMatches > 0) {
+            score += nameMatches * 20;
+            matchedOn.push('name (partial)');
+          }
+        }
+
+        // Description match
+        if (tool.description.toLowerCase().includes(queryLower)) {
+          score += 30;
+          matchedOn.push('description');
+        } else {
+          const descMatches = queryWords.filter((word) =>
+            tool.description.toLowerCase().includes(word),
+          ).length;
+          if (descMatches > 0) {
+            score += descMatches * 10;
+            matchedOn.push('description (partial)');
+          }
+        }
+
+        // Tag match
+        const tagMatches = tool.tags.filter((tag) =>
+          queryWords.some((word) => tag.toLowerCase().includes(word)),
+        );
+        if (tagMatches.length > 0) {
+          score += tagMatches.length * 15;
+          matchedOn.push(`tags (${tagMatches.join(', ')})`);
+        }
+
+        // Category match
+        if (tool.category.toLowerCase().includes(queryLower)) {
+          score += 10;
+          matchedOn.push('category');
+        }
+      } else {
+        // No query - include all (filtered by category/tags above)
+        score = 1;
+        matchedOn.push('category match');
+      }
+
+      // Only include if there's some match
+      if (score > 0) {
+        results.push({
+          tool: {
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            category: tool.category,
+            tags: tool.tags,
+          },
+          score,
+          matchedOn,
+        });
+      }
+    }
+
+    // Sort by score descending
+    results.sort((a, b) => b.score - a.score);
+
+    // Apply limit
+    const limitedResults = results.slice(0, limit);
+
+    return {
+      tools: limitedResults,
+      totalMatches: results.length,
+      categories: getCategoryInfo(),
+    };
+  }
+
+  /**
+   * List available tool categories
+   *
+   * Returns all categories with their descriptions and tool counts.
+   * Useful for agents to understand the available tool domains.
+   */
+  async listCategories(): Promise<{ categories: ToolCategoryInfo[] }> {
+    this.logger.debug('Listing tool categories');
+    return {
+      categories: getCategoryInfo(),
+    };
+  }
+
+  /**
+   * Get tools for a specific category
+   *
+   * Returns all tools in the specified category.
+   */
+  async getToolsByCategory(category: ToolCategory): Promise<{
+    category: { id: ToolCategory; name: string; description: string };
+    tools: Array<{ name: string; description: string; inputSchema: Record<string, any>; tags: string[] }>;
+  }> {
+    this.logger.debug(`Getting tools for category: ${category}`);
+
+    const categoryInfo = TOOL_CATEGORIES[category];
+    if (!categoryInfo) {
+      throw new Error(`Unknown category: ${category}`);
+    }
+
+    const tools = TOOL_CATALOG.filter((t) => t.category === category).map(
+      ({ name, description, inputSchema, tags }) => ({
+        name,
+        description,
+        inputSchema,
+        tags,
+      }),
+    );
+
+    return {
+      category: {
+        id: category,
+        name: categoryInfo.name,
+        description: categoryInfo.description,
+      },
+      tools,
+    };
+  }
+
+  // Legacy listTools implementation - keeping for reference during migration
+  private async listToolsLegacy() {
+    this.logger.debug('Listing available MCP tools (legacy)');
+
     const tools = [
       // Space management
       {
@@ -1637,6 +1885,7 @@ export class MCPStandardService {
 
     return { tools };
   }
+  // End of legacy listToolsLegacy method - can be removed once migration is complete
 
   /**
    * Call a tool
@@ -1751,6 +2000,31 @@ export class MCPStandardService {
       'context_list': 'context.list',
       'context_clear': 'context.clear',
     };
+
+    // Handle tool discovery tools directly (they don't route to internal MCP service)
+    if (name === 'tool_search') {
+      const searchResult = await this.searchTools(args);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(searchResult, null, 2),
+          },
+        ],
+      };
+    }
+
+    if (name === 'tool_categories') {
+      const categoriesResult = await this.listCategories();
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(categoriesResult, null, 2),
+          },
+        ],
+      };
+    }
 
     const method = toolToMethod[name];
     if (!method) {
