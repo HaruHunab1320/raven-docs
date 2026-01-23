@@ -20,6 +20,11 @@ resource "google_compute_instance" "memgraph" {
 
   tags = ["memgraph", "allow-health-check"]
 
+  # Prevent accidental deletion - data would be lost
+  lifecycle {
+    prevent_destroy = true
+  }
+
   boot_disk {
     initialize_params {
       image = "cos-cloud/cos-stable"

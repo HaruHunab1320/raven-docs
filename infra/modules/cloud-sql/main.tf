@@ -12,6 +12,11 @@ resource "google_sql_database_instance" "main" {
 
   deletion_protection = var.deletion_protection
 
+  # Prevent Terraform from destroying the database
+  lifecycle {
+    prevent_destroy = true
+  }
+
   settings {
     tier              = var.db_tier
     availability_type = var.high_availability ? "REGIONAL" : "ZONAL"
