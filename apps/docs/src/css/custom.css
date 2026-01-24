@@ -1,3 +1,6 @@
+/* Brand font for Raven Docs title */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&display=swap');
+
 /**
  * Raven Docs - Design System
  *
@@ -331,8 +334,10 @@ div[class*='announcementBar'] {
 }
 
 .navbar__title {
+  font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
   font-size: 1.125rem;
+  letter-spacing: 0.01em;
   color: var(--ifm-font-color-base);
 }
 

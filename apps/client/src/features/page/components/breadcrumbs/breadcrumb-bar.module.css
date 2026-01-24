@@ -1,6 +1,6 @@
 .bar {
     height: 45px;
-    background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
+    background-color: var(--raven-docs-body-bg, var(--mantine-color-body));
     padding-left: 12px;
     padding-right: 10px;
     margin-left: calc(var(--app-shell-padding, var(--mantine-spacing-md)) * -1);

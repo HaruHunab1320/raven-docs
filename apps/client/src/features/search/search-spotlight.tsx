@@ -1,10 +1,10 @@
 import { Group, Center, Text } from "@mantine/core";
 import { Spotlight } from "@mantine/spotlight";
-import { IconSearch, IconTrash } from "@tabler/icons-react";
+import { IconClock, IconSearch, IconTrash } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedValue } from "@mantine/hooks";
-import { usePageSearchQuery } from "@/features/search/queries/search-query";
+import { usePageSearchQuery, useRecentChangesQuery } from "@/features/page/queries/page-query";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { getPageIcon } from "@/lib";
 import { useTranslation } from "react-i18next";
@@ -29,6 +29,8 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
     isLoading,
     error,
   } = usePageSearchQuery({ query: debouncedSearchQuery, spaceId });
+
+  const { data: recentPages } = useRecentChangesQuery(spaceId);
 
   const taskSearchQuery = useQuery({
     queryKey: ["task-search", spaceId, debouncedSearchQuery],
@@ -77,6 +79,28 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
             />
           )}
         </div>
+      </Group>
+    </Spotlight.Action>
+  ));
+
+  const recentItems = (recentPages?.items || []).slice(0, 8).map((page) => (
+    <Spotlight.Action
+      key={page.id}
+      onClick={() =>
+        navigate(buildPageUrl(page.space.slug, page.slugId, page.title))
+      }
+    >
+      <Group wrap="nowrap" w="100%">
+        <Center>{getPageIcon(page?.icon)}</Center>
+        <div style={{ flex: 1 }}>
+          <Text>{page.title || t("Untitled")}</Text>
+          <Text opacity={0.6} size="xs">
+            {page.space?.name}
+          </Text>
+        </div>
+        <Center>
+          <IconClock size={14} opacity={0.5} />
+        </Center>
       </Group>
     </Spotlight.Action>
   ));
@@ -149,7 +173,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
           leftSection={<IconSearch size={20} stroke={1.5} />}
         />
         <Spotlight.ActionsList>
-          {query.length === 0 && pages.length === 0 && !trashAction && (
+          {query.length === 0 && recentItems.length === 0 && !trashAction && (
             <Spotlight.Empty>{t("Start typing to search...")}</Spotlight.Empty>
           )}
 
@@ -161,10 +185,23 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
             <Spotlight.Empty>{t("No results found...")}</Spotlight.Empty>
           )}
 
-          {trashAction}
-          {pages.length > 0 && pages}
-          {tasks.length > 0 && tasks}
-          {memories.length > 0 && memories}
+          {query.length === 0 && recentItems.length > 0 && (
+            <>
+              <Spotlight.ActionsGroup label={t("Recent")}>
+                {recentItems}
+              </Spotlight.ActionsGroup>
+              {trashAction}
+            </>
+          )}
+
+          {query.length > 0 && (
+            <>
+              {trashAction}
+              {pages.length > 0 && pages}
+              {tasks.length > 0 && tasks}
+              {memories.length > 0 && memories}
+            </>
+          )}
         </Spotlight.ActionsList>
       </Spotlight.Root>
     </>
