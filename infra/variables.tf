@@ -229,3 +229,14 @@ variable "resend_api_key" {
   default     = ""
   sensitive   = true
 }
+
+# =============================================================================
+# AI Configuration
+# =============================================================================
+
+variable "gemini_api_key" {
+  description = "Google Gemini API key for AI features (embeddings, agent)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

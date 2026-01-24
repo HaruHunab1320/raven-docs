@@ -7,7 +7,7 @@ export class MemgraphService implements OnModuleDestroy {
   private driver: Driver;
 
   constructor() {
-    const uri = process.env.MEMGRAPH_URI || 'bolt://localhost:7687';
+    const uri = process.env.MEMGRAPH_URI || process.env.MEMGRAPH_URL || 'bolt://localhost:7687';
     const user = process.env.MEMGRAPH_USER || '';
     const password = process.env.MEMGRAPH_PASSWORD || '';
 

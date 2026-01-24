@@ -203,6 +203,7 @@ module "cloud_run" {
     SMTP_HOST            = var.smtp_host
     SMTP_PORT            = tostring(var.smtp_port)
     RESEND_API_KEY       = var.resend_api_key
+    GEMINI_API_KEY       = var.gemini_api_key
     DISABLE_TELEMETRY    = "true"
   }
 

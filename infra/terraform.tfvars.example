@@ -92,3 +92,11 @@ db_password = ""
 
 # Postmark Configuration (if mail_driver = "postmark")
 # postmark_token = ""
+
+# -----------------------------------------------------------------------------
+# Optional: AI Configuration (for agent, memory, and embeddings)
+# -----------------------------------------------------------------------------
+
+# Google Gemini API key - required for agent features and memory embeddings
+# Get one at: https://aistudio.google.com/app/apikey
+# gemini_api_key = "AIza..."
