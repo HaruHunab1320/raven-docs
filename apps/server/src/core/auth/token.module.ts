@@ -10,7 +10,7 @@ import { TokenService } from './services/token.service';
         return {
           secret: environmentService.getAppSecret(),
           signOptions: {
-            expiresIn: environmentService.getJwtTokenExpiresIn(),
+            expiresIn: environmentService.getJwtTokenExpiresIn() as any,
             issuer: 'Raven Docs',
           },
         };

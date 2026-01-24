@@ -1,5 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { Button, Group, Stack, TextInput, Text, Switch, Divider } from "@mantine/core";
+import {
+  Button,
+  Group,
+  Stack,
+  TextInput,
+  Text,
+  Switch,
+  Divider,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -100,21 +108,27 @@ export function WorkspaceChatIntegrationsPanel() {
     if (!integrationsQuery.data) return;
     form.setValues((current) => ({
       ...current,
-      slackEnabled: integrationsQuery.data?.slack?.enabled ?? current.slackEnabled,
+      slackEnabled:
+        integrationsQuery.data?.slack?.enabled ?? current.slackEnabled,
       slackTeamId: integrationsQuery.data?.slack?.teamId ?? current.slackTeamId,
       slackDefaultChannelId:
-        integrationsQuery.data?.slack?.defaultChannelId ?? current.slackDefaultChannelId,
+        integrationsQuery.data?.slack?.defaultChannelId ??
+        current.slackDefaultChannelId,
       slackDefaultUserId:
-        integrationsQuery.data?.slack?.defaultUserId ?? current.slackDefaultUserId,
-      discordEnabled: integrationsQuery.data?.discord?.enabled ?? current.discordEnabled,
+        integrationsQuery.data?.slack?.defaultUserId ??
+        current.slackDefaultUserId,
+      discordEnabled:
+        integrationsQuery.data?.discord?.enabled ?? current.discordEnabled,
       discordGuildId:
         integrationsQuery.data?.discord?.guildId ?? current.discordGuildId,
       discordDefaultChannelId:
-        integrationsQuery.data?.discord?.defaultChannelId ?? current.discordDefaultChannelId,
+        integrationsQuery.data?.discord?.defaultChannelId ??
+        current.discordDefaultChannelId,
       discordDefaultUserId:
-        integrationsQuery.data?.discord?.defaultUserId ?? current.discordDefaultUserId,
+        integrationsQuery.data?.discord?.defaultUserId ??
+        current.discordDefaultUserId,
     }));
-  }, [integrationsQuery.data, form]);
+  }, [integrationsQuery.data]);
 
   return (
     <Stack gap="sm">

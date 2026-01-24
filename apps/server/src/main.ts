@@ -45,8 +45,8 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(redisIoAdapter);
 
-  await app.register(fastifyMultipart);
-  await app.register(fastifyCookie);
+  await app.register(fastifyMultipart as any);
+  await app.register(fastifyCookie as any);
 
   app
     .getHttpAdapter()
