@@ -149,14 +149,19 @@ Agent: On January 10th, you noted:
 This was linked to the Architecture space.
 ```
 
-### User Profile
+### User Profile & Behavioral Insights
 
-The agent builds a profile from memories:
+The agent builds a comprehensive behavioral profile from your activity:
 
-- Work patterns (morning vs afternoon)
-- Expertise areas
-- Communication preferences
-- Common collaborators
+- **Seven Core Traits** - Focus, Execution, Creativity, Communication, Leadership, Learning, Resilience
+- **Trait Scores** - Each trait scored 0-10 based on activity patterns
+- **Behavioral Patterns** - Completion rate, consistency, diversity, collaboration
+- **Trend Analysis** - Track improvement or decline over time
+- **AI-generated Insights** - Personalized strengths, challenges, and recommendations
+
+The profile system goes beyond simple activity tracking to provide meaningful behavioral insights that help you understand your work patterns and areas for growth.
+
+[Learn more about User Profiles](/guides/user-profiles)
 
 ### Entity Relationships
 
@@ -308,6 +313,7 @@ If responses are slow:
 
 ## Related
 
+- [User Profiles](/guides/user-profiles) - Behavioral insights system
 - [AI Agent](/concepts/agent) - Agent overview
 - [MCP Memory Tools](/mcp/tools/memory) - API access
 - [Privacy](/guides/permissions) - Access control

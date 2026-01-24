@@ -127,9 +127,21 @@ The agent remembers context:
 - **Conversation memory** - Recalls past discussions
 - **Activity tracking** - Learns from your usage
 - **Memory graph** - Visualize connections
-- **User profiles** - Personalized assistance
 
 [Learn more about Memory](/guides/memory)
+
+### Behavioral Insights
+
+Sophisticated user profiling based on activity patterns:
+
+- **Seven Core Traits** - Focus, Execution, Creativity, Communication, Leadership, Learning, Resilience
+- **Trait Scoring** - Each dimension scored 0-10 with evidence
+- **Pattern Analysis** - Completion rate, consistency, diversity, collaboration
+- **Trend Tracking** - See improvement or decline over time
+- **AI Recommendations** - Personalized insights and growth suggestions
+- **Radar Visualization** - See your behavioral shape at a glance
+
+[Learn more about User Profiles](/guides/user-profiles)
 
 ### Research
 

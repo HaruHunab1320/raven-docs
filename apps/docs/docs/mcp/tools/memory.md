@@ -165,6 +165,58 @@ await mcp.callTool('memory_ingest', {
 });
 ```
 
+## memory_profile_distill
+
+Generate or update a user's behavioral profile.
+
+```json
+{
+  "name": "memory_profile_distill",
+  "arguments": {
+    "workspaceId": "ws_123",
+    "userId": "user_456",
+    "spaceId": "space_789"
+  }
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | string | Yes | Workspace ID |
+| `userId` | string | No | Target user (defaults to current) |
+| `spaceId` | string | No | Scope to specific space |
+
+### Response
+
+```json
+{
+  "profile": {
+    "traits": {
+      "focus": { "score": 7.2, "trend": "improving" },
+      "execution": { "score": 8.1, "trend": "stable" },
+      "creativity": { "score": 6.5, "trend": "improving" },
+      "communication": { "score": 7.8, "trend": "stable" },
+      "leadership": { "score": 5.9, "trend": "stable" },
+      "learning": { "score": 8.4, "trend": "improving" },
+      "resilience": { "score": 7.0, "trend": "stable" }
+    },
+    "patterns": {
+      "completionRate": 0.82,
+      "consistencyScore": 0.75,
+      "diversityScore": 0.68,
+      "collaborationScore": 0.71
+    },
+    "strengths": ["Strong execution", "Active learner"],
+    "challenges": ["Could improve leadership initiative"],
+    "recommendations": ["Try initiating a new project"]
+  }
+}
+```
+
+The profile system evaluates users across seven behavioral traits based on activity signals. See [User Profiles](/guides/user-profiles) for full documentation.
+
 ## Best Practices
 
 1. **Use specific tags** - Makes querying more effective

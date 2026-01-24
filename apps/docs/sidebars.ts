@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
         'guides/permissions',
         'guides/integrations',
         'guides/memory',
+        'guides/user-profiles',
         'guides/research',
         'guides/daily-workflow',
       ],
