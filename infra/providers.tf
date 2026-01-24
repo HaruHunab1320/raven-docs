@@ -16,11 +16,10 @@ terraform {
     }
   }
 
-  # Uncomment and configure for remote state (recommended for production)
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "raven-docs"
-  # }
+  backend "gcs" {
+    bucket = "raven-docs-terraform-state"
+    prefix = "raven-docs"
+  }
 }
 
 provider "google" {
