@@ -11,10 +11,9 @@ import {
   IconTrash,
   IconWifiOff,
   IconBulb,
-  IconRobot,
 } from "@tabler/icons-react";
 import React, { useEffect } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
 import { useClipboard, useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
@@ -37,10 +36,6 @@ import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import useToggleAside from "@/hooks/use-toggle-aside.tsx";
 import { ResearchJobModal } from "@/features/research/components/research-job-modal";
-import {
-  agentChatContextAtom,
-  agentChatDrawerAtom,
-} from "@/components/layouts/global/hooks/atoms/sidebar-atom";
 
 interface PageHeaderMenuProps {
   readOnly?: boolean;
@@ -53,16 +48,6 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
   const { data: page } = usePageQuery({
     pageId: extractPageSlugId(pageSlug),
   });
-  const setAgentChatOpened = useSetAtom(agentChatDrawerAtom);
-  const setAgentChatContext = useSetAtom(agentChatContextAtom);
-  const openAgentChat = () => {
-    setAgentChatContext({
-      spaceId: page?.spaceId,
-      pageId: page?.slugId,
-      contextLabel: page?.title ? `Page: ${page.title}` : undefined,
-    });
-    setAgentChatOpened(true);
-  };
 
   return (
     <>
@@ -84,12 +69,6 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
           onClick={() => toggleAside("toc")}
         >
           <IconList size={20} stroke={2} />
-        </ActionIcon>
-      </Tooltip>
-
-      <Tooltip label={t("Agent chat")} openDelay={250} withArrow>
-        <ActionIcon variant="subtle" onClick={openAgentChat}>
-          <IconRobot size={20} stroke={2} />
         </ActionIcon>
       </Tooltip>
 

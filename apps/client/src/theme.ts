@@ -147,32 +147,105 @@ const sage: MantineColorsTuple = [
   "#232926",
 ];
 
+// ============================================
+// RAVEN DOCS SIGNATURE PALETTES
+// Inspired by ravens - intelligent, collecting shiny things
+// ============================================
+
+// Obsidian - Deep iridescent black with purple undertones (raven feathers)
+const obsidian: MantineColorsTuple = [
+  "#f5f3f7",
+  "#e8e4ed",
+  "#d0c9da",
+  "#b5aac4",
+  "#9a8eb0",
+  "#7f739c",
+  "#665d82",
+  "#504969",
+  "#3b3650",
+  "#262238",
+];
+
+// Moonstone - Cool luminous silver-blue (shiny things ravens collect)
+const moonstone: MantineColorsTuple = [
+  "#f8f9fc",
+  "#eef1f7",
+  "#dde3ef",
+  "#c5cee0",
+  "#a8b5cc",
+  "#8b9ab8",
+  "#6e7fa3",
+  "#566689",
+  "#404d6b",
+  "#2c3650",
+];
+
+// Midnight - Deep sophisticated navy (night sky, intelligence)
+const midnight: MantineColorsTuple = [
+  "#f0f4f8",
+  "#d9e2ec",
+  "#bcccdc",
+  "#9fb3c8",
+  "#829ab1",
+  "#627d98",
+  "#486581",
+  "#334e68",
+  "#243b53",
+  "#102a43",
+];
+
+// Carbon - Modern dark with cool steel undertones (sleek, futuristic)
+const carbon: MantineColorsTuple = [
+  "#f7f8f9",
+  "#e8ebee",
+  "#d1d6dc",
+  "#b4bcc5",
+  "#95a0ad",
+  "#778594",
+  "#5e6b78",
+  "#48535e",
+  "#343d46",
+  "#21272d",
+];
+
+// Ivory - Warm premium white (quality paper, sophisticated light)
+const ivory: MantineColorsTuple = [
+  "#fdfcfb",
+  "#faf8f5",
+  "#f5f2ed",
+  "#ece7df",
+  "#ded7cc",
+  "#c9c0b3",
+  "#a89f93",
+  "#827a70",
+  "#5c564f",
+  "#3a3632",
+];
+
+// All available color names
+type RavenColorName =
+  | "blue"
+  | "green"
+  | "purple"
+  | "orange"
+  | "teal"
+  | "slate"
+  | "rose"
+  | "indigo"
+  | "sage"
+  | "obsidian"
+  | "moonstone"
+  | "midnight"
+  | "carbon"
+  | "ivory";
+
 // Theme interface for our custom themes
 export interface RavenDocsTheme {
   id: string;
   name: string;
   description: string;
-  primaryColor:
-    | "blue"
-    | "green"
-    | "purple"
-    | "orange"
-    | "teal"
-    | "slate"
-    | "rose"
-    | "indigo"
-    | "sage";
-  secondaryColor?:
-    | "red"
-    | "green"
-    | "blue"
-    | "purple"
-    | "orange"
-    | "teal"
-    | "slate"
-    | "rose"
-    | "indigo"
-    | "sage";
+  primaryColor: RavenColorName;
+  secondaryColor?: RavenColorName | "red";
   isDark?: boolean;
   fontFamily?: string;
   headingFontFamily?: string;
@@ -181,10 +254,88 @@ export interface RavenDocsTheme {
   mutedBg?: string;
   textColor?: string;
   borderColor?: string;
+  isSignature?: boolean; // Marks Raven Docs signature themes
 }
 
 // Available themes
 export const RAVEN_DOCS_THEMES: RavenDocsTheme[] = [
+  // ============================================
+  // RAVEN DOCS SIGNATURE THEMES
+  // Premium themes that embody the brand identity
+  // ============================================
+  {
+    id: "raven-obsidian",
+    name: "Obsidian",
+    description: "Deep iridescent dark, like raven feathers",
+    primaryColor: "obsidian",
+    secondaryColor: "moonstone",
+    isDark: true,
+    isSignature: true,
+    bodyBg: "#18161c",
+    surfaceBg: "#201e26",
+    mutedBg: "#2a2732",
+    textColor: "#e8e4ed",
+    borderColor: "#3b3650",
+  },
+  {
+    id: "raven-moonstone",
+    name: "Moonstone",
+    description: "Luminous silver-blue, like treasures ravens collect",
+    primaryColor: "moonstone",
+    secondaryColor: "obsidian",
+    isDark: false,
+    isSignature: true,
+    bodyBg: "#f8f9fc",
+    surfaceBg: "#ffffff",
+    mutedBg: "#eef1f7",
+    textColor: "#2c3650",
+    borderColor: "#dde3ef",
+  },
+  {
+    id: "raven-midnight",
+    name: "Midnight",
+    description: "Deep navy for focused, intelligent work",
+    primaryColor: "midnight",
+    secondaryColor: "ivory",
+    isDark: true,
+    isSignature: true,
+    bodyBg: "#102a43",
+    surfaceBg: "#1a3a52",
+    mutedBg: "#243b53",
+    textColor: "#d9e2ec",
+    borderColor: "#334e68",
+  },
+  {
+    id: "raven-paper",
+    name: "Paper",
+    description: "Warm ivory, like premium stationery",
+    primaryColor: "ivory",
+    secondaryColor: "midnight",
+    isDark: false,
+    isSignature: true,
+    bodyBg: "#faf8f5",
+    surfaceBg: "#fdfcfb",
+    mutedBg: "#f5f2ed",
+    textColor: "#3a3632",
+    borderColor: "#ece7df",
+  },
+  {
+    id: "raven-carbon",
+    name: "Carbon",
+    description: "Sleek modern dark with cool steel tones",
+    primaryColor: "carbon",
+    secondaryColor: "blue",
+    isDark: true,
+    isSignature: true,
+    bodyBg: "#1a1d21",
+    surfaceBg: "#22262b",
+    mutedBg: "#2c3138",
+    textColor: "#e8ebee",
+    borderColor: "#3a4149",
+  },
+  // ============================================
+  // STANDARD THEMES
+  // ============================================
   {
     id: "default-light",
     name: "Default Light",
@@ -468,6 +619,12 @@ export const theme = createTheme({
     rose,
     indigo,
     sage,
+    // Raven Docs signature colors
+    obsidian,
+    moonstone,
+    midnight,
+    carbon,
+    ivory,
   },
 
   // Increase font sizes for better readability

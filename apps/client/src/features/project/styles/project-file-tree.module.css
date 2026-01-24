@@ -15,11 +15,11 @@
 }
 
 .nodeSelected {
-  background-color: rgba(34, 139, 230, 0.1);
+  background-color: var(--mantine-primary-color-light);
 }
 
 .nodeActive {
-  background-color: rgba(34, 139, 230, 0.1);
+  background-color: var(--mantine-primary-color-light);
 }
 
 .nodeLabel {

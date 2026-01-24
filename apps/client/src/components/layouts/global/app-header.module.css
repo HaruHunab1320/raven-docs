@@ -23,6 +23,8 @@
 .brand {
     white-space: nowrap;
     line-height: 1.1;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.01em;
 }
 
 .brandGroup {

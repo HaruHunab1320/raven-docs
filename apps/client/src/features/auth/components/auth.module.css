@@ -1,7 +1,10 @@
 .container {
-    box-shadow: rgba(0, 0, 0, 0.07) 0px 2px 45px 4px;
+    box-shadow: light-dark(
+        rgba(0, 0, 0, 0.07) 0px 2px 45px 4px,
+        rgba(0, 0, 0, 0.25) 0px 2px 45px 4px
+    );
     border-radius: 4px;
-    background: light-dark(var(--mantine-color-body), rgba(0, 0, 0, 0.1));
+    background: light-dark(var(--mantine-color-body), var(--mantine-color-dark-6));
     margin-top: 150px;
     margin-bottom: 20px;
 

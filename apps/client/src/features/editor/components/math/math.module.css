@@ -2,7 +2,7 @@
     display: inline-block;
     white-space: pre-wrap;
     word-break: break-word;
-    caret-color: rgb(55, 53, 47);
+    caret-color: light-dark(var(--mantine-color-dark-6), var(--mantine-color-gray-2));
     border-radius: 4px;
     transition: background-color 0.2s;
     padding: 0 0.25rem;
@@ -26,7 +26,7 @@
     padding: 0.05rem;
     white-space: pre-wrap;
     word-break: break-word;
-    caret-color: rgb(55, 53, 47);
+    caret-color: light-dark(var(--mantine-color-dark-6), var(--mantine-color-gray-2));
     border-radius: 4px;
     transition: background-color 0.2s;
     margin: 0 0.1rem;

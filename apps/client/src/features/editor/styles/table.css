@@ -16,7 +16,7 @@
 
     td,
     th {
-      border: 1px solid #ced4da;
+      border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
       box-sizing: border-box;
       min-width: 1em;
       padding: 3px 5px;
@@ -46,7 +46,7 @@
     }
 
     .column-resize-handle {
-      background-color: #adf;
+      background-color: var(--mantine-primary-color-light);
       bottom: -2px;
       position: absolute;
       right: -2px;
@@ -56,7 +56,10 @@
     }
 
     .selectedCell:after {
-      background: rgba(200, 200, 255, 0.4);
+      background: light-dark(
+        rgba(var(--mantine-primary-color-filled-rgb), 0.15),
+        rgba(var(--mantine-primary-color-filled-rgb), 0.25)
+      );
       content: "";
       left: 0;
       right: 0;
@@ -69,5 +72,3 @@
 
   }
 }
-
-

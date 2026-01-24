@@ -26,12 +26,12 @@
   }
 
   &:hover {
-    background-color: #0d0d0d10;
+    background-color: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
     transition: background-color 0.2s;
   }
 
   &:active {
-    background-color: #0d0d0d10;
+    background-color: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.12));
     transition: background-color 0.2s;
     cursor: grabbing;
   }

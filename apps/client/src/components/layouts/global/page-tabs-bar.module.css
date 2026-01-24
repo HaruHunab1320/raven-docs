@@ -2,10 +2,10 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 4px 10px 0;
+  padding: 6px 10px 0;
   padding-left: 10px;
-  border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-6));
-  background: var(--raven-docs-surface-bg, var(--mantine-color-body));
+  border-bottom: 1px solid var(--raven-docs-border-color, light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5)));
+  background: var(--raven-docs-muted-bg, light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8)));
   position: fixed;
   top: var(--app-shell-header-height, 45px);
   left: var(--app-shell-navbar-offset, 0px);
@@ -15,7 +15,7 @@
 
 .tabsList {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   overflow-x: auto;
   padding-bottom: 0;
@@ -26,33 +26,46 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  border-radius: 8px 8px 0 0;
+  padding: 6px 12px;
+  border-radius: 6px 6px 0 0;
   margin-bottom: -1px;
-  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-6));
-  color: inherit;
-  background: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-8));
-  color: light-dark(var(--mantine-color-dark-6), var(--mantine-color-dark-2));
-  opacity: 1;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--raven-docs-text-color, light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2)));
+  opacity: 0.7;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 .tabItem:hover {
-  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+  background: var(--raven-docs-surface-bg, light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6)));
+  opacity: 1;
 }
 
 .tabItemActive {
-  border-color: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
-  border-bottom-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
-  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
-  box-shadow: none;
-  color: light-dark(var(--mantine-color-dark-9), var(--mantine-color-gray-0));
-  font-weight: 600;
+  border-color: var(--raven-docs-border-color, light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5)));
+  border-bottom-color: var(--raven-docs-body-bg, var(--mantine-color-body));
+  background: var(--raven-docs-body-bg, var(--mantine-color-body));
+  color: var(--raven-docs-text-color, light-dark(var(--mantine-color-dark-9), var(--mantine-color-gray-0)));
+  opacity: 1;
+  font-weight: 500;
   position: relative;
   z-index: 3;
   margin-bottom: 0;
-  box-shadow: 0 1px 0 light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
+  box-shadow: 0 1px 0 var(--raven-docs-body-bg, var(--mantine-color-body));
+}
+
+.tabItemActive::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: var(--mantine-primary-color-filled);
+  border-radius: 2px 2px 0 0;
 }
 
 .tabTitle {

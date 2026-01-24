@@ -39,6 +39,145 @@ export default function AccountTheme() {
   );
 }
 
+function ThemeCard({
+  themeOption,
+  isSelected,
+  theme,
+  t,
+  onClick,
+}: {
+  themeOption: (typeof RAVEN_DOCS_THEMES)[0];
+  isSelected: boolean;
+  theme: ReturnType<typeof useMantineTheme>;
+  t: ReturnType<typeof useTranslation>["t"];
+  onClick: () => void;
+}) {
+  const primaryColor = theme.colors[themeOption.primaryColor]?.[5];
+
+  return (
+    <Card
+      padding="xs"
+      radius="md"
+      withBorder
+      onClick={onClick}
+      style={{
+        borderColor: isSelected
+          ? primaryColor
+          : themeOption.borderColor || undefined,
+        borderWidth: isSelected ? 2 : 1,
+        backgroundColor: themeOption.bodyBg,
+        position: "relative",
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.boxShadow = `0 4px 12px ${primaryColor}33`;
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      {themeOption.isSignature && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 60,
+            height: 60,
+            background: `linear-gradient(135deg, transparent 50%, ${theme.colors[themeOption.primaryColor]?.[5] || themeOption.primaryColor}22 50%)`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      <Group wrap="nowrap">
+        <Radio
+          value={themeOption.id}
+          aria-label={themeOption.name}
+          color={themeOption.primaryColor}
+          styles={{
+            radio: {
+              backgroundColor: isSelected ? primaryColor : themeOption.surfaceBg,
+              borderColor: isSelected ? primaryColor : themeOption.borderColor,
+              borderWidth: 2,
+            },
+            icon: {
+              // Use contrasting color for the checkmark
+              color: themeOption.isDark ? themeOption.textColor : "#ffffff",
+            },
+          }}
+        />
+        <Stack gap={0} style={{ flex: 1 }}>
+          <Group gap="xs">
+            <Text
+              fw={500}
+              size="sm"
+              style={{ color: themeOption.textColor }}
+            >
+              {themeOption.name}
+            </Text>
+            {isSelected && (
+              <Badge
+                size="xs"
+                color={themeOption.primaryColor}
+                variant="filled"
+              >
+                {t("Active")}
+              </Badge>
+            )}
+          </Group>
+          <Text
+            size="xs"
+            style={{
+              color: themeOption.textColor,
+              opacity: 0.7,
+            }}
+          >
+            {themeOption.description}
+          </Text>
+        </Stack>
+      </Group>
+      <Group mt="xs" justify="flex-end" gap={4}>
+        <Paper
+          radius="sm"
+          w={16}
+          h={16}
+          style={{
+            backgroundColor: theme.colors[themeOption.primaryColor]?.[5],
+            border: `1px solid ${themeOption.borderColor}`,
+          }}
+        />
+        {themeOption.secondaryColor && (
+          <Paper
+            radius="sm"
+            w={16}
+            h={16}
+            style={{
+              backgroundColor:
+                theme.colors[themeOption.secondaryColor]?.[5],
+              border: `1px solid ${themeOption.borderColor}`,
+            }}
+          />
+        )}
+        <Paper
+          radius="sm"
+          w={16}
+          h={16}
+          style={{
+            backgroundColor: themeOption.surfaceBg,
+            border: `1px solid ${themeOption.borderColor}`,
+          }}
+        />
+      </Group>
+    </Card>
+  );
+}
+
 function ThemeSwitcher() {
   const { t } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -48,6 +187,15 @@ function ThemeSwitcher() {
     user?.settings?.preferences?.themeId || "default-light"
   );
   const theme = useMantineTheme();
+
+  // Categorize themes
+  const signatureThemes = RAVEN_DOCS_THEMES.filter((t) => t.isSignature);
+  const lightThemes = RAVEN_DOCS_THEMES.filter(
+    (t) => !t.isSignature && !t.isDark
+  );
+  const darkThemes = RAVEN_DOCS_THEMES.filter(
+    (t) => !t.isSignature && t.isDark
+  );
 
   // Handle system light/dark preference changes
   useEffect(() => {
@@ -117,95 +265,78 @@ function ThemeSwitcher() {
   };
 
   return (
-    <Stack w="100%" gap="md">
+    <Stack
+      w="100%"
+      gap="lg"
+      style={{
+        maxHeight: "70vh",
+        overflowY: "auto",
+        paddingRight: 8,
+      }}
+    >
       <Radio.Group
         value={selectedThemeId}
         onChange={applyTheme}
         name="themeChoice"
-        label={t("Select a theme")}
       >
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" mt="xs">
-          {RAVEN_DOCS_THEMES.map((themeOption) => (
-            <Card
-              key={themeOption.id}
-              padding="xs"
-              radius="md"
-              withBorder
-              style={{
-                borderColor:
-                  selectedThemeId === themeOption.id
-                    ? theme.colors[themeOption.primaryColor][5]
-                    : themeOption.borderColor || undefined,
-                borderWidth: selectedThemeId === themeOption.id ? 2 : 1,
-                backgroundColor: themeOption.bodyBg,
-              }}
-            >
-              <Group wrap="nowrap">
-                <Radio
-                  value={themeOption.id}
-                  aria-label={themeOption.name}
-                  color={themeOption.primaryColor}
-                  styles={{
-                    radio: {
-                      backgroundColor: themeOption.surfaceBg,
-                      borderColor: themeOption.borderColor,
-                    },
-                  }}
-                />
-                <Stack gap={0}>
-                  <Group gap="xs">
-                    <Text
-                      fw={500}
-                      size="sm"
-                      style={{ color: themeOption.textColor }}
-                    >
-                      {themeOption.name}
-                    </Text>
-                    {selectedThemeId === themeOption.id && (
-                      <Badge
-                        size="xs"
-                        color={themeOption.primaryColor}
-                        variant="filled"
-                      >
-                        {t("Active")}
-                      </Badge>
-                    )}
-                  </Group>
-                  <Text
-                    size="xs"
-                    style={{
-                      color: themeOption.textColor,
-                      opacity: 0.7,
-                    }}
-                  >
-                    {themeOption.description}
-                  </Text>
-                </Stack>
-              </Group>
-              <Group mt="xs" justify="flex-end">
-                <Paper
-                  radius="sm"
-                  w={15}
-                  h={15}
-                  style={{
-                    backgroundColor: theme.colors[themeOption.primaryColor][5],
-                  }}
-                />
-                {themeOption.secondaryColor && (
-                  <Paper
-                    radius="sm"
-                    w={15}
-                    h={15}
-                    style={{
-                      backgroundColor:
-                        theme.colors[themeOption.secondaryColor][5],
-                    }}
-                  />
-                )}
-              </Group>
-            </Card>
-          ))}
-        </SimpleGrid>
+        {/* Signature Themes */}
+        <Stack gap="xs">
+          <Group gap="xs">
+            <Title order={5}>{t("Raven Collection")}</Title>
+            <Badge size="xs" variant="light" color="grape">
+              {t("Signature")}
+            </Badge>
+          </Group>
+          <Text size="xs" c="dimmed" mb="xs">
+            {t("Curated themes inspired by the Raven Docs identity")}
+          </Text>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            {signatureThemes.map((themeOption) => (
+              <ThemeCard
+                key={themeOption.id}
+                themeOption={themeOption}
+                isSelected={selectedThemeId === themeOption.id}
+                theme={theme}
+                t={t}
+                onClick={() => applyTheme(themeOption.id)}
+              />
+            ))}
+          </SimpleGrid>
+        </Stack>
+
+        {/* Light Themes */}
+        <Stack gap="xs" mt="lg">
+          <Title order={5}>{t("Light Themes")}</Title>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            {lightThemes.map((themeOption) => (
+              <ThemeCard
+                key={themeOption.id}
+                themeOption={themeOption}
+                isSelected={selectedThemeId === themeOption.id}
+                theme={theme}
+                t={t}
+                onClick={() => applyTheme(themeOption.id)}
+              />
+            ))}
+          </SimpleGrid>
+        </Stack>
+
+        {/* Dark Themes */}
+        <Stack gap="xs" mt="lg">
+          <Title order={5}>{t("Dark Themes")}</Title>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            {darkThemes.map((themeOption) => (
+              <ThemeCard
+                key={themeOption.id}
+                themeOption={themeOption}
+                isSelected={selectedThemeId === themeOption.id}
+                theme={theme}
+                t={t}
+                onClick={() => applyTheme(themeOption.id)}
+              />
+            ))}
+          </SimpleGrid>
+        </Stack>
       </Radio.Group>
     </Stack>
   );

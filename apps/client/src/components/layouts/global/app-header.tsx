@@ -13,7 +13,6 @@ import {
 import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-toggle-sidebar.ts";
 import SidebarToggle from "@/components/ui/sidebar-toggle-button.tsx";
 import { useTranslation } from "react-i18next";
-import { ThemeSwitcher } from "@/features/user/components/theme-switcher";
 import { QuickCapture } from "@/features/gtd/components/quick-capture";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
@@ -289,9 +288,6 @@ export function AppHeader() {
                 <IconHelpCircle size={16} />
               </ActionIcon>
             </Tooltip>
-          </div>
-          <div className={classes.desktopOnly}>
-            <ThemeSwitcher />
           </div>
           {/* <MCPEventIndicator /> */}
           <div className={classes.desktopOnly}>
