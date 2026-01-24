@@ -19,7 +19,9 @@
     "seed:memory": "node scripts/seed-memory.js",
     "docs:dev": "pnpm --filter @raven-docs/docs run dev",
     "docs:build": "pnpm --filter @raven-docs/docs run build",
-    "docs:serve": "pnpm --filter @raven-docs/docs run serve"
+    "docs:serve": "pnpm --filter @raven-docs/docs run serve",
+    "lint": "pnpm --filter ./apps/client run lint && pnpm --filter ./apps/server run lint",
+    "test": "pnpm --filter ./apps/server run test"
   },
   "dependencies": {
     "@hocuspocus/extension-redis": "^2.15.2",
