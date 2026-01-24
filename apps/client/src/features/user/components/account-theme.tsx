@@ -135,21 +135,29 @@ function ThemeSwitcher() {
                 borderColor:
                   selectedThemeId === themeOption.id
                     ? theme.colors[themeOption.primaryColor][5]
-                    : undefined,
+                    : themeOption.borderColor || undefined,
                 borderWidth: selectedThemeId === themeOption.id ? 2 : 1,
-                backgroundColor: themeOption.isDark
-                  ? theme.colors.dark[7]
-                  : theme.white,
+                backgroundColor: themeOption.bodyBg,
               }}
             >
               <Group wrap="nowrap">
-                <Radio value={themeOption.id} aria-label={themeOption.name} />
+                <Radio
+                  value={themeOption.id}
+                  aria-label={themeOption.name}
+                  color={themeOption.primaryColor}
+                  styles={{
+                    radio: {
+                      backgroundColor: themeOption.surfaceBg,
+                      borderColor: themeOption.borderColor,
+                    },
+                  }}
+                />
                 <Stack gap={0}>
                   <Group gap="xs">
                     <Text
                       fw={500}
                       size="sm"
-                      c={themeOption.isDark ? "white" : "black"}
+                      style={{ color: themeOption.textColor }}
                     >
                       {themeOption.name}
                     </Text>
@@ -163,7 +171,13 @@ function ThemeSwitcher() {
                       </Badge>
                     )}
                   </Group>
-                  <Text size="xs" c={themeOption.isDark ? "gray.5" : "gray.6"}>
+                  <Text
+                    size="xs"
+                    style={{
+                      color: themeOption.textColor,
+                      opacity: 0.7,
+                    }}
+                  >
                     {themeOption.description}
                   </Text>
                 </Stack>

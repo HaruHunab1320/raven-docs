@@ -77,74 +77,74 @@ const orange: MantineColorsTuple = [
   "#b34e00",
 ];
 
-// Teals and Cyan
+// Teal - Refined, softer cyan-green
 const teal: MantineColorsTuple = [
-  "#e6fff9",
-  "#ccfff3",
-  "#99ffe6",
-  "#66ffd9",
-  "#3dffcc",
-  "#26ffbf",
-  "#1affb3",
-  "#00e69d",
-  "#00cc8a",
-  "#00b377",
+  "#f0fdfa",
+  "#ccfbf1",
+  "#99f6e4",
+  "#5eead4",
+  "#2dd4bf",
+  "#14b8a6",
+  "#0d9488",
+  "#0f766e",
+  "#115e59",
+  "#134e4a",
 ];
 
-// Project 89 Neon Green - Matrix-inspired terminal green
-const neonGreen: MantineColorsTuple = [
-  "#e6fff0", // Lightest neon green
-  "#ccffe0", // Very light neon green
-  "#99ffbb", // Light neon green
-  "#66ff99", // Medium-light neon green
-  "#33ff77", // Medium neon green
-  "#00ff55", // Bright neon green - The iconic Matrix green
-  "#00cc44", // Primary neon green
-  "#009933", // Dark neon green
-  "#006622", // Very dark neon green
-  "#003311", // Darkest neon green
+// Slate - Neutral, professional gray-blue
+const slate: MantineColorsTuple = [
+  "#f8fafc",
+  "#f1f5f9",
+  "#e2e8f0",
+  "#cbd5e1",
+  "#94a3b8",
+  "#64748b",
+  "#475569",
+  "#334155",
+  "#1e293b",
+  "#0f172a",
 ];
 
-// Project 89 Electric Blue - Tron-inspired glowing blue
-const electricBlue: MantineColorsTuple = [
-  "#e6f9ff", // Lightest electric blue
-  "#ccf2ff", // Very light electric blue
-  "#99e6ff", // Light electric blue
-  "#66d9ff", // Medium-light electric blue
-  "#33ccff", // Medium electric blue
-  "#00bfff", // Medium-dark electric blue
-  "#0099ff", // Primary electric blue - Tron-like glow
-  "#0077cc", // Dark electric blue
-  "#005599", // Very dark electric blue
-  "#003366", // Darkest electric blue
+// Rose - Soft, warm pink tones
+const rose: MantineColorsTuple = [
+  "#fff1f2",
+  "#ffe4e6",
+  "#fecdd3",
+  "#fda4af",
+  "#fb7185",
+  "#f43f5e",
+  "#e11d48",
+  "#be123c",
+  "#9f1239",
+  "#881337",
 ];
 
-// Project 89 Terminal Black - Deep blacks for terminal aesthetics
-const terminalBlack: MantineColorsTuple = [
-  "#8c8c8c", // Lightest terminal (not actual black, but dark gray)
-  "#737373", // Very light terminal
-  "#595959", // Light terminal
-  "#404040", // Medium-light terminal
-  "#333333", // Medium terminal
-  "#262626", // Medium-dark terminal
-  "#1a1a1a", // Primary terminal black
-  "#121212", // Dark terminal
-  "#0d0d0d", // Very dark terminal
-  "#000000", // Darkest terminal
+// Indigo - Deep, sophisticated blue-purple
+const indigo: MantineColorsTuple = [
+  "#eef2ff",
+  "#e0e7ff",
+  "#c7d2fe",
+  "#a5b4fc",
+  "#818cf8",
+  "#6366f1",
+  "#4f46e5",
+  "#4338ca",
+  "#3730a3",
+  "#312e81",
 ];
 
-// Project 89 Glitch Purple - Digital distortion purple
-const glitchPurple: MantineColorsTuple = [
-  "#f7e6ff", // Lightest glitch purple
-  "#eeccff", // Very light glitch purple
-  "#dc99ff", // Light glitch purple
-  "#cc66ff", // Medium-light glitch purple
-  "#bb33ff", // Medium glitch purple
-  "#aa00ff", // Medium-dark glitch purple
-  "#9900e6", // Primary glitch purple
-  "#7700b3", // Dark glitch purple
-  "#550080", // Very dark glitch purple
-  "#33004d", // Darkest glitch purple
+// Sage - Muted, calming green
+const sage: MantineColorsTuple = [
+  "#f6f7f6",
+  "#e3e7e4",
+  "#c8d1ca",
+  "#a8b5ab",
+  "#889a8c",
+  "#6b8070",
+  "#566859",
+  "#445248",
+  "#333d36",
+  "#232926",
 ];
 
 // Theme interface for our custom themes
@@ -158,10 +158,10 @@ export interface RavenDocsTheme {
     | "purple"
     | "orange"
     | "teal"
-    | "neonGreen"
-    | "electricBlue"
-    | "terminalBlack"
-    | "glitchPurple";
+    | "slate"
+    | "rose"
+    | "indigo"
+    | "sage";
   secondaryColor?:
     | "red"
     | "green"
@@ -169,10 +169,10 @@ export interface RavenDocsTheme {
     | "purple"
     | "orange"
     | "teal"
-    | "neonGreen"
-    | "electricBlue"
-    | "terminalBlack"
-    | "glitchPurple";
+    | "slate"
+    | "rose"
+    | "indigo"
+    | "sage";
   isDark?: boolean;
   fontFamily?: string;
   headingFontFamily?: string;
@@ -315,36 +315,110 @@ export const RAVEN_DOCS_THEMES: RavenDocsTheme[] = [
     textColor: "#e3f1ee",
     borderColor: "#2a3431",
   },
-  // Project 89 Themes
+  // Refined professional themes
   {
-    id: "project89-matrix",
-    name: "Project 89 Matrix",
-    description: "Hacker aesthetic with Matrix-inspired terminal green",
-    primaryColor: "neonGreen",
-    secondaryColor: "glitchPurple",
-    isDark: true,
-    headingFontFamily: "'Orbitron', sans-serif",
-    fontFamily: "'Share Tech Mono', 'Courier New', monospace",
-    bodyBg: "#070c0a",
-    surfaceBg: "#070c0a",
-    mutedBg: "#0c1411",
-    textColor: "#d7ffe9",
-    borderColor: "#1c2c25",
+    id: "slate-light",
+    name: "Slate Light",
+    description: "Clean, neutral and professional",
+    primaryColor: "slate",
+    secondaryColor: "blue",
+    isDark: false,
+    bodyBg: "#f8fafc",
+    surfaceBg: "#ffffff",
+    mutedBg: "#f1f5f9",
+    textColor: "#1e293b",
+    borderColor: "#e2e8f0",
   },
   {
-    id: "project89-tron",
-    name: "Project 89 Tron",
-    description: "Cyberpunk theme with Tron-inspired glowing blue",
-    primaryColor: "electricBlue",
-    secondaryColor: "neonGreen",
+    id: "slate-dark",
+    name: "Slate Dark",
+    description: "Clean, neutral and professional",
+    primaryColor: "slate",
+    secondaryColor: "blue",
     isDark: true,
-    headingFontFamily: "'Orbitron', sans-serif",
-    fontFamily: "'VT323', 'Courier New', monospace",
-    bodyBg: "#080d16",
-    surfaceBg: "#080d16",
-    mutedBg: "#0d1420",
-    textColor: "#d7efff",
-    borderColor: "#203048",
+    bodyBg: "#0f172a",
+    surfaceBg: "#1e293b",
+    mutedBg: "#334155",
+    textColor: "#f1f5f9",
+    borderColor: "#334155",
+  },
+  {
+    id: "rose-light",
+    name: "Rose Light",
+    description: "Warm and inviting",
+    primaryColor: "rose",
+    secondaryColor: "slate",
+    isDark: false,
+    bodyBg: "#fefcfc",
+    surfaceBg: "#ffffff",
+    mutedBg: "#fff1f2",
+    textColor: "#3f3f46",
+    borderColor: "#fecdd3",
+  },
+  {
+    id: "rose-dark",
+    name: "Rose Dark",
+    description: "Warm and inviting",
+    primaryColor: "rose",
+    secondaryColor: "slate",
+    isDark: true,
+    bodyBg: "#18181b",
+    surfaceBg: "#27272a",
+    mutedBg: "#3f3f46",
+    textColor: "#fafafa",
+    borderColor: "#52525b",
+  },
+  {
+    id: "indigo-light",
+    name: "Indigo Light",
+    description: "Sophisticated and focused",
+    primaryColor: "indigo",
+    secondaryColor: "rose",
+    isDark: false,
+    bodyBg: "#fafafc",
+    surfaceBg: "#ffffff",
+    mutedBg: "#eef2ff",
+    textColor: "#312e81",
+    borderColor: "#e0e7ff",
+  },
+  {
+    id: "indigo-dark",
+    name: "Indigo Dark",
+    description: "Sophisticated and focused",
+    primaryColor: "indigo",
+    secondaryColor: "rose",
+    isDark: true,
+    bodyBg: "#0f0f23",
+    surfaceBg: "#1a1a2e",
+    mutedBg: "#25253d",
+    textColor: "#e0e7ff",
+    borderColor: "#3730a3",
+  },
+  {
+    id: "sage-light",
+    name: "Sage Light",
+    description: "Natural and calming",
+    primaryColor: "sage",
+    secondaryColor: "orange",
+    isDark: false,
+    bodyBg: "#fafbfa",
+    surfaceBg: "#ffffff",
+    mutedBg: "#f6f7f6",
+    textColor: "#333d36",
+    borderColor: "#e3e7e4",
+  },
+  {
+    id: "sage-dark",
+    name: "Sage Dark",
+    description: "Natural and calming",
+    primaryColor: "sage",
+    secondaryColor: "orange",
+    isDark: true,
+    bodyBg: "#1a1d1b",
+    surfaceBg: "#232926",
+    mutedBg: "#333d36",
+    textColor: "#e3e7e4",
+    borderColor: "#445248",
   },
 ];
 
@@ -390,10 +464,10 @@ export const theme = createTheme({
     purple,
     orange,
     teal,
-    neonGreen,
-    electricBlue,
-    terminalBlack,
-    glitchPurple,
+    slate,
+    rose,
+    indigo,
+    sage,
   },
 
   // Increase font sizes for better readability

@@ -198,12 +198,25 @@ export function ThemeSwitcher() {
             <Group wrap="nowrap">
               <div
                 style={{
-                  width: rem(14),
-                  height: rem(14),
+                  width: rem(24),
+                  height: rem(18),
                   borderRadius: rem(4),
-                  backgroundColor: theme.colors[themeOption.primaryColor][5],
+                  backgroundColor: themeOption.bodyBg,
+                  border: `1px solid ${themeOption.borderColor}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: rem(8),
+                    height: rem(8),
+                    borderRadius: rem(2),
+                    backgroundColor: theme.colors[themeOption.primaryColor][5],
+                  }}
+                />
+              </div>
               <Text size="sm">{themeOption.name}</Text>
             </Group>
           </Menu.Item>
@@ -223,12 +236,25 @@ export function ThemeSwitcher() {
             <Group wrap="nowrap">
               <div
                 style={{
-                  width: rem(14),
-                  height: rem(14),
+                  width: rem(24),
+                  height: rem(18),
                   borderRadius: rem(4),
-                  backgroundColor: theme.colors[themeOption.primaryColor][5],
+                  backgroundColor: themeOption.bodyBg,
+                  border: `1px solid ${themeOption.borderColor}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-              />
+              >
+                <div
+                  style={{
+                    width: rem(8),
+                    height: rem(8),
+                    borderRadius: rem(2),
+                    backgroundColor: theme.colors[themeOption.primaryColor][5],
+                  }}
+                />
+              </div>
               <Text size="sm">{themeOption.name}</Text>
             </Group>
           </Menu.Item>
