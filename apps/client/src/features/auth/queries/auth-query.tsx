@@ -14,20 +14,19 @@ export function useVerifyUserTokenQuery(
   });
 }
 
-export function useCollabToken(): UseQueryResult<ICollabToken, Error> {
+export function useCollabToken() {
   return useQuery({
     queryKey: ["collab-token"],
-    queryFn: () => getCollabToken(),
+    queryFn: async (): Promise<ICollabToken> => getCollabToken(),
     staleTime: 20 * 60 * 60 * 1000, //20hrs
     //refetchInterval: 12 * 60 * 60 * 1000, // 12hrs
     //refetchIntervalInBackground: true,
     refetchOnMount: true,
-    //@ts-ignore
     retry: (failureCount, error) => {
-      if (isAxiosError(error) && error.response.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         return false;
       }
-      return 10;
+      return failureCount < 10;
     },
     retryDelay: (retryAttempt) => {
       // Exponential backoff: 5s, 10s, 20s, etc.

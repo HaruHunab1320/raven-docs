@@ -82,10 +82,10 @@ function HistoryList({ pageId }: Props) {
   useEffect(() => {
     if (
       pageHistoryList &&
-      pageHistoryList.items.length > 0 &&
+      pageHistoryList.length > 0 &&
       !activeHistoryId
     ) {
-      setActiveHistoryId(pageHistoryList.items[0].id);
+      setActiveHistoryId(pageHistoryList[0].id);
     }
   }, [pageHistoryList]);
 
@@ -97,7 +97,7 @@ function HistoryList({ pageId }: Props) {
     return <div>{t("Error loading page history.")}</div>;
   }
 
-  if (!pageHistoryList || pageHistoryList.items.length === 0) {
+  if (!pageHistoryList || pageHistoryList.length === 0) {
     return <>{t("No page history saved yet.")}</>;
   }
 
@@ -105,7 +105,7 @@ function HistoryList({ pageId }: Props) {
     <div>
       <ScrollArea h={620} w="100%" type="scroll" scrollbarSize={5}>
         {pageHistoryList &&
-          pageHistoryList.items.map((historyItem, index) => (
+          pageHistoryList.map((historyItem, index) => (
             <HistoryItem
               key={index}
               historyItem={historyItem}

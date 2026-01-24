@@ -31,6 +31,15 @@ type TraitMetric = {
   key: string;
   label: string;
   value: number;
+  trend?: "improving" | "stable" | "declining";
+  delta?: number;
+};
+
+type BehavioralPatterns = {
+  completionRate?: number;
+  consistencyScore?: number;
+  diversityScore?: number;
+  collaborationScore?: number;
 };
 
 const TRAIT_ORDER = [
@@ -159,13 +168,69 @@ function RadarChart({ traits }: { traits: TraitMetric[] }) {
   );
 }
 
-function toTraitMetrics(traits?: Record<string, number>): TraitMetric[] {
+function toTraitMetrics(
+  traits?: Record<string, number>,
+  traitTrends?: Array<{
+    trait: string;
+    current: number;
+    previous: number;
+    delta: number;
+    trend: "improving" | "stable" | "declining";
+  }>
+): TraitMetric[] {
   if (!traits) return [];
-  return TRAIT_ORDER.map((key) => ({
-    key,
-    label: TRAIT_LABELS[key] || key,
-    value: clamp(Number(traits[key])),
-  }));
+  return TRAIT_ORDER.map((key) => {
+    const trend = traitTrends?.find((t) => t.trait === key);
+    return {
+      key,
+      label: TRAIT_LABELS[key] || key,
+      value: clamp(Number(traits[key])),
+      trend: trend?.trend,
+      delta: trend?.delta,
+    };
+  });
+}
+
+function TrendIndicator({ trend, delta }: { trend?: string; delta?: number }) {
+  if (!trend || trend === "stable") {
+    return (
+      <Text size="xs" c="dimmed">
+        →
+      </Text>
+    );
+  }
+  if (trend === "improving") {
+    return (
+      <Text size="xs" c="green">
+        ↑ {delta !== undefined && `+${delta.toFixed(1)}`}
+      </Text>
+    );
+  }
+  return (
+    <Text size="xs" c="red">
+      ↓ {delta !== undefined && delta.toFixed(1)}
+    </Text>
+  );
+}
+
+function PatternBadge({ label, value }: { label: string; value?: number }) {
+  if (value === undefined) return null;
+  const percent = Math.round(value * 100);
+  let color = "gray";
+  if (percent >= 70) color = "green";
+  else if (percent >= 40) color = "yellow";
+  else if (percent > 0) color = "orange";
+
+  return (
+    <Group gap={4}>
+      <Text size="xs" c="dimmed">
+        {label}:
+      </Text>
+      <Text size="xs" fw={500} c={color}>
+        {percent}%
+      </Text>
+    </Group>
+  );
 }
 
 export default function PeopleInsights() {
@@ -349,10 +414,13 @@ export default function PeopleInsights() {
         <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
           {members.map((member) => {
             const profile = profileMap.get(member.id);
+            const profileContent = profile?.content as Record<string, any> | undefined;
+            const profileData = profileContent?.profile;
             const traits = toTraitMetrics(
-              (profile?.content as Record<string, any> | undefined)?.profile
-                ?.traits,
+              profileData?.traits,
+              profileData?.traitTrends,
             );
+            const patterns = profileData?.patterns as BehavioralPatterns | undefined;
             const activityStats = activityStatsByUser.get(member.id);
             const activityStats7d = activityStatsByUser7d.get(member.id);
             return (
@@ -399,14 +467,14 @@ export default function PeopleInsights() {
                   {traits.length ? (
                     <Group align="center" justify="space-between" wrap="wrap">
                       <RadarChart traits={traits} />
-                      <Stack gap={4} style={{ minWidth: 140 }}>
+                      <Stack gap={4} style={{ minWidth: 160 }}>
                         {traits.map((trait) => (
                           <div
                             key={`${member.id}-${trait.key}`}
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "1fr auto",
-                              columnGap: "10px",
+                              gridTemplateColumns: "1fr auto auto",
+                              columnGap: "8px",
                               alignItems: "center",
                               whiteSpace: "nowrap",
                             }}
@@ -415,6 +483,7 @@ export default function PeopleInsights() {
                             <Text size="xs" fw={600}>
                               {trait.value}/10
                             </Text>
+                            <TrendIndicator trend={trait.trend} delta={trait.delta} />
                           </div>
                         ))}
                       </Stack>
@@ -423,6 +492,18 @@ export default function PeopleInsights() {
                     <Text size="sm" c="dimmed">
                       {t("No trait signals yet")}
                     </Text>
+                  )}
+                  {patterns && (
+                    <Stack gap={4}>
+                      <Text size="xs" fw={500} c="dimmed">
+                        {t("Behavioral Patterns")}
+                      </Text>
+                      <Group gap="md">
+                        <PatternBadge label="Completion" value={patterns.completionRate} />
+                        <PatternBadge label="Consistency" value={patterns.consistencyScore} />
+                        <PatternBadge label="Collaboration" value={patterns.collaborationScore} />
+                      </Group>
+                    </Stack>
                   )}
                   <Stack gap={2}>
                     <Text size="xs" c="dimmed">
