@@ -1,0 +1,195 @@
+import api from "@/lib/api-client";
+
+export type ParallaxAgentStatus = "pending" | "approved" | "denied" | "revoked";
+
+export interface ParallaxAgent {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  capabilities: string[];
+  status: ParallaxAgentStatus;
+  requestedPermissions: string[];
+  grantedPermissions: string[];
+  metadata: Record<string, any>;
+  endpoint: string | null;
+  requestedAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  denialReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ParallaxAgentAssignment {
+  id: string;
+  agentId: string;
+  workspaceId: string;
+  assignmentType: "project" | "task";
+  projectId: string | null;
+  taskId: string | null;
+  role: "member" | "lead" | null;
+  assignedAt: string;
+  assignedBy: string | null;
+  unassignedAt: string | null;
+}
+
+export interface ParallaxAgentActivity {
+  id: string;
+  agentId: string;
+  workspaceId: string;
+  activityType: string;
+  description: string | null;
+  metadata: Record<string, any>;
+  projectId: string | null;
+  taskId: string | null;
+  pageId: string | null;
+  createdAt: string;
+}
+
+export interface ApproveAgentDto {
+  grantedPermissions: string[];
+}
+
+export interface DenyAgentDto {
+  reason: string;
+}
+
+export interface RevokeAgentDto {
+  reason: string;
+}
+
+export interface AssignAgentToProjectDto {
+  projectId: string;
+  role?: "member" | "lead";
+}
+
+export interface AssignAgentToTaskDto {
+  taskId: string;
+}
+
+// Get all agents in workspace
+export async function getWorkspaceAgents(status?: ParallaxAgentStatus): Promise<ParallaxAgent[]> {
+  const params = status ? { status } : {};
+  const response = await api.get<ParallaxAgent[]>("/parallax-agents", { params });
+  return response.data;
+}
+
+// Get pending access requests
+export async function getPendingRequests(): Promise<ParallaxAgent[]> {
+  const response = await api.get<ParallaxAgent[]>("/parallax-agents/pending");
+  return response.data;
+}
+
+// Get available (approved) agents
+export async function getAvailableAgents(capabilities?: string[]): Promise<ParallaxAgent[]> {
+  const params = capabilities?.length ? { capabilities: capabilities.join(",") } : {};
+  const response = await api.get<ParallaxAgent[]>("/parallax-agents/available", { params });
+  return response.data;
+}
+
+// Get single agent details
+export async function getAgent(agentId: string): Promise<ParallaxAgent> {
+  const response = await api.get<ParallaxAgent>(`/parallax-agents/${agentId}`);
+  return response.data;
+}
+
+// Approve agent access
+export async function approveAgent(agentId: string, data: ApproveAgentDto): Promise<ParallaxAgent> {
+  const response = await api.post<ParallaxAgent>(`/parallax-agents/${agentId}/approve`, data);
+  return response.data;
+}
+
+// Deny agent access
+export async function denyAgent(agentId: string, data: DenyAgentDto): Promise<ParallaxAgent> {
+  const response = await api.post<ParallaxAgent>(`/parallax-agents/${agentId}/deny`, data);
+  return response.data;
+}
+
+// Revoke agent access
+export async function revokeAgent(agentId: string, data: RevokeAgentDto): Promise<void> {
+  await api.post(`/parallax-agents/${agentId}/revoke`, data);
+}
+
+// Update agent permissions
+export async function updateAgentPermissions(
+  agentId: string,
+  permissions: string[]
+): Promise<ParallaxAgent> {
+  const response = await api.post<ParallaxAgent>(`/parallax-agents/${agentId}/permissions`, {
+    permissions,
+  });
+  return response.data;
+}
+
+// Assign agent to project
+export async function assignAgentToProject(
+  agentId: string,
+  data: AssignAgentToProjectDto
+): Promise<ParallaxAgentAssignment> {
+  const response = await api.post<ParallaxAgentAssignment>(
+    `/parallax-agents/${agentId}/assign/project`,
+    data
+  );
+  return response.data;
+}
+
+// Assign agent to task
+export async function assignAgentToTask(
+  agentId: string,
+  data: AssignAgentToTaskDto
+): Promise<ParallaxAgentAssignment> {
+  const response = await api.post<ParallaxAgentAssignment>(
+    `/parallax-agents/${agentId}/assign/task`,
+    data
+  );
+  return response.data;
+}
+
+// Get agent assignments
+export async function getAgentAssignments(agentId: string): Promise<ParallaxAgentAssignment[]> {
+  const response = await api.get<ParallaxAgentAssignment[]>(
+    `/parallax-agents/${agentId}/assignments`
+  );
+  return response.data;
+}
+
+// Unassign agent
+export async function unassignAgent(assignmentId: string): Promise<void> {
+  await api.delete(`/parallax-agents/assignments/${assignmentId}`);
+}
+
+// Get agent activity
+export async function getAgentActivity(
+  agentId: string,
+  limit?: number
+): Promise<ParallaxAgentActivity[]> {
+  const params = limit ? { limit: String(limit) } : {};
+  const response = await api.get<ParallaxAgentActivity[]>(
+    `/parallax-agents/${agentId}/activity`,
+    { params }
+  );
+  return response.data;
+}
+
+// Get workspace-wide activity
+export async function getWorkspaceActivity(limit?: number): Promise<ParallaxAgentActivity[]> {
+  const params = limit ? { limit: String(limit) } : {};
+  const response = await api.get<ParallaxAgentActivity[]>(
+    `/parallax-agents/activity/workspace`,
+    { params }
+  );
+  return response.data;
+}
+
+// Get agents assigned to a project
+export async function getProjectAgents(projectId: string): Promise<ParallaxAgent[]> {
+  const response = await api.get<ParallaxAgent[]>(`/parallax-agents/project/${projectId}`);
+  return response.data;
+}
+
+// Get agents assigned to a task
+export async function getTaskAgents(taskId: string): Promise<ParallaxAgent[]> {
+  const response = await api.get<ParallaxAgent[]>(`/parallax-agents/task/${taskId}`);
+  return response.data;
+}

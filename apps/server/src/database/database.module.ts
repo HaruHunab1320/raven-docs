@@ -21,6 +21,11 @@ import { MCPApiKeyRepo } from './repos/mcp-api-key/mcp-api-key.repo';
 import { WorkspaceRepo } from './repos/workspace/workspace.repo';
 import { UserTokenRepo } from './repos/user-token/user-token.repo';
 import { MigrationService } from './services/migration.service';
+import {
+  ParallaxAgentRepo,
+  ParallaxAgentAssignmentRepo,
+  ParallaxAgentActivityRepo,
+} from './repos/parallax-agent';
 
 @Module({
   providers: [
@@ -61,6 +66,9 @@ import { MigrationService } from './services/migration.service';
     WorkspaceRepo,
     UserTokenRepo,
     MigrationService,
+    ParallaxAgentRepo,
+    ParallaxAgentAssignmentRepo,
+    ParallaxAgentActivityRepo,
   ],
   exports: [
     KYSELY,
@@ -82,6 +90,9 @@ import { MigrationService } from './services/migration.service';
     WorkspaceRepo,
     UserTokenRepo,
     MigrationService,
+    ParallaxAgentRepo,
+    ParallaxAgentAssignmentRepo,
+    ParallaxAgentActivityRepo,
   ],
 })
 export class DatabaseModule {}

@@ -20,6 +20,7 @@ import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
 import { ResearchHandler } from './handlers/research.handler';
+import { ParallaxAgentHandler } from './handlers/parallax-agent.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -55,6 +56,7 @@ import { AIModule } from '../../integrations/ai/ai.module';
 import { AgentMemoryModule } from '../../core/agent-memory/agent-memory.module';
 import { ResearchModule } from '../../core/research/research.module';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
+import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -84,6 +86,7 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     AIModule,
     AgentMemoryModule,
     ResearchModule,
+    forwardRef(() => ParallaxAgentsModule),
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -110,6 +113,7 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
     MemoryHandler,
     RepoHandler,
     ResearchHandler,
+    ParallaxAgentHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

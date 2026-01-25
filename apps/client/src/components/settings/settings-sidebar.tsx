@@ -10,6 +10,7 @@ import {
   IconBrush,
   IconApi,
   IconChartDots,
+  IconRobot,
 } from "@tabler/icons-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -69,6 +70,12 @@ const groupedData: DataGroup[] = [
         label: "API Keys",
         icon: IconApi,
         path: "/settings/api-keys",
+        isAdmin: true,
+      },
+      {
+        label: "Parallax Agents",
+        icon: IconRobot,
+        path: "/settings/parallax-agents",
         isAdmin: true,
       },
     ],

@@ -36,6 +36,7 @@ import { MemoryInsightsPage } from "@/features/agent-memory/pages/memory-insight
 import ResearchPage from "@/features/research/pages/research-page";
 import { TrashPage } from "@/features/space/pages/trash-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
+import ParallaxAgentsSettings from "@/pages/settings/workspace/parallax-agents.tsx";
 import { useEffect } from "react";
 
 // CSS for Project 89 themes
@@ -505,6 +506,7 @@ export default function App() {
           <Route path={"/settings/groups/:groupId"} element={<GroupInfo />} />
           <Route path={"/settings/spaces"} element={<Spaces />} />
           <Route path={"/settings/api-keys"} element={<ApiKeys />} />
+          <Route path={"/settings/parallax-agents"} element={<ParallaxAgentsSettings />} />
           <Route path={"/navigation-test"} element={<NavigationTestPage />} />
           <Route path={"*"} element={<Error404 />} />
         </Route>

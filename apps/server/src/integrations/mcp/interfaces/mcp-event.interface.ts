@@ -92,6 +92,46 @@ export enum MCPEventType {
    * Navigation event
    */
   NAVIGATION = 'navigation',
+
+  /**
+   * Agent access requested
+   */
+  AGENT_ACCESS_REQUESTED = 'agent_access_requested',
+
+  /**
+   * Agent access approved
+   */
+  AGENT_ACCESS_APPROVED = 'agent_access_approved',
+
+  /**
+   * Agent access denied
+   */
+  AGENT_ACCESS_DENIED = 'agent_access_denied',
+
+  /**
+   * Agent access revoked
+   */
+  AGENT_ACCESS_REVOKED = 'agent_access_revoked',
+
+  /**
+   * Agent assigned to project/task
+   */
+  AGENT_ASSIGNED = 'agent_assigned',
+
+  /**
+   * Agent unassigned from project/task
+   */
+  AGENT_UNASSIGNED = 'agent_unassigned',
+
+  /**
+   * Agent activity logged
+   */
+  AGENT_ACTIVITY = 'agent_activity',
+
+  /**
+   * Agent status changed (idle/working/paused)
+   */
+  AGENT_STATUS_CHANGED = 'agent_status_changed',
 }
 
 /**
@@ -108,6 +148,7 @@ export enum MCPResourceType {
   PROJECT = 'project',
   TASK = 'task',
   UI = 'ui',
+  AGENT = 'agent',
 }
 
 /**
@@ -122,6 +163,11 @@ export enum MCPOperationType {
   ADD_MEMBER = 'add_member',
   REMOVE_MEMBER = 'remove_member',
   NAVIGATE = 'navigate',
+  APPROVE = 'approve',
+  DENY = 'deny',
+  REVOKE = 'revoke',
+  ASSIGN = 'assign',
+  UNASSIGN = 'unassign',
 }
 
 /**

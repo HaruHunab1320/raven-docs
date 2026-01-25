@@ -25,6 +25,12 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type ParallaxAgentRole = "lead" | "member";
+
+export type ParallaxAgentStatus = "approved" | "denied" | "pending" | "revoked";
+
+export type ParallaxAssignmentType = "project" | "task";
+
 export type TaskBucket = "inbox" | "none" | "someday" | "waiting";
 
 export type TaskPriority = "high" | "low" | "medium" | "urgent";
@@ -237,7 +243,65 @@ export interface Pages {
   ydoc: Buffer | null;
 }
 
+export interface ParallaxAgentActivity {
+  agentId: string;
+  activityType: string;
+  createdAt: Generated<Timestamp>;
+  description: string | null;
+  id: Generated<string>;
+  metadata: Json | null;
+  pageId: string | null;
+  projectId: string | null;
+  taskId: string | null;
+  workspaceId: string;
+}
+
+export interface ParallaxAgentActivityDaily {
+  activityDate: Timestamp;
+  activityType: string;
+  agentId: string;
+  count: number;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  sampleMetadata: Json | null;
+  workspaceId: string;
+}
+
+export interface ParallaxAgentAssignments {
+  agentId: string;
+  assignedAt: Generated<Timestamp>;
+  assignedBy: string | null;
+  assignmentType: ParallaxAssignmentType;
+  id: Generated<string>;
+  projectId: string | null;
+  role: Generated<ParallaxAgentRole | null>;
+  taskId: string | null;
+  unassignedAt: Timestamp | null;
+  workspaceId: string;
+}
+
+export interface ParallaxAgents {
+  capabilities: string[];
+  createdAt: Generated<Timestamp>;
+  denialReason: string | null;
+  description: string | null;
+  endpoint: string | null;
+  grantedPermissions: Generated<string[]>;
+  id: string;
+  mcpApiKeyId: string | null;
+  metadata: Json | null;
+  name: string;
+  requestedAt: Generated<Timestamp>;
+  requestedPermissions: string[];
+  resolvedAt: Timestamp | null;
+  resolvedBy: string | null;
+  status: Generated<ParallaxAgentStatus>;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface Projects {
+  agentLive: Generated<boolean>;
   color: string | null;
   coverImage: string | null;
   createdAt: Generated<Timestamp>;
@@ -346,6 +410,7 @@ export interface TaskLabels {
 }
 
 export interface Tasks {
+  agentLive: Generated<boolean>;
   assigneeId: string | null;
   bucket: Generated<TaskBucket>;
   completedAt: Timestamp | null;
@@ -468,6 +533,10 @@ export interface DB {
   mcpApiKeys: McpApiKeys;
   pageHistory: PageHistory;
   pages: Pages;
+  parallaxAgentActivity: ParallaxAgentActivity;
+  parallaxAgentActivityDaily: ParallaxAgentActivityDaily;
+  parallaxAgentAssignments: ParallaxAgentAssignments;
+  parallaxAgents: ParallaxAgents;
   projects: Projects;
   projectViews: ProjectViews;
   researchJobs: ResearchJobs;

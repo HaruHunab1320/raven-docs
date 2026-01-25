@@ -167,3 +167,25 @@ export type UpdatableTaskLabelAssignment = Updateable<
 export type TaskWatcher = Selectable<TaskWatchers>;
 export type InsertableTaskWatcher = Insertable<TaskWatchers>;
 export type UpdatableTaskWatcher = Updateable<Omit<TaskWatchers, 'id'>>;
+
+// Parallax Agent types are defined in the repo files
+// Re-exported here for convenience
+export type {
+  ParallaxAgent,
+  InsertableParallaxAgent,
+  UpdateableParallaxAgent,
+  ParallaxAgentStatus,
+} from '../repos/parallax-agent/parallax-agent.repo';
+
+export type {
+  ParallaxAgentAssignment,
+  InsertableAgentAssignment,
+  AssignmentType,
+  AgentRole,
+} from '../repos/parallax-agent/parallax-agent-assignment.repo';
+
+export type {
+  ParallaxAgentActivity,
+  InsertableAgentActivity,
+  ParallaxAgentActivityDaily,
+} from '../repos/parallax-agent/parallax-agent-activity.repo';

@@ -384,4 +384,171 @@ export class MCPEventService {
       payload.targetSpaceId,
     );
   }
+
+  // ========== Parallax Agent Event Handlers ==========
+
+  @OnEvent('parallax.access_requested')
+  handleAgentAccessRequested(payload: {
+    agent: any;
+    workspaceId: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ACCESS_REQUESTED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.CREATE,
+      resourceId: payload.agent.id,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agent.id,
+        agentName: payload.agent.name,
+        capabilities: payload.agent.capabilities,
+        requestedPermissions: payload.agent.requestedPermissions,
+      },
+      userId: 'system', // Access requests come from Parallax, not a user
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.access_approved')
+  handleAgentAccessApproved(payload: {
+    agent: any;
+    workspaceId: string;
+    grantedPermissions: string[];
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ACCESS_APPROVED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.APPROVE,
+      resourceId: payload.agent.id,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agent.id,
+        agentName: payload.agent.name,
+        grantedPermissions: payload.grantedPermissions,
+        approvedBy: payload.agent.resolvedBy,
+      },
+      userId: payload.agent.resolvedBy || 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.access_denied')
+  handleAgentAccessDenied(payload: {
+    agent: any;
+    workspaceId: string;
+    reason: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ACCESS_DENIED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.DENY,
+      resourceId: payload.agent.id,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agent.id,
+        agentName: payload.agent.name,
+        reason: payload.reason,
+        deniedBy: payload.agent.resolvedBy,
+      },
+      userId: payload.agent.resolvedBy || 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.access_revoked')
+  handleAgentAccessRevoked(payload: {
+    agentId: string;
+    workspaceId: string;
+    reason: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ACCESS_REVOKED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.REVOKE,
+      resourceId: payload.agentId,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agentId,
+        reason: payload.reason,
+      },
+      userId: 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.project_assigned')
+  handleAgentProjectAssigned(payload: {
+    agentId: string;
+    projectId: string;
+    role: string;
+    workspaceId: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ASSIGNED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.ASSIGN,
+      resourceId: payload.agentId,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agentId,
+        assignmentType: 'project',
+        projectId: payload.projectId,
+        role: payload.role,
+      },
+      userId: 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.task_assigned')
+  handleAgentTaskAssigned(payload: {
+    agentId: string;
+    taskId: string;
+    workspaceId: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_ASSIGNED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.ASSIGN,
+      resourceId: payload.agentId,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agentId,
+        assignmentType: 'task',
+        taskId: payload.taskId,
+      },
+      userId: 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
+
+  @OnEvent('parallax.unassigned')
+  handleAgentUnassigned(payload: {
+    agentId: string;
+    assignmentType: string;
+    targetId: string;
+    workspaceId: string;
+  }): void {
+    const event: MCPEvent = {
+      type: MCPEventType.AGENT_UNASSIGNED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.UNASSIGN,
+      resourceId: payload.agentId,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: payload.agentId,
+        assignmentType: payload.assignmentType,
+        targetId: payload.targetId,
+      },
+      userId: 'system',
+      workspaceId: payload.workspaceId,
+    };
+    this.publishEvent(event);
+  }
 }

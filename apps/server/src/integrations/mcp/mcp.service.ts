@@ -20,6 +20,7 @@ import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
 import { ResearchHandler } from './handlers/research.handler';
+import { ParallaxAgentHandler } from './handlers/parallax-agent.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -69,6 +70,7 @@ export class MCPService {
     private readonly memoryHandler: MemoryHandler,
     private readonly repoHandler: RepoHandler,
     private readonly researchHandler: ResearchHandler,
+    private readonly parallaxAgentHandler: ParallaxAgentHandler,
   ) {}
 
   /**
@@ -317,6 +319,16 @@ export class MCPService {
           case 'research':
             this.logger.debug(`MCPService: Delegating to research handler`);
             result = await this.handleResearchRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'agent':
+            this.logger.debug(
+              `MCPService: Delegating to parallax agent handler`,
+            );
+            result = await this.handleAgentRequest(
               operation,
               request.params,
               user.id,
@@ -625,6 +637,41 @@ export class MCPService {
         return this.researchHandler.info(params, userId);
       default:
         throw createMethodNotFoundError(`research.${operation}`);
+    }
+  }
+
+  /**
+   * Handle Parallax agent-related requests
+   *
+   * @param operation The operation to perform
+   * @param params The operation parameters
+   * @param userId The ID of the authenticated user
+   * @returns The operation result
+   */
+  private async handleAgentRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'myAssignments':
+        return this.parallaxAgentHandler.myAssignments(params, userId);
+      case 'updateStatus':
+        return this.parallaxAgentHandler.updateStatus(params, userId);
+      case 'logActivity':
+        return this.parallaxAgentHandler.logActivity(params, userId);
+      case 'listWorkspace':
+        return this.parallaxAgentHandler.listWorkspace(params, userId);
+      case 'claimTask':
+        return this.parallaxAgentHandler.claimTask(params, userId);
+      case 'delegate':
+        return this.parallaxAgentHandler.delegate(params, userId);
+      case 'activity':
+        return this.parallaxAgentHandler.activity(params, userId);
+      case 'profile':
+        return this.parallaxAgentHandler.profile(params, userId);
+      default:
+        throw createMethodNotFoundError(`agent.${operation}`);
     }
   }
 
