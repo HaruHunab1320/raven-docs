@@ -25,6 +25,7 @@ import {
   ParallaxAgentRepo,
   ParallaxAgentAssignmentRepo,
   ParallaxAgentActivityRepo,
+  AgentInviteRepo,
 } from './repos/parallax-agent';
 
 @Module({
@@ -69,6 +70,7 @@ import {
     ParallaxAgentRepo,
     ParallaxAgentAssignmentRepo,
     ParallaxAgentActivityRepo,
+    AgentInviteRepo,
   ],
   exports: [
     KYSELY,
@@ -93,6 +95,7 @@ import {
     ParallaxAgentRepo,
     ParallaxAgentAssignmentRepo,
     ParallaxAgentActivityRepo,
+    AgentInviteRepo,
   ],
 })
 export class DatabaseModule {}

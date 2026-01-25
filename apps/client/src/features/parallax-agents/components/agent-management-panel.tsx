@@ -33,7 +33,7 @@ export function AgentManagementPanel() {
       <Group justify="space-between">
         <Group>
           <IconRobot size={28} />
-          <Title order={2}>{t("Parallax Agents")}</Title>
+          <Title order={2}>{t("Agents")}</Title>
         </Group>
         <Group gap="xs">
           <Badge variant="light" color="green">

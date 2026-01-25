@@ -506,7 +506,7 @@ export default function App() {
           <Route path={"/settings/groups/:groupId"} element={<GroupInfo />} />
           <Route path={"/settings/spaces"} element={<Spaces />} />
           <Route path={"/settings/api-keys"} element={<ApiKeys />} />
-          <Route path={"/settings/parallax-agents"} element={<ParallaxAgentsSettings />} />
+          <Route path={"/settings/agents"} element={<ParallaxAgentsSettings />} />
           <Route path={"/navigation-test"} element={<NavigationTestPage />} />
           <Route path={"*"} element={<Error404 />} />
         </Route>

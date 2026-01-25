@@ -15,7 +15,7 @@ export default function ParallaxAgentsSettings() {
       <Container>
         <Alert icon={<IconInfoCircle />} color="yellow">
           <Text size="sm">
-            {t("You don't have permission to manage Parallax agents")}
+            {t("You don't have permission to manage agents")}
           </Text>
         </Alert>
       </Container>
@@ -26,10 +26,10 @@ export default function ParallaxAgentsSettings() {
     <Container fluid>
       <Stack gap="xl">
         <div>
-          <SettingsTitle title={t("Parallax Agents")} />
+          <SettingsTitle title={t("Agents")} />
           <Text c="dimmed" size="sm" mt="xs">
             {t(
-              "Manage AI agents that can autonomously access and interact with your workspace"
+              "Manage AI agents that can access and interact with your workspace"
             )}
           </Text>
         </div>

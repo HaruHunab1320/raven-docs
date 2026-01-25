@@ -21,6 +21,7 @@ export interface ParallaxAgent {
   mcpApiKeyId: string | null;
   metadata: Record<string, any>;
   endpoint: string | null;
+  inviteId: string | null;
   requestedAt: Date;
   resolvedAt: Date | null;
   resolvedBy: string | null;
@@ -41,6 +42,7 @@ export interface InsertableParallaxAgent {
   mcpApiKeyId?: string | null;
   metadata?: Record<string, any>;
   endpoint?: string | null;
+  inviteId?: string | null;
 }
 
 export interface UpdateableParallaxAgent {
@@ -53,6 +55,7 @@ export interface UpdateableParallaxAgent {
   mcpApiKeyId?: string | null;
   metadata?: Record<string, any>;
   endpoint?: string | null;
+  inviteId?: string | null;
   resolvedAt?: Date | null;
   resolvedBy?: string | null;
   denialReason?: string | null;
@@ -75,6 +78,7 @@ export class ParallaxAgentRepo {
     'mcpApiKeyId',
     'metadata',
     'endpoint',
+    'inviteId',
     'requestedAt',
     'resolvedAt',
     'resolvedBy',

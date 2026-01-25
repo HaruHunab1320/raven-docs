@@ -25,6 +25,10 @@ import {
   AssignAgentToProjectDto,
   AssignAgentToTaskDto,
 } from './dto/assign-agent.dto';
+import {
+  CreateAgentInviteDto,
+  RegisterWithInviteDto,
+} from './dto/agent-invite.dto';
 import { User } from '../../database/types/entity.types';
 import { Workspace } from '../../database/types/entity.types';
 import { ParallaxAgentStatus } from '../../database/repos/parallax-agent/parallax-agent.repo';
@@ -304,5 +308,118 @@ export class ParallaxAgentsController {
       workspace.id,
       limit ? parseInt(limit, 10) : 100,
     );
+  }
+
+  // ========== Invites ==========
+
+  /**
+   * Create a new agent invite
+   */
+  @Post('invites')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createInvite(
+    @Body() body: CreateAgentInviteDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentsService.createInvite(
+      workspace.id,
+      body.name,
+      body.permissions,
+      user.id,
+      {
+        description: body.description,
+        usesRemaining: body.usesRemaining,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+      },
+    );
+  }
+
+  /**
+   * Get all invites for the workspace
+   */
+  @Get('invites')
+  @UseGuards(JwtAuthGuard)
+  async getInvites(@AuthWorkspace() workspace: Workspace) {
+    return this.agentsService.getWorkspaceInvites(workspace.id);
+  }
+
+  /**
+   * Get active invites for the workspace
+   */
+  @Get('invites/active')
+  @UseGuards(JwtAuthGuard)
+  async getActiveInvites(@AuthWorkspace() workspace: Workspace) {
+    return this.agentsService.getActiveInvites(workspace.id);
+  }
+
+  /**
+   * Get single invite details
+   */
+  @Get('invites/:inviteId')
+  @UseGuards(JwtAuthGuard)
+  async getInvite(
+    @Param('inviteId') inviteId: string,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const invite = await this.agentsService.getInvite(inviteId);
+    if (!invite || invite.workspaceId !== workspace.id) {
+      throw new Error('Invite not found');
+    }
+    return invite;
+  }
+
+  /**
+   * Revoke an invite
+   */
+  @Post('invites/:inviteId/revoke')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async revokeInvite(
+    @Param('inviteId') inviteId: string,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const invite = await this.agentsService.getInvite(inviteId);
+    if (!invite || invite.workspaceId !== workspace.id) {
+      throw new Error('Invite not found');
+    }
+    return this.agentsService.revokeInvite(inviteId);
+  }
+
+  /**
+   * Delete an invite
+   */
+  @Delete('invites/:inviteId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async deleteInvite(
+    @Param('inviteId') inviteId: string,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const invite = await this.agentsService.getInvite(inviteId);
+    if (!invite || invite.workspaceId !== workspace.id) {
+      throw new Error('Invite not found');
+    }
+    await this.agentsService.deleteInvite(inviteId);
+    return { success: true };
+  }
+
+  /**
+   * Public endpoint for agents to register with an invite token
+   * This endpoint does not require authentication
+   */
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async registerWithInvite(@Body() body: RegisterWithInviteDto) {
+    return this.agentsService.registerWithInvite(body.inviteToken, {
+      agentId: body.agentId,
+      agentName: body.agentName,
+      description: body.description,
+      capabilities: body.capabilities,
+      requestedPermissions: body.requestedPermissions || [],
+      metadata: body.metadata,
+      endpoint: body.endpoint,
+    });
   }
 }

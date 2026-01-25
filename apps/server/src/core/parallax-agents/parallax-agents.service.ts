@@ -13,6 +13,11 @@ import {
   ParallaxAgentActivityRepo,
   ParallaxAgentActivity,
 } from '../../database/repos/parallax-agent/parallax-agent-activity.repo';
+import {
+  AgentInviteRepo,
+  AgentInvite,
+  CreateAgentInviteInput,
+} from '../../database/repos/parallax-agent/agent-invite.repo';
 import { MCPApiKeyService } from '../../integrations/mcp/services/mcp-api-key.service';
 import { AgentAccessRequestDto } from './dto/access-request.dto';
 import {
@@ -34,6 +39,7 @@ export class ParallaxAgentsService {
     private readonly agentRepo: ParallaxAgentRepo,
     private readonly assignmentRepo: ParallaxAgentAssignmentRepo,
     private readonly activityRepo: ParallaxAgentActivityRepo,
+    private readonly inviteRepo: AgentInviteRepo,
     private readonly mcpApiKeyService: MCPApiKeyService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -576,6 +582,168 @@ export class ParallaxAgentsService {
     limit = 50,
   ): Promise<ParallaxAgentActivity[]> {
     return this.activityRepo.findByProject(projectId, limit);
+  }
+
+  // ========== Invites ==========
+
+  async createInvite(
+    workspaceId: string,
+    name: string,
+    permissions: string[],
+    createdBy: string,
+    options?: {
+      description?: string;
+      usesRemaining?: number | null;
+      expiresAt?: Date | null;
+    },
+  ): Promise<AgentInvite> {
+    // Validate permissions
+    const invalidPermissions = permissions.filter(
+      (p) => !(p in AGENT_PERMISSIONS),
+    );
+    if (invalidPermissions.length > 0) {
+      throw new Error(`Invalid permissions: ${invalidPermissions.join(', ')}`);
+    }
+
+    const invite = await this.inviteRepo.create({
+      workspaceId,
+      name,
+      permissions,
+      createdBy,
+      description: options?.description,
+      usesRemaining: options?.usesRemaining,
+      expiresAt: options?.expiresAt,
+    });
+
+    this.logger.log(`Agent invite created: ${invite.id} for workspace ${workspaceId}`);
+
+    return invite;
+  }
+
+  async getWorkspaceInvites(workspaceId: string): Promise<AgentInvite[]> {
+    return this.inviteRepo.findByWorkspace(workspaceId);
+  }
+
+  async getActiveInvites(workspaceId: string): Promise<AgentInvite[]> {
+    return this.inviteRepo.findActiveByWorkspace(workspaceId);
+  }
+
+  async getInvite(inviteId: string): Promise<AgentInvite | undefined> {
+    return this.inviteRepo.findById(inviteId);
+  }
+
+  async revokeInvite(inviteId: string): Promise<AgentInvite> {
+    const invite = await this.inviteRepo.revoke(inviteId);
+    this.logger.log(`Agent invite revoked: ${inviteId}`);
+    return invite;
+  }
+
+  async deleteInvite(inviteId: string): Promise<void> {
+    await this.inviteRepo.delete(inviteId);
+    this.logger.log(`Agent invite deleted: ${inviteId}`);
+  }
+
+  async registerWithInvite(
+    inviteToken: string,
+    request: AgentAccessRequestDto,
+  ): Promise<ApprovalResult> {
+    // Validate the invite
+    const { valid, invite, reason } = await this.inviteRepo.isValidInvite(inviteToken);
+
+    if (!valid || !invite) {
+      throw new Error(reason || 'Invalid invite');
+    }
+
+    // Check if agent already exists
+    const existing = await this.agentRepo.findByIdAndWorkspace(
+      request.agentId,
+      invite.workspaceId,
+    );
+
+    if (existing) {
+      if (existing.status === 'approved') {
+        throw new Error('Agent already has access to this workspace');
+      }
+      // If pending/denied/revoked, we'll update and approve
+    }
+
+    // Check workspace agent limit
+    const agentCount = await this.agentRepo.countByWorkspace(invite.workspaceId);
+    if (agentCount >= AGENT_LIMITS.maxAgentsPerWorkspace) {
+      throw new Error(
+        `Workspace has reached maximum agent limit (${AGENT_LIMITS.maxAgentsPerWorkspace})`,
+      );
+    }
+
+    // Create or update the agent record
+    let agent: ParallaxAgent;
+    if (existing) {
+      agent = await this.agentRepo.update(request.agentId, invite.workspaceId, {
+        name: request.agentName,
+        description: request.description,
+        capabilities: request.capabilities,
+        requestedPermissions: request.requestedPermissions,
+        metadata: request.metadata || {},
+        endpoint: request.endpoint,
+        inviteId: invite.id,
+      });
+    } else {
+      agent = await this.agentRepo.create({
+        id: request.agentId,
+        workspaceId: invite.workspaceId,
+        name: request.agentName,
+        description: request.description,
+        capabilities: request.capabilities,
+        requestedPermissions: request.requestedPermissions,
+        metadata: request.metadata || {},
+        endpoint: request.endpoint,
+        inviteId: invite.id,
+      });
+    }
+
+    // Increment invite usage
+    await this.inviteRepo.incrementUsage(invite.id);
+
+    // Create MCP API key for this agent
+    const apiKey = await this.mcpApiKeyService.generateApiKey(
+      `agent:${request.agentId}`,
+      invite.workspaceId,
+      `Agent: ${request.agentName}`,
+    );
+
+    // Auto-approve with invite permissions
+    const updatedAgent = await this.agentRepo.update(request.agentId, invite.workspaceId, {
+      status: 'approved',
+      grantedPermissions: invite.permissions,
+      resolvedAt: new Date(),
+      // resolvedBy is null for invite-based registration
+    });
+
+    await this.logActivity(agent.id, invite.workspaceId, 'access_approved', {
+      via: 'invite',
+      inviteId: invite.id,
+      inviteName: invite.name,
+      grantedPermissions: invite.permissions,
+    });
+
+    this.eventEmitter.emit('parallax.access_approved', {
+      agent: updatedAgent,
+      workspaceId: invite.workspaceId,
+      grantedPermissions: invite.permissions,
+      via: 'invite',
+    });
+
+    // Notify Parallax control plane
+    await this.notifyParallax(request.agentId, invite.workspaceId, 'approved', {
+      grantedPermissions: invite.permissions,
+      mcpApiKey: apiKey,
+    });
+
+    this.logger.log(
+      `Agent ${request.agentId} registered via invite ${invite.id} in workspace ${invite.workspaceId}`,
+    );
+
+    return { agent: updatedAgent, mcpApiKey: apiKey };
   }
 
   // ========== Private Helpers ==========

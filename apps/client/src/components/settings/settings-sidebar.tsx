@@ -73,9 +73,9 @@ const groupedData: DataGroup[] = [
         isAdmin: true,
       },
       {
-        label: "Parallax Agents",
+        label: "Agents",
         icon: IconRobot,
-        path: "/settings/parallax-agents",
+        path: "/settings/agents",
         isAdmin: true,
       },
     ],
