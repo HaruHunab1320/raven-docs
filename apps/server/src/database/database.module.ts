@@ -27,6 +27,7 @@ import {
   ParallaxAgentActivityRepo,
   AgentInviteRepo,
 } from './repos/parallax-agent';
+import { TerminalSessionRepo } from './repos/terminal-session/terminal-session.repo';
 
 @Module({
   providers: [
@@ -71,6 +72,7 @@ import {
     ParallaxAgentAssignmentRepo,
     ParallaxAgentActivityRepo,
     AgentInviteRepo,
+    TerminalSessionRepo,
   ],
   exports: [
     KYSELY,
@@ -96,6 +98,7 @@ import {
     ParallaxAgentAssignmentRepo,
     ParallaxAgentActivityRepo,
     AgentInviteRepo,
+    TerminalSessionRepo,
   ],
 })
 export class DatabaseModule {}

@@ -37,6 +37,8 @@ export type TaskPriority = "high" | "low" | "medium" | "urgent";
 
 export type TaskStatus = "blocked" | "done" | "in_progress" | "in_review" | "todo";
 
+export type TerminalSessionStatus = "active" | "connecting" | "disconnected" | "login_required" | "pending" | "terminated";
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface AgentInvites {
@@ -471,6 +473,32 @@ export interface TaskWatchers {
   userId: string;
 }
 
+export interface TerminalSessionLogs {
+  content: string | null;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  logType: string;
+  sessionId: string;
+}
+
+export interface TerminalSessions {
+  agentId: string;
+  cols: Generated<number | null>;
+  connectedUserId: string | null;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  lastActivityAt: Timestamp | null;
+  metadata: Generated<Json | null>;
+  rows: Generated<number | null>;
+  runtimeEndpoint: string | null;
+  runtimeSessionId: string;
+  status: Generated<TerminalSessionStatus>;
+  terminatedAt: Timestamp | null;
+  title: string | null;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface Users {
   avatarUrl: string | null;
   createdAt: Generated<Timestamp>;
@@ -570,6 +598,8 @@ export interface DB {
   taskLabels: TaskLabels;
   tasks: Tasks;
   taskWatchers: TaskWatchers;
+  terminalSessionLogs: TerminalSessionLogs;
+  terminalSessions: TerminalSessions;
   users: Users;
   userTokens: UserTokens;
   workspaceInvitations: WorkspaceInvitations;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Stack,
   Title,
@@ -10,6 +11,8 @@ import {
   SimpleGrid,
   ActionIcon,
   Tooltip,
+  Collapse,
+  Box,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -17,6 +20,10 @@ import {
   IconShield,
   IconActivity,
   IconTrash,
+  IconTerminal2,
+  IconPlayerStop,
+  IconChevronDown,
+  IconChevronUp,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { ParallaxAgent, ParallaxAgentStatus } from "../services/parallax-agent-service";
@@ -25,9 +32,12 @@ import {
   useAgentAssignments,
   useRevokeAgent,
   useUnassignAgent,
+  useAgentTerminalSession,
+  useTerminateTerminalSession,
 } from "../queries/parallax-agent-query";
 import { modals } from "@mantine/modals";
 import dayjs from "dayjs";
+import { WebTerminal } from "@/features/terminal";
 
 const STATUS_COLORS: Record<ParallaxAgentStatus, string> = {
   pending: "yellow",
@@ -44,8 +54,11 @@ interface AgentDetailPanelProps {
 export function AgentDetailPanel({ agent, onBack }: AgentDetailPanelProps) {
   const { t } = useTranslation();
   const { data: assignments } = useAgentAssignments(agent.id);
+  const { data: terminalSession, isLoading: isLoadingSession } = useAgentTerminalSession(agent.id);
   const revokeAgent = useRevokeAgent();
   const unassignAgent = useUnassignAgent();
+  const terminateTerminal = useTerminateTerminalSession();
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   const handleRevoke = () => {
     modals.openConfirmModal({
@@ -289,6 +302,95 @@ export function AgentDetailPanel({ agent, onBack }: AgentDetailPanelProps) {
           )}
         </Stack>
       </Paper>
+
+      {/* Terminal Section */}
+      {agent.status === "approved" && (
+        <Paper p="md" withBorder>
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Group>
+                <IconTerminal2 size={20} />
+                <Title order={4}>{t("Terminal")}</Title>
+              </Group>
+              <Group gap="xs">
+                {terminalSession && terminalSession.status !== "terminated" ? (
+                  <>
+                    <Badge
+                      color={
+                        terminalSession.status === "active"
+                          ? "green"
+                          : terminalSession.status === "connecting"
+                          ? "blue"
+                          : terminalSession.status === "login_required"
+                          ? "orange"
+                          : "gray"
+                      }
+                      variant="light"
+                    >
+                      {terminalSession.status}
+                    </Badge>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      leftSection={isTerminalOpen ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                      onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+                    >
+                      {isTerminalOpen ? t("Hide Terminal") : t("Show Terminal")}
+                    </Button>
+                    <Tooltip label={t("Terminate Session")}>
+                      <ActionIcon
+                        color="red"
+                        variant="light"
+                        onClick={() => {
+                          modals.openConfirmModal({
+                            title: t("Terminate Terminal Session"),
+                            children: (
+                              <Text size="sm">
+                                {t("Are you sure you want to terminate this terminal session?")}
+                              </Text>
+                            ),
+                            labels: { confirm: t("Terminate"), cancel: t("Cancel") },
+                            confirmProps: { color: "red" },
+                            onConfirm: () => {
+                              terminateTerminal.mutate(terminalSession.id);
+                              setIsTerminalOpen(false);
+                            },
+                          });
+                        }}
+                      >
+                        <IconPlayerStop size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </>
+                ) : (
+                  <Badge color="gray" variant="light">
+                    {t("No Active Session")}
+                  </Badge>
+                )}
+              </Group>
+            </Group>
+            <Divider />
+
+            {terminalSession && terminalSession.status !== "terminated" ? (
+              <Collapse in={isTerminalOpen}>
+                <Box mt="sm">
+                  <WebTerminal
+                    sessionId={terminalSession.id}
+                    height={400}
+                    onClose={() => setIsTerminalOpen(false)}
+                  />
+                </Box>
+              </Collapse>
+            ) : (
+              <Text size="sm" c="dimmed">
+                {isLoadingSession
+                  ? t("Checking for active terminal session...")
+                  : t("No active terminal session. The agent runtime will create a session when the agent starts.")}
+              </Text>
+            )}
+          </Stack>
+        </Paper>
+      )}
 
       {/* Activity Feed */}
       <Paper p="md" withBorder>

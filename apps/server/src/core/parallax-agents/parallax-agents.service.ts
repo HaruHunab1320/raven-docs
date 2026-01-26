@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ParallaxAgentRepo,
@@ -19,6 +19,7 @@ import {
   CreateAgentInviteInput,
 } from '../../database/repos/parallax-agent/agent-invite.repo';
 import { MCPApiKeyService } from '../../integrations/mcp/services/mcp-api-key.service';
+import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { AgentAccessRequestDto } from './dto/access-request.dto';
 import {
   AGENT_LIMITS,
@@ -42,6 +43,8 @@ export class ParallaxAgentsService {
     private readonly inviteRepo: AgentInviteRepo,
     private readonly mcpApiKeyService: MCPApiKeyService,
     private readonly eventEmitter: EventEmitter2,
+    @Inject(forwardRef(() => TerminalSessionService))
+    private readonly terminalSessionService: TerminalSessionService,
   ) {}
 
   // ========== Access Management ==========
@@ -256,6 +259,14 @@ export class ParallaxAgentsService {
     // Revoke the MCP API key
     // Note: This would need the API key service to support revoking by metadata
     // For now, we'll mark the agent as revoked
+
+    // Terminate any active terminal sessions
+    try {
+      await this.terminalSessionService.terminateByAgent(agentId);
+      this.logger.log(`Terminated terminal sessions for agent ${agentId}`);
+    } catch (error: any) {
+      this.logger.warn(`Failed to terminate terminal sessions: ${error.message}`);
+    }
 
     // Remove all active assignments
     await this.assignmentRepo.unassignAllByAgent(agentId);
@@ -808,6 +819,24 @@ export class ParallaxAgentsService {
 
       // Process spawned agents from runtime response
       for (const agent of result.agents || []) {
+        // If the runtime provides a session ID, create terminal session immediately
+        if (agent.runtimeSessionId) {
+          try {
+            const session = await this.terminalSessionService.createSession(
+              agent.id,
+              workspaceId,
+              agent.runtimeSessionId,
+              {
+                title: agent.name || `Terminal: ${request.agentType}`,
+                runtimeEndpoint: agent.runtimeEndpoint,
+              },
+            );
+            this.logger.log(`Terminal session ${session.id} created for spawned agent ${agent.id}`);
+          } catch (error: any) {
+            this.logger.warn(`Failed to create terminal session: ${error.message}`);
+          }
+        }
+
         spawnedAgents.push({
           id: agent.id,
           name: agent.name || `${request.agentType}-${agent.id.slice(0, 8)}`,
@@ -927,23 +956,72 @@ export class ParallaxAgentsService {
       error?: string;
       loginUrl?: string;
       mcpEndpoint?: string;
+      runtimeSessionId?: string;
+      runtimeEndpoint?: string;
     },
   ): Promise<void> {
     this.logger.log(`Spawn callback: ${callback.agentId} is ${callback.status}`);
 
     if (callback.status === 'ready') {
-      // Agent is ready, create/update agent record
+      // Agent is ready, create terminal session if runtime session ID is provided
+      if (callback.runtimeSessionId) {
+        try {
+          const agent = await this.agentRepo.findById(callback.agentId);
+          const session = await this.terminalSessionService.createSession(
+            callback.agentId,
+            workspaceId,
+            callback.runtimeSessionId,
+            {
+              title: agent ? `Terminal: ${agent.name}` : `Terminal: ${callback.agentId}`,
+              runtimeEndpoint: callback.runtimeEndpoint,
+            },
+          );
+
+          this.logger.log(`Terminal session ${session.id} created for agent ${callback.agentId}`);
+
+          // Update session status to active
+          await this.terminalSessionService.updateStatus(session.id, 'active');
+        } catch (error: any) {
+          this.logger.error(`Failed to create terminal session: ${error.message}`);
+        }
+      }
+
       this.eventEmitter.emit('parallax.agent_ready', {
         workspaceId,
         agentId: callback.agentId,
         mcpEndpoint: callback.mcpEndpoint,
+        runtimeSessionId: callback.runtimeSessionId,
       });
     } else if (callback.status === 'requires_login') {
       // Agent needs user login (e.g., device code flow)
+      // Create terminal session in login_required state
+      if (callback.runtimeSessionId) {
+        try {
+          const agent = await this.agentRepo.findById(callback.agentId);
+          const session = await this.terminalSessionService.createSession(
+            callback.agentId,
+            workspaceId,
+            callback.runtimeSessionId,
+            {
+              title: agent ? `Terminal: ${agent.name}` : `Terminal: ${callback.agentId}`,
+              runtimeEndpoint: callback.runtimeEndpoint,
+            },
+          );
+
+          // Set session to login_required state
+          await this.terminalSessionService.updateStatus(session.id, 'login_required');
+
+          this.logger.log(`Terminal session ${session.id} waiting for login`);
+        } catch (error: any) {
+          this.logger.error(`Failed to create terminal session: ${error.message}`);
+        }
+      }
+
       this.eventEmitter.emit('parallax.login_required', {
         workspaceId,
         agentId: callback.agentId,
         loginUrl: callback.loginUrl,
+        runtimeSessionId: callback.runtimeSessionId,
       });
     } else if (callback.status === 'failed') {
       this.eventEmitter.emit('parallax.spawn_failed', {
@@ -956,6 +1034,7 @@ export class ParallaxAgentsService {
     await this.logActivity(callback.agentId, workspaceId, `spawn_${callback.status}`, {
       error: callback.error,
       loginUrl: callback.loginUrl,
+      runtimeSessionId: callback.runtimeSessionId,
     });
   }
 

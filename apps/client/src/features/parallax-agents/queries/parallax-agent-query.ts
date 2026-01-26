@@ -31,6 +31,10 @@ import {
   type AssignAgentToTaskDto,
   type CreateAgentInviteDto,
 } from "../services/parallax-agent-service";
+import {
+  getAgentSession,
+  terminateSession,
+} from "@/features/terminal/services/terminal-service";
 
 // Query keys
 export const PARALLAX_AGENTS_KEY = ["parallax-agents"];
@@ -45,6 +49,7 @@ export const PARALLAX_TASK_AGENTS_KEY = (id: string) => ["parallax-agents", "tas
 export const AGENT_INVITES_KEY = ["agent-invites"];
 export const AGENT_INVITES_ACTIVE_KEY = ["agent-invites", "active"];
 export const AGENT_INVITE_KEY = (id: string) => ["agent-invites", id];
+export const AGENT_TERMINAL_SESSION_KEY = (agentId: string) => ["terminal-sessions", "agent", agentId];
 
 // Fetch all workspace agents
 export function useWorkspaceAgents(status?: ParallaxAgentStatus) {
@@ -411,6 +416,44 @@ export function useDeleteInvite() {
       notifications.show({
         title: "Error",
         message: error.response?.data?.message || "Failed to delete invite",
+        color: "red",
+      });
+    },
+  });
+}
+
+// ========== Agent Terminal Sessions ==========
+
+// Get agent's active terminal session
+export function useAgentTerminalSession(agentId: string) {
+  return useQuery({
+    queryKey: AGENT_TERMINAL_SESSION_KEY(agentId),
+    queryFn: () => getAgentSession(agentId),
+    enabled: !!agentId,
+    staleTime: 1000 * 10, // 10 seconds
+    refetchInterval: 1000 * 30, // Refresh every 30 seconds
+  });
+}
+
+// Terminate terminal session mutation
+export function useTerminateTerminalSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => terminateSession(sessionId),
+    onSuccess: () => {
+      // Invalidate all terminal session queries
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+      notifications.show({
+        title: "Session Terminated",
+        message: "Terminal session has been terminated",
+        color: "orange",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to terminate session",
         color: "red",
       });
     },

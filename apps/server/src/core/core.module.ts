@@ -23,6 +23,7 @@ import { AgentModule } from './agent/agent.module';
 import { GoalModule } from './goal/goal.module';
 import { ResearchModule } from './research/research.module';
 import { ParallaxAgentsModule } from './parallax-agents/parallax-agents.module';
+import { TerminalModule } from './terminal/terminal.module';
 
 const modules = [
   UserModule,
@@ -41,6 +42,7 @@ const modules = [
   GoalModule,
   ResearchModule,
   ParallaxAgentsModule,
+  TerminalModule,
 ];
 
 @Module({

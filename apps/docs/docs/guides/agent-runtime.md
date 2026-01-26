@@ -209,6 +209,95 @@ raven-runtime start \
   --openai-key "sk-..."
 ```
 
+## Web Terminal
+
+Raven Docs provides a web-based terminal to interact directly with running agent environments, similar to the console access in GCP or AWS.
+
+### Accessing the Terminal
+
+1. Navigate to an agent's detail page
+2. If the agent has an active terminal session, you'll see the **Terminal** section
+3. Click **Show Terminal** to expand the terminal view
+4. The terminal connects via WebSocket to the agent's PTY session
+
+### Terminal Features
+
+- **Full PTY support** - Standard terminal emulation with xterm.js
+- **Real-time streaming** - Input and output are streamed live
+- **Resize support** - Terminal adapts to window size
+- **Session logging** - All I/O is logged for audit purposes
+- **Multiple viewers** - Multiple users can view the same session (read-only for non-attached users)
+
+### Terminal States
+
+| Status | Description |
+|--------|-------------|
+| Pending | Session created, waiting for runtime connection |
+| Connecting | Runtime is establishing PTY connection |
+| Active | Terminal is ready for interaction |
+| Login Required | Agent needs authentication (opens login URL) |
+| Disconnected | Runtime connection lost |
+| Terminated | Session has ended |
+
+### How It Works
+
+```
+┌─────────────────┐                    ┌─────────────────┐
+│   Browser       │◀───WebSocket────▶  │   Raven Docs    │
+│   (xterm.js)    │                    │   (Terminal GW) │
+└─────────────────┘                    └────────┬────────┘
+                                                │
+                                                │ WebSocket
+                                                ▼
+                                       ┌─────────────────┐
+                                       │  Agent Runtime  │
+                                       │  (PTY Session)  │
+                                       └─────────────────┘
+```
+
+1. When an agent spawns, the runtime creates a PTY session
+2. Runtime connects to Raven Docs Terminal Gateway via WebSocket
+3. User's browser connects to the same gateway
+4. Input/output is relayed between browser and PTY in real-time
+
+### Runtime Integration
+
+When implementing a custom runtime, include terminal session support:
+
+```javascript
+// On agent spawn, create terminal session
+const response = await fetch('https://raven-docs.com/api/terminal/sessions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    agentId: agent.id,
+    workspaceId: workspaceId,
+    runtimeSessionId: ptySession.id,
+    runtimeEndpoint: 'wss://runtime.example.com/terminal'
+  })
+});
+
+// Connect to terminal gateway
+const socket = io('wss://raven-docs.com/terminal', {
+  query: { runtimeSessionId: ptySession.id }
+});
+
+// Relay PTY output to gateway
+pty.onData((data) => {
+  socket.emit('output', { runtimeSessionId: ptySession.id, data });
+});
+
+// Receive input from gateway
+socket.on('input', (data) => {
+  pty.write(data);
+});
+
+// Handle resize
+socket.on('resize', ({ cols, rows }) => {
+  pty.resize(cols, rows);
+});
+```
+
 ## Monitoring
 
 ### Runtime Status
@@ -228,6 +317,8 @@ All agent spawns and status changes are logged in the workspace activity feed:
 - Agent ready
 - Agent failed (with error details)
 - Login required
+- Terminal session created
+- Terminal session terminated
 
 ## Troubleshooting
 
