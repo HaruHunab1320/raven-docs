@@ -746,6 +746,232 @@ export class ParallaxAgentsService {
     return { agent: updatedAgent, mcpApiKey: apiKey };
   }
 
+  // ========== Agent Runtime & Spawning ==========
+
+  async spawnAgents(
+    workspaceId: string,
+    request: {
+      agentType: string;
+      count: number;
+      name?: string;
+      capabilities?: string[];
+      permissions?: string[];
+      projectId?: string;
+      taskId?: string;
+      config?: Record<string, any>;
+    },
+    userId: string,
+  ): Promise<{
+    success: boolean;
+    spawnedAgents: Array<{ id: string; name: string; type: string; status: string }>;
+    errors?: string[];
+  }> {
+    this.logger.log(`Spawn request: ${request.count} ${request.agentType} agents for workspace ${workspaceId}`);
+
+    // Get workspace settings to determine runtime endpoint
+    const runtimeEndpoint = await this.getRuntimeEndpoint(workspaceId);
+
+    if (!runtimeEndpoint) {
+      throw new Error('Runtime endpoint not configured. Please configure hosting settings.');
+    }
+
+    const spawnedAgents: Array<{ id: string; name: string; type: string; status: string }> = [];
+    const errors: string[] = [];
+
+    try {
+      // Send spawn request to runtime
+      const response = await fetch(`${runtimeEndpoint}/api/spawn`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Workspace-Id': workspaceId,
+          'X-Request-Id': crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          agentType: request.agentType,
+          count: request.count,
+          name: request.name,
+          capabilities: request.capabilities,
+          permissions: request.permissions,
+          config: request.config,
+          workspaceId,
+          callbackUrl: `${process.env.APP_URL}/api/parallax-agents/spawn-callback`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Runtime returned ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      // Process spawned agents from runtime response
+      for (const agent of result.agents || []) {
+        spawnedAgents.push({
+          id: agent.id,
+          name: agent.name || `${request.agentType}-${agent.id.slice(0, 8)}`,
+          type: request.agentType,
+          status: agent.status || 'spawning',
+        });
+      }
+
+      // Log the spawn activity
+      await this.logActivity('system', workspaceId, 'agents_spawned', {
+        agentType: request.agentType,
+        count: request.count,
+        spawnedAgents,
+        requestedBy: userId,
+      });
+
+      this.eventEmitter.emit('parallax.agents_spawned', {
+        workspaceId,
+        agentType: request.agentType,
+        count: spawnedAgents.length,
+        spawnedAgents,
+      });
+
+    } catch (error: any) {
+      this.logger.error(`Spawn failed: ${error.message}`);
+      errors.push(error.message);
+    }
+
+    return {
+      success: errors.length === 0,
+      spawnedAgents,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  async testRuntimeConnection(
+    workspaceId: string,
+    endpoint?: string,
+  ): Promise<{
+    connected: boolean;
+    latency?: number;
+    version?: string;
+    activeAgents?: number;
+    error?: string;
+  }> {
+    const runtimeEndpoint = endpoint || await this.getRuntimeEndpoint(workspaceId);
+
+    if (!runtimeEndpoint) {
+      return { connected: false, error: 'Runtime endpoint not configured' };
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch(`${runtimeEndpoint}/api/health`, {
+        method: 'GET',
+        headers: {
+          'X-Workspace-Id': workspaceId,
+        },
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
+
+      const latency = Date.now() - startTime;
+
+      if (!response.ok) {
+        return {
+          connected: false,
+          latency,
+          error: `Runtime returned ${response.status}: ${response.statusText}`,
+        };
+      }
+
+      const data = await response.json();
+
+      return {
+        connected: true,
+        latency,
+        version: data.version,
+        activeAgents: data.activeAgents,
+      };
+    } catch (error: any) {
+      return {
+        connected: false,
+        latency: Date.now() - startTime,
+        error: error.message,
+      };
+    }
+  }
+
+  async handleRuntimeHeartbeat(
+    workspaceId: string,
+    heartbeat: {
+      runtimeId: string;
+      activeAgents?: number;
+      version?: string;
+      metadata?: Record<string, any>;
+    },
+  ): Promise<void> {
+    this.logger.debug(`Runtime heartbeat from ${heartbeat.runtimeId} for workspace ${workspaceId}`);
+
+    // Update runtime status in workspace settings
+    // This would typically be done through a workspace service
+    this.eventEmitter.emit('workspace.runtime_heartbeat', {
+      workspaceId,
+      runtimeId: heartbeat.runtimeId,
+      activeAgents: heartbeat.activeAgents,
+      version: heartbeat.version,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  async handleSpawnCallback(
+    workspaceId: string,
+    callback: {
+      agentId: string;
+      status: 'ready' | 'failed' | 'requires_login';
+      error?: string;
+      loginUrl?: string;
+      mcpEndpoint?: string;
+    },
+  ): Promise<void> {
+    this.logger.log(`Spawn callback: ${callback.agentId} is ${callback.status}`);
+
+    if (callback.status === 'ready') {
+      // Agent is ready, create/update agent record
+      this.eventEmitter.emit('parallax.agent_ready', {
+        workspaceId,
+        agentId: callback.agentId,
+        mcpEndpoint: callback.mcpEndpoint,
+      });
+    } else if (callback.status === 'requires_login') {
+      // Agent needs user login (e.g., device code flow)
+      this.eventEmitter.emit('parallax.login_required', {
+        workspaceId,
+        agentId: callback.agentId,
+        loginUrl: callback.loginUrl,
+      });
+    } else if (callback.status === 'failed') {
+      this.eventEmitter.emit('parallax.spawn_failed', {
+        workspaceId,
+        agentId: callback.agentId,
+        error: callback.error,
+      });
+    }
+
+    await this.logActivity(callback.agentId, workspaceId, `spawn_${callback.status}`, {
+      error: callback.error,
+      loginUrl: callback.loginUrl,
+    });
+  }
+
+  private async getRuntimeEndpoint(workspaceId: string): Promise<string | null> {
+    // This would typically fetch from workspace settings
+    // For now, check environment variable as fallback
+    const envEndpoint = process.env.AGENT_RUNTIME_ENDPOINT;
+    if (envEndpoint) {
+      return envEndpoint;
+    }
+
+    // Would need to inject workspace service to get settings
+    // For MVP, return null if not configured
+    return null;
+  }
+
   // ========== Private Helpers ==========
 
   private async getApprovedAgent(

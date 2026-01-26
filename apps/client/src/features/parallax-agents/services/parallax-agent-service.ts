@@ -255,3 +255,51 @@ export async function revokeInvite(inviteId: string): Promise<AgentInvite> {
 export async function deleteInvite(inviteId: string): Promise<void> {
   await api.delete(`/parallax-agents/invites/${inviteId}`);
 }
+
+// ========== Agent Runtime & Spawning ==========
+
+export type AgentType = 'claude-code' | 'codex' | 'gemini-cli' | 'aider' | 'custom';
+
+export interface SpawnAgentRequest {
+  agentType: AgentType;
+  count: number;
+  name?: string;
+  capabilities?: string[];
+  permissions?: string[];
+  projectId?: string;
+  taskId?: string;
+  config?: Record<string, any>;
+}
+
+export interface SpawnResult {
+  success: boolean;
+  spawnedAgents: Array<{
+    id: string;
+    name: string;
+    type: AgentType;
+    status: string;
+  }>;
+  errors?: string[];
+}
+
+export interface RuntimeConnectionResult {
+  connected: boolean;
+  latency?: number;
+  version?: string;
+  activeAgents?: number;
+  error?: string;
+}
+
+// Spawn agents via the configured runtime
+export async function spawnAgents(request: SpawnAgentRequest): Promise<SpawnResult> {
+  const response = await api.post<SpawnResult>("/parallax-agents/spawn", request);
+  return response.data;
+}
+
+// Test runtime connection
+export async function testRuntimeConnection(endpoint?: string): Promise<RuntimeConnectionResult> {
+  const response = await api.post<RuntimeConnectionResult>("/parallax-agents/runtime/test", {
+    endpoint,
+  });
+  return response.data;
+}

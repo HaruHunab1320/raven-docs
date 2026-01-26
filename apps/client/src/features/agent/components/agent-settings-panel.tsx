@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Badge,
   Button,
   Card,
   CopyButton,
   Divider,
   Group,
   NumberInput,
+  SegmentedControl,
   Stack,
   Switch,
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from "@mantine/core";
+import { IconCheck, IconX, IconRefresh } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createAgentHandoff,
@@ -21,7 +25,7 @@ import {
   updateAgentSettings,
 } from "@/features/agent/services/agent-service";
 import { notifications } from "@mantine/notifications";
-import { AgentSettings } from "@/features/agent/types/agent.types";
+import { AgentSettings, AgentHostingMode } from "@/features/agent/types/agent.types";
 import { useAtom } from "jotai";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom";
 import useUserRole from "@/hooks/use-user-role";
@@ -135,6 +139,12 @@ export function AgentSettingsPanel() {
           timezone: defaultTimezone,
         },
         spaceOverrides: {},
+        hostingMode: 'local' as AgentHostingMode,
+        runtimeEndpoint: '',
+        runtimeAuthType: 'api_key',
+        runtimeApiKey: '',
+        defaultRegion: '',
+        runtimeStatus: undefined,
       };
 
       if (!settingsQuery.data) {
@@ -755,6 +765,124 @@ export function AgentSettingsPanel() {
               No handoff key generated yet.
             </Text>
           )}
+        </Stack>
+        <Divider />
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
+            Agent Runtime Hosting
+          </Text>
+          <Text size="xs" c="dimmed">
+            Configure where agent runtimes execute. Local mode runs on your machine,
+            Parallax Cloud provides managed infrastructure, or connect a custom cluster.
+          </Text>
+          <SegmentedControl
+            value={currentSettings.hostingMode}
+            onChange={(value) => mutation.mutate({ hostingMode: value as AgentHostingMode })}
+            disabled={!isAdmin}
+            data={[
+              { label: 'Local', value: 'local' },
+              { label: 'Parallax Cloud', value: 'parallax' },
+              { label: 'Custom', value: 'custom' },
+            ]}
+          />
+          {currentSettings.hostingMode !== 'parallax' && (
+            <>
+              <TextInput
+                label="Runtime endpoint"
+                placeholder="http://localhost:8765"
+                description="URL where the agent runtime is listening"
+                value={currentSettings.runtimeEndpoint || ''}
+                onChange={(event) =>
+                  mutation.mutate({ runtimeEndpoint: event.currentTarget.value })
+                }
+                disabled={!isAdmin}
+              />
+              <SegmentedControl
+                value={currentSettings.runtimeAuthType || 'api_key'}
+                onChange={(value) => mutation.mutate({ runtimeAuthType: value as any })}
+                disabled={!isAdmin}
+                data={[
+                  { label: 'API Key', value: 'api_key' },
+                  { label: 'None', value: 'none' },
+                ]}
+              />
+              {currentSettings.runtimeAuthType === 'api_key' && (
+                <TextInput
+                  label="Runtime API key"
+                  placeholder="sk-..."
+                  description="API key for authenticating with the runtime"
+                  value={currentSettings.runtimeApiKey || ''}
+                  onChange={(event) =>
+                    mutation.mutate({ runtimeApiKey: event.currentTarget.value })
+                  }
+                  disabled={!isAdmin}
+                  type="password"
+                />
+              )}
+            </>
+          )}
+          {currentSettings.hostingMode === 'parallax' && (
+            <TextInput
+              label="Default region"
+              placeholder="us-west-2"
+              description="Preferred region for Parallax-managed agents"
+              value={currentSettings.defaultRegion || ''}
+              onChange={(event) =>
+                mutation.mutate({ defaultRegion: event.currentTarget.value })
+              }
+              disabled={!isAdmin}
+            />
+          )}
+          <Card withBorder radius="sm" p="sm" mt="xs">
+            <Group justify="space-between">
+              <Text size="sm" fw={500}>Runtime Status</Text>
+              <Group gap="xs">
+                {currentSettings.runtimeStatus?.connected ? (
+                  <Badge color="green" leftSection={<IconCheck size={12} />}>
+                    Connected
+                  </Badge>
+                ) : (
+                  <Badge color="gray" leftSection={<IconX size={12} />}>
+                    Disconnected
+                  </Badge>
+                )}
+                <Tooltip label="Test connection">
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    disabled={!isAdmin || !currentSettings.runtimeEndpoint}
+                    leftSection={<IconRefresh size={14} />}
+                  >
+                    Test
+                  </Button>
+                </Tooltip>
+              </Group>
+            </Group>
+            {currentSettings.runtimeStatus && (
+              <Stack gap={4} mt="xs">
+                {currentSettings.runtimeStatus.lastHeartbeat && (
+                  <Text size="xs" c="dimmed">
+                    Last heartbeat: {new Date(currentSettings.runtimeStatus.lastHeartbeat).toLocaleString()}
+                  </Text>
+                )}
+                {currentSettings.runtimeStatus.activeAgents !== undefined && (
+                  <Text size="xs" c="dimmed">
+                    Active agents: {currentSettings.runtimeStatus.activeAgents}
+                  </Text>
+                )}
+                {currentSettings.runtimeStatus.version && (
+                  <Text size="xs" c="dimmed">
+                    Runtime version: {currentSettings.runtimeStatus.version}
+                  </Text>
+                )}
+                {currentSettings.runtimeStatus.error && (
+                  <Text size="xs" c="red">
+                    Error: {currentSettings.runtimeStatus.error}
+                  </Text>
+                )}
+              </Stack>
+            )}
+          </Card>
         </Stack>
         <Divider />
         <Stack gap="xs">

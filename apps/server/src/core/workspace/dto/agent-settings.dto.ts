@@ -1,4 +1,15 @@
-import { IsBoolean, IsInt, IsObject, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsObject, IsOptional, IsString, IsUrl, Max, Min } from 'class-validator';
+
+export enum AgentHostingMode {
+  LOCAL = 'local',
+  PARALLAX = 'parallax',
+  CUSTOM = 'custom',
+}
+
+export enum RuntimeAuthType {
+  API_KEY = 'api_key',
+  NONE = 'none',
+}
 
 export class AgentSettingsDto {
   @IsOptional()
@@ -115,4 +126,35 @@ export class AgentSettingsDto {
       };
     }
   >;
+
+  // Agent Runtime Hosting Configuration
+  @IsOptional()
+  @IsEnum(AgentHostingMode)
+  hostingMode?: AgentHostingMode;
+
+  @IsOptional()
+  @IsString()
+  runtimeEndpoint?: string;
+
+  @IsOptional()
+  @IsEnum(RuntimeAuthType)
+  runtimeAuthType?: RuntimeAuthType;
+
+  @IsOptional()
+  @IsString()
+  runtimeApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultRegion?: string;
+
+  @IsOptional()
+  @IsObject()
+  runtimeStatus?: {
+    connected?: boolean;
+    lastHeartbeat?: string;
+    activeAgents?: number;
+    version?: string;
+    error?: string;
+  };
 }

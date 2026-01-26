@@ -29,6 +29,11 @@ import {
   CreateAgentInviteDto,
   RegisterWithInviteDto,
 } from './dto/agent-invite.dto';
+import {
+  SpawnAgentRequestDto,
+  TestRuntimeConnectionDto,
+  RuntimeHeartbeatDto,
+} from './dto/runtime.dto';
 import { User } from '../../database/types/entity.types';
 import { Workspace } from '../../database/types/entity.types';
 import { ParallaxAgentStatus } from '../../database/repos/parallax-agent/parallax-agent.repo';
@@ -421,5 +426,69 @@ export class ParallaxAgentsController {
       metadata: body.metadata,
       endpoint: body.endpoint,
     });
+  }
+
+  // ========== Agent Runtime & Spawning ==========
+
+  /**
+   * Request to spawn new agents via the configured runtime
+   */
+  @Post('spawn')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async spawnAgents(
+    @Body() body: SpawnAgentRequestDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentsService.spawnAgents(workspace.id, body, user.id);
+  }
+
+  /**
+   * Test connection to the runtime endpoint
+   */
+  @Post('runtime/test')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async testRuntimeConnection(
+    @Body() body: TestRuntimeConnectionDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.agentsService.testRuntimeConnection(workspace.id, body.endpoint);
+  }
+
+  /**
+   * Webhook endpoint for runtime heartbeats
+   * Called by the runtime to report its status
+   */
+  @Post('runtime/heartbeat')
+  @HttpCode(HttpStatus.OK)
+  async handleRuntimeHeartbeat(
+    @Body() body: RuntimeHeartbeatDto & { workspaceId: string },
+  ) {
+    const { workspaceId, ...heartbeat } = body;
+    await this.agentsService.handleRuntimeHeartbeat(workspaceId, heartbeat);
+    return { success: true };
+  }
+
+  /**
+   * Callback endpoint for spawn results
+   * Called by the runtime when an agent is ready, failed, or requires login
+   */
+  @Post('spawn-callback')
+  @HttpCode(HttpStatus.OK)
+  async handleSpawnCallback(
+    @Body()
+    body: {
+      workspaceId: string;
+      agentId: string;
+      status: 'ready' | 'failed' | 'requires_login';
+      error?: string;
+      loginUrl?: string;
+      mcpEndpoint?: string;
+    },
+  ) {
+    await this.agentsService.handleSpawnCallback(body.workspaceId, body);
+    return { success: true };
   }
 }

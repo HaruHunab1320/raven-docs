@@ -1,3 +1,14 @@
+export type AgentHostingMode = 'local' | 'parallax' | 'custom';
+export type RuntimeAuthType = 'api_key' | 'none';
+
+export interface RuntimeStatus {
+  connected: boolean;
+  lastHeartbeat?: string;
+  activeAgents?: number;
+  version?: string;
+  error?: string;
+}
+
 export interface AgentSettings {
   policy?: {
     allowAutoApply?: string[];
@@ -51,6 +62,13 @@ export interface AgentSettings {
       };
     }
   >;
+  // Agent Runtime Hosting Configuration
+  hostingMode: AgentHostingMode;
+  runtimeEndpoint?: string;
+  runtimeAuthType?: RuntimeAuthType;
+  runtimeApiKey?: string;
+  defaultRegion?: string;
+  runtimeStatus?: RuntimeStatus;
 }
 
 export interface AgentChatResponse {

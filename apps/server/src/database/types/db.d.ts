@@ -398,6 +398,15 @@ export interface Spaces {
   workspaceId: string;
 }
 
+export interface TaskBacklinks {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  sourcePageId: string;
+  targetTaskId: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface TaskDependencies {
   createdAt: Generated<Timestamp>;
   dependsOnTaskId: string;
@@ -554,6 +563,7 @@ export interface DB {
   researchJobs: ResearchJobs;
   spaceMembers: SpaceMembers;
   spaces: Spaces;
+  taskBacklinks: TaskBacklinks;
   taskDependencies: TaskDependencies;
   taskGoalAssignments: TaskGoalAssignments;
   taskLabelAssignments: TaskLabelAssignments;

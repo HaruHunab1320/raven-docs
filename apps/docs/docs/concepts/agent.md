@@ -293,12 +293,78 @@ The agent only accesses:
 - **Toggle agent access on individual pages/tasks**
 - **Revoke external agent access at any time**
 
+## Agent Runtime Hosting
+
+Raven Docs supports multiple hosting modes for agent runtimes, allowing flexibility in where and how agents execute.
+
+### Hosting Modes
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **Local** | Runtime runs on your machine or local VM | Quick setup, interactive auth |
+| **Parallax Cloud** | Managed Kubernetes infrastructure | Enterprise workflows, SLA guarantees |
+| **Custom** | Your own VPC or self-hosted cluster | Compliance requirements |
+
+### Configuring Hosting
+
+1. Navigate to **Settings → Agents**
+2. Under **Agent Runtime Hosting**, select your hosting mode
+3. Configure the runtime endpoint (for Local/Custom modes)
+4. Set authentication type and credentials
+
+### Runtime Endpoint
+
+For Local and Custom modes, specify the runtime endpoint URL:
+
+```
+http://localhost:8765  # Local development
+https://runtime.mycompany.com  # Custom deployment
+```
+
+### Spawning Agents
+
+Request new agents from the configured runtime:
+
+1. Click "Spawn Agents" in the agent management panel
+2. Select agent type (Claude Code, Codex, Gemini CLI, Aider)
+3. Configure count and optional settings
+4. Monitor spawn progress in the activity feed
+
+### Supported Agent Types
+
+| Type | Description |
+|------|-------------|
+| **Claude Code** | Anthropic's Claude-powered coding assistant |
+| **Codex** | OpenAI's code generation model |
+| **Gemini CLI** | Google's Gemini-powered CLI agent |
+| **Aider** | AI pair programming assistant |
+| **Custom** | Your own agent implementation |
+
+### Login Flow (Local Runtime)
+
+When spawning agents that require authentication:
+
+1. Runtime starts agent CLI in PTY session
+2. If login required, Raven Docs displays login instructions
+3. Complete device code flow or OAuth
+4. Agent registers and connects to workspace
+
+### Runtime Status
+
+Monitor your runtime connection:
+
+- **Connected** - Runtime is healthy and responding
+- **Disconnected** - No heartbeat received
+- **Active Agents** - Number of agents currently running
+- **Version** - Runtime version for compatibility checks
+
 ## Best Practices
 
 1. **Be specific** - Clear questions get better answers
 2. **Provide context** - Mention relevant projects or goals
 3. **Review suggestions** - Agent learns from your feedback
 4. **Use approvals** - Keep human oversight for important actions
+5. **Monitor runtime** - Keep an eye on runtime status and agent health
 
 ## Related
 

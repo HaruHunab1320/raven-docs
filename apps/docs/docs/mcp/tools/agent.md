@@ -431,6 +431,93 @@ Log an activity entry for the agent.
 }
 ```
 
+## Agent Spawning
+
+Request new agents from the configured runtime.
+
+### agent_spawn
+
+Spawn new agents via the workspace's configured runtime.
+
+```json
+{
+  "name": "agent_spawn",
+  "arguments": {
+    "workspace_id": "ws_123",
+    "agent_type": "claude-code",
+    "count": 2,
+    "name": "Code Review Bot",
+    "capabilities": ["code_review", "testing"],
+    "permissions": ["page.read", "task.write"],
+    "project_id": "proj_456",
+    "config": {
+      "model": "claude-3-opus",
+      "max_tokens": 4096
+    }
+  }
+}
+```
+
+**Arguments:**
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `agent_type` | string | Yes | `claude-code`, `codex`, `gemini-cli`, `aider`, `custom` |
+| `count` | number | Yes | Number of agents to spawn (1-10) |
+| `name` | string | No | Display name for spawned agents |
+| `capabilities` | string[] | No | Capabilities to assign |
+| `permissions` | string[] | No | Permissions to grant |
+| `project_id` | string | No | Auto-assign to project |
+| `task_id` | string | No | Auto-assign to task |
+| `config` | object | No | Agent-specific configuration |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "spawnedAgents": [
+    {
+      "id": "agent_abc123",
+      "name": "Code Review Bot #1",
+      "type": "claude-code",
+      "status": "spawning"
+    },
+    {
+      "id": "agent_def456",
+      "name": "Code Review Bot #2",
+      "type": "claude-code",
+      "status": "spawning"
+    }
+  ]
+}
+```
+
+### agent_runtime_test
+
+Test connection to the runtime endpoint.
+
+```json
+{
+  "name": "agent_runtime_test",
+  "arguments": {
+    "workspace_id": "ws_123",
+    "endpoint": "http://localhost:8765"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "connected": true,
+  "latency": 45,
+  "version": "1.2.0",
+  "activeAgents": 3
+}
+```
+
 ## Resource Access Control
 
 When accessing pages or tasks, the MCP API respects resource-level access controls.
