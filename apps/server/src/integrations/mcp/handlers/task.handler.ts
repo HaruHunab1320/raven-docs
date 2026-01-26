@@ -58,6 +58,14 @@ export class TaskHandler {
         throw createResourceNotFoundError('Task', params.taskId);
       }
 
+      // Check if task is accessible by agents (MCP requests are from agents)
+      // agentAccessible can be null (inherit from project) or explicit boolean
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -304,6 +312,13 @@ export class TaskHandler {
         throw createResourceNotFoundError('Task', params.taskId);
       }
 
+      // Check if task is accessible by agents (MCP requests are from agents)
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -369,6 +384,13 @@ export class TaskHandler {
         throw createResourceNotFoundError('Task', params.taskId);
       }
 
+      // Check if task is accessible by agents (MCP requests are from agents)
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -424,6 +446,13 @@ export class TaskHandler {
         throw createResourceNotFoundError('Task', params.taskId);
       }
 
+      // Check if task is accessible by agents (MCP requests are from agents)
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -477,6 +506,13 @@ export class TaskHandler {
       const task = await this.taskService.findById(params.taskId);
       if (!task) {
         throw createResourceNotFoundError('Task', params.taskId);
+      }
+
+      // Check if task is accessible by agents (MCP requests are from agents)
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
       }
 
       const user = { id: userId } as User;
@@ -535,6 +571,13 @@ export class TaskHandler {
       const task = await this.taskService.findById(params.taskId);
       if (!task) {
         throw createResourceNotFoundError('Task', params.taskId);
+      }
+
+      // Check if task is accessible by agents (MCP requests are from agents)
+      if (task.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This task is not accessible by agents',
+        );
       }
 
       const user = { id: userId } as User;

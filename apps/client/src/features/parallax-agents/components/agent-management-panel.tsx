@@ -1,10 +1,11 @@
 import { Tabs, Stack, Title, Group, Badge, Paper } from "@mantine/core";
-import { IconRobot, IconClock, IconActivity, IconList } from "@tabler/icons-react";
+import { IconRobot, IconClock, IconActivity, IconList, IconTicket } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { PendingAgentsList } from "./pending-agents-list";
 import { AgentList } from "./agent-list";
 import { AgentActivityFeed } from "./agent-activity-feed";
-import { usePendingRequests, useWorkspaceAgents } from "../queries/parallax-agent-query";
+import { InvitesList } from "./invites-list";
+import { usePendingRequests, useWorkspaceAgents, useActiveInvites } from "../queries/parallax-agent-query";
 import { useState } from "react";
 import { ParallaxAgent } from "../services/parallax-agent-service";
 import { AgentDetailPanel } from "./agent-detail-panel";
@@ -13,11 +14,13 @@ export function AgentManagementPanel() {
   const { t } = useTranslation();
   const { data: pendingAgents } = usePendingRequests();
   const { data: allAgents } = useWorkspaceAgents();
+  const { data: activeInvites } = useActiveInvites();
   const [selectedAgent, setSelectedAgent] = useState<ParallaxAgent | null>(null);
 
   const pendingCount = pendingAgents?.length || 0;
   const totalAgents = allAgents?.length || 0;
   const approvedCount = allAgents?.filter((a) => a.status === "approved").length || 0;
+  const inviteCount = activeInvites?.length || 0;
 
   if (selectedAgent) {
     return (
@@ -68,6 +71,19 @@ export function AgentManagementPanel() {
           <Tabs.Tab value="agents" leftSection={<IconList size={16} />}>
             {t("All Agents")}
           </Tabs.Tab>
+          <Tabs.Tab
+            value="invites"
+            leftSection={<IconTicket size={16} />}
+            rightSection={
+              inviteCount > 0 ? (
+                <Badge size="xs" variant="light" color="blue">
+                  {inviteCount}
+                </Badge>
+              ) : null
+            }
+          >
+            {t("Invites")}
+          </Tabs.Tab>
           <Tabs.Tab value="activity" leftSection={<IconActivity size={16} />}>
             {t("Activity Feed")}
           </Tabs.Tab>
@@ -80,6 +96,10 @@ export function AgentManagementPanel() {
 
           <Tabs.Panel value="agents">
             <AgentList onSelectAgent={setSelectedAgent} />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="invites">
+            <InvitesList />
           </Tabs.Panel>
 
           <Tabs.Panel value="activity">

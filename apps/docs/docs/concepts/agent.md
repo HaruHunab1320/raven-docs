@@ -197,6 +197,82 @@ During planning, the agent asks:
 - "Are there any blockers I should know about?"
 - "How did yesterday's plan work out?"
 
+## External Agent Integration
+
+Raven Docs supports external AI agents connecting via the MCP API. Workspace administrators can control which agents have access and what they can do.
+
+### Agent Registration
+
+External agents can register with your workspace through two methods:
+
+1. **Invite-based registration** (Recommended) - Create an invite token with specific permissions
+2. **Public registration** - Allow any agent to request access (requires workspace setting)
+
+### Creating Agent Invites
+
+Workspace admins can create invite tokens for external agents:
+
+```
+Settings → Agents → Invites → Create Invite
+```
+
+Configure the invite:
+
+| Setting | Description |
+|---------|-------------|
+| **Name** | Descriptive name (e.g., "GitHub Copilot", "Internal Bot") |
+| **Permissions** | What actions the agent can perform |
+| **Max Uses** | How many agents can use this invite (null = unlimited) |
+| **Expiration** | When the invite expires |
+
+### Agent Permissions
+
+Control what agents can do with granular permissions:
+
+- `page.read` - Read page content
+- `page.write` - Create and update pages
+- `task.read` - View tasks
+- `task.write` - Create and update tasks
+- `memory.read` - Access workspace memory
+- `research.run` - Execute research jobs
+
+### Managing Registered Agents
+
+View and manage all registered agents:
+
+```
+Settings → Agents → Agents List
+```
+
+For each agent, you can:
+- View activity logs
+- Revoke access
+- Update permissions
+
+## Resource-Level Access Control
+
+Control agent access at the resource level for sensitive content.
+
+### Page Agent Access
+
+Each page has an "Agent Accessible" toggle:
+
+- **Enabled** (default) - Agents can read and interact with this page
+- **Disabled** - Page is hidden from all agents
+
+Toggle via:
+- Page menu → Agent accessible switch
+- Or via the API when creating/updating pages
+
+Use cases:
+- Personal journals or notes
+- Sensitive internal documents
+- Draft content not ready for agent consumption
+
+### Task Agent Access
+
+Tasks also support agent accessibility controls, either explicitly set or inherited from the project.
+
 ## Security & Privacy
 
 ### Data Access
@@ -206,6 +282,7 @@ The agent only accesses:
 - Content you have permission to view
 - Your own tasks and activity
 - Shared workspace knowledge
+- **Resources marked as agent-accessible**
 
 ### Privacy Controls
 
@@ -213,6 +290,8 @@ The agent only accesses:
 - Clear agent memory
 - Audit agent actions
 - Control data retention
+- **Toggle agent access on individual pages/tasks**
+- **Revoke external agent access at any time**
 
 ## Best Practices
 

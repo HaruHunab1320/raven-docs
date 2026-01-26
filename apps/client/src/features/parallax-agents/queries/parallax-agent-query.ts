@@ -17,12 +17,19 @@ import {
   getWorkspaceActivity,
   getProjectAgents,
   getTaskAgents,
+  getWorkspaceInvites,
+  getActiveInvites,
+  getInvite,
+  createInvite,
+  revokeInvite,
+  deleteInvite,
   type ParallaxAgentStatus,
   type ApproveAgentDto,
   type DenyAgentDto,
   type RevokeAgentDto,
   type AssignAgentToProjectDto,
   type AssignAgentToTaskDto,
+  type CreateAgentInviteDto,
 } from "../services/parallax-agent-service";
 
 // Query keys
@@ -35,6 +42,9 @@ export const PARALLAX_AGENT_ACTIVITY_KEY = (id: string) => ["parallax-agents", i
 export const PARALLAX_WORKSPACE_ACTIVITY_KEY = ["parallax-agents", "workspace-activity"];
 export const PARALLAX_PROJECT_AGENTS_KEY = (id: string) => ["parallax-agents", "project", id];
 export const PARALLAX_TASK_AGENTS_KEY = (id: string) => ["parallax-agents", "task", id];
+export const AGENT_INVITES_KEY = ["agent-invites"];
+export const AGENT_INVITES_ACTIVE_KEY = ["agent-invites", "active"];
+export const AGENT_INVITE_KEY = (id: string) => ["agent-invites", id];
 
 // Fetch all workspace agents
 export function useWorkspaceAgents(status?: ParallaxAgentStatus) {
@@ -299,5 +309,110 @@ export function useTaskAgents(taskId: string) {
     queryKey: PARALLAX_TASK_AGENTS_KEY(taskId),
     queryFn: () => getTaskAgents(taskId),
     enabled: !!taskId,
+  });
+}
+
+// ========== Agent Invites ==========
+
+// Get all invites
+export function useWorkspaceInvites() {
+  return useQuery({
+    queryKey: AGENT_INVITES_KEY,
+    queryFn: getWorkspaceInvites,
+    staleTime: 1000 * 60,
+  });
+}
+
+// Get active invites
+export function useActiveInvites() {
+  return useQuery({
+    queryKey: AGENT_INVITES_ACTIVE_KEY,
+    queryFn: getActiveInvites,
+    staleTime: 1000 * 60,
+  });
+}
+
+// Get single invite
+export function useInvite(inviteId: string) {
+  return useQuery({
+    queryKey: AGENT_INVITE_KEY(inviteId),
+    queryFn: () => getInvite(inviteId),
+    enabled: !!inviteId,
+  });
+}
+
+// Create invite mutation
+export function useCreateInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateAgentInviteDto) => createInvite(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_KEY });
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_ACTIVE_KEY });
+      notifications.show({
+        title: "Invite Created",
+        message: "Agent invite has been created",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to create invite",
+        color: "red",
+      });
+    },
+  });
+}
+
+// Revoke invite mutation
+export function useRevokeInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inviteId: string) => revokeInvite(inviteId),
+    onSuccess: (_, inviteId) => {
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_KEY });
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_ACTIVE_KEY });
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITE_KEY(inviteId) });
+      notifications.show({
+        title: "Invite Revoked",
+        message: "Agent invite has been revoked",
+        color: "orange",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to revoke invite",
+        color: "red",
+      });
+    },
+  });
+}
+
+// Delete invite mutation
+export function useDeleteInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inviteId: string) => deleteInvite(inviteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_KEY });
+      queryClient.invalidateQueries({ queryKey: AGENT_INVITES_ACTIVE_KEY });
+      notifications.show({
+        title: "Invite Deleted",
+        message: "Agent invite has been deleted",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to delete invite",
+        color: "red",
+      });
+    },
   });
 }

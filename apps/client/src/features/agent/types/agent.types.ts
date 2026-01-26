@@ -20,6 +20,7 @@ export interface AgentSettings {
   allowProjectWrites: boolean;
   allowGoalWrites: boolean;
   allowResearchWrites: boolean;
+  allowPublicAgentRegistration: boolean;
   chatDraftLimit: number;
   autonomySchedule: {
     dailyEnabled: boolean;

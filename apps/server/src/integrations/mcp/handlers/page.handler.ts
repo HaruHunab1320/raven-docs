@@ -63,6 +63,13 @@ export class PageHandler {
         throw createResourceNotFoundError('Page', params.pageId);
       }
 
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
+      }
+
       // Create a mock user with just the ID for permission checking
       const user = { id: userId } as User;
 
@@ -213,6 +220,13 @@ export class PageHandler {
         throw createResourceNotFoundError('Page', params.pageId);
       }
 
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -315,6 +329,14 @@ export class PageHandler {
         throw createResourceNotFoundError('Page history', params.historyId);
       }
 
+      // Check if the associated page is accessible by agents
+      const page = await this.pageRepo.findById(history.pageId);
+      if (page && page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
+      }
+
       const user = { id: userId } as User;
       const ability = await this.spaceAbility.createForUser(
         user,
@@ -359,6 +381,13 @@ export class PageHandler {
       const movedPage = await this.pageRepo.findById(params.pageId);
       if (!movedPage) {
         throw createResourceNotFoundError('Page', params.pageId);
+      }
+
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (movedPage.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
       }
 
       if (movedPage.spaceId === params.spaceId) {
@@ -488,6 +517,13 @@ export class PageHandler {
         throw createResourceNotFoundError('Page', params.pageId);
       }
 
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
+      }
+
       // Create a mock user with just the ID for permission checking
       const user = { id: userId } as User;
 
@@ -579,6 +615,13 @@ export class PageHandler {
         throw createResourceNotFoundError('Page', params.pageId);
       }
 
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
+      }
+
       // Create a mock user with just the ID for permission checking
       const user = { id: userId } as User;
 
@@ -646,6 +689,13 @@ export class PageHandler {
 
       if (!page) {
         throw createResourceNotFoundError('Page', params.pageId);
+      }
+
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
       }
 
       // Create a mock user with just the ID for permission checking
@@ -899,6 +949,13 @@ export class PageHandler {
 
       if (!page) {
         throw createResourceNotFoundError('Page', history.pageId);
+      }
+
+      // Check if page is accessible by agents (MCP requests are from agents)
+      if (page.agentAccessible === false) {
+        throw createPermissionDeniedError(
+          'This page is not accessible by agents',
+        );
       }
 
       // Create a mock user with just the ID for permission checking

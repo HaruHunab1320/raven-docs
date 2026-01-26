@@ -179,3 +179,28 @@ Response:
   "none": 8
 }
 ```
+
+## Agent Access Control
+
+Tasks have an `agentAccessible` field that controls whether AI agents can access them.
+
+### Inheritance
+
+Task agent access can be:
+- **Explicitly set** - `true` or `false`
+- **Inherited from project** - `null` (default)
+
+### Access Denied
+
+If a task has `agentAccessible: false`, agent requests will receive an error:
+
+```json
+{
+  "error": {
+    "code": -32003,
+    "message": "This task is not accessible by agents"
+  }
+}
+```
+
+See [Agent Concepts](/concepts/agent#resource-level-access-control) for more details.

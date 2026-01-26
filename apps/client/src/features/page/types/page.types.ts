@@ -12,6 +12,7 @@ export interface IPage {
   spaceId: string;
   workspaceId: string;
   isLocked: boolean;
+  agentAccessible: boolean;
   lastUpdatedById: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +64,7 @@ export interface IPageInput {
   content?: any;
   spaceId?: string;
   includeDeleted?: boolean;
+  agentAccessible?: boolean;
 }
 
 export interface IExportPageParams {

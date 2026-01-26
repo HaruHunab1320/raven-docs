@@ -68,6 +68,31 @@ export interface AssignAgentToTaskDto {
   taskId: string;
 }
 
+// Agent Invite types
+export interface AgentInvite {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  token: string;
+  permissions: string[];
+  usesRemaining: number | null;
+  usesCount: number;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAgentInviteDto {
+  name: string;
+  description?: string;
+  permissions: string[];
+  usesRemaining?: number | null;
+  expiresAt?: string | null;
+}
+
 // Get all agents in workspace
 export async function getWorkspaceAgents(status?: ParallaxAgentStatus): Promise<ParallaxAgent[]> {
   const params = status ? { status } : {};
@@ -192,4 +217,41 @@ export async function getProjectAgents(projectId: string): Promise<ParallaxAgent
 export async function getTaskAgents(taskId: string): Promise<ParallaxAgent[]> {
   const response = await api.get<ParallaxAgent[]>(`/parallax-agents/task/${taskId}`);
   return response.data;
+}
+
+// ========== Agent Invites ==========
+
+// Get all invites for workspace
+export async function getWorkspaceInvites(): Promise<AgentInvite[]> {
+  const response = await api.get<AgentInvite[]>("/parallax-agents/invites");
+  return response.data;
+}
+
+// Get active invites
+export async function getActiveInvites(): Promise<AgentInvite[]> {
+  const response = await api.get<AgentInvite[]>("/parallax-agents/invites/active");
+  return response.data;
+}
+
+// Get single invite
+export async function getInvite(inviteId: string): Promise<AgentInvite> {
+  const response = await api.get<AgentInvite>(`/parallax-agents/invites/${inviteId}`);
+  return response.data;
+}
+
+// Create invite
+export async function createInvite(data: CreateAgentInviteDto): Promise<AgentInvite> {
+  const response = await api.post<AgentInvite>("/parallax-agents/invites", data);
+  return response.data;
+}
+
+// Revoke invite
+export async function revokeInvite(inviteId: string): Promise<AgentInvite> {
+  const response = await api.post<AgentInvite>(`/parallax-agents/invites/${inviteId}/revoke`);
+  return response.data;
+}
+
+// Delete invite
+export async function deleteInvite(inviteId: string): Promise<void> {
+  await api.delete(`/parallax-agents/invites/${inviteId}`);
 }

@@ -123,6 +123,7 @@ export function AgentSettingsPanel() {
         allowProjectWrites: false,
         allowGoalWrites: false,
         allowResearchWrites: false,
+        allowPublicAgentRegistration: false,
         chatDraftLimit: 300,
         autonomySchedule: {
           dailyEnabled: true,
@@ -725,6 +726,14 @@ export function AgentSettingsPanel() {
           <Text size="xs" c="dimmed">
             Creates a scoped MCP API key for external agents. Store it securely.
           </Text>
+          <Switch
+            label={toLabel("Allow public agent registration")}
+            description="When enabled, any agent can request access to this workspace without an invite"
+            checked={currentSettings.allowPublicAgentRegistration}
+            onChange={handleToggle("allowPublicAgentRegistration")}
+            disabled={!isAdmin}
+            mt="sm"
+          />
           {handoffKey ? (
             <Group gap="xs" wrap="nowrap">
               <TextInput

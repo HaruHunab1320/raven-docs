@@ -334,8 +334,130 @@ const suggestions = await mcp.call("agent_suggestions_get", {
 });
 ```
 
+## External Agent Registration
+
+Tools for external agents to register and interact with the workspace.
+
+### agent_register
+
+Register an external agent with the workspace using an invite token.
+
+```json
+{
+  "name": "agent_register",
+  "arguments": {
+    "invite_token": "inv_abc123def456",
+    "agent_name": "My Custom Agent",
+    "agent_description": "A custom agent for task automation",
+    "capabilities": ["task.read", "task.write", "page.read"]
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "agent_id": "agent_789",
+  "api_key": "mcp_live_abc123...",
+  "permissions": ["task.read", "task.write", "page.read"],
+  "workspace_id": "ws_123"
+}
+```
+
+:::caution
+Store the API key securely - it will only be shown once.
+:::
+
+### agent_profile
+
+Get the current agent's profile and permissions.
+
+```json
+{
+  "name": "agent_profile",
+  "arguments": {}
+}
+```
+
+**Response:**
+
+```json
+{
+  "agent": {
+    "id": "agent_789",
+    "name": "My Custom Agent",
+    "description": "A custom agent for task automation",
+    "status": "active",
+    "permissions": ["task.read", "task.write", "page.read"],
+    "createdAt": "2024-01-15T10:00:00Z",
+    "lastActiveAt": "2024-01-15T14:30:00Z"
+  }
+}
+```
+
+### agent_updateStatus
+
+Update the agent's status.
+
+```json
+{
+  "name": "agent_updateStatus",
+  "arguments": {
+    "status": "active",
+    "metadata": {
+      "currentTask": "Processing inbox items",
+      "progress": 75
+    }
+  }
+}
+```
+
+### agent_logActivity
+
+Log an activity entry for the agent.
+
+```json
+{
+  "name": "agent_logActivity",
+  "arguments": {
+    "action": "task.complete",
+    "resource_id": "task_456",
+    "details": {
+      "task_title": "Review API docs",
+      "completion_note": "Completed with comments"
+    }
+  }
+}
+```
+
+## Resource Access Control
+
+When accessing pages or tasks, the MCP API respects resource-level access controls.
+
+### Agent Accessible Flag
+
+Resources with `agentAccessible: false` will return a permission error:
+
+```json
+{
+  "error": {
+    "code": -32003,
+    "message": "This page is not accessible by agents"
+  }
+}
+```
+
+### Best Practices
+
+1. **Check permissions first** - Query available resources before attempting modifications
+2. **Handle access errors gracefully** - Some resources may be restricted
+3. **Log activities** - Use `agent_logActivity` for audit trail
+4. **Respect rate limits** - See [Rate Limits](/api/rate-limits)
+
 ## Related
 
 - [AI Agent Concept](/concepts/agent) - Agent overview
 - [Memory Tools](/mcp/tools/memory) - Agent memory
 - [Goals Tools](/mcp/tools/goals) - Goal management
+- [Authentication](/mcp/authentication) - API authentication

@@ -62,6 +62,10 @@ export class AgentSettingsDto {
   allowResearchWrites?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  allowPublicAgentRegistration?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(50)
   @Max(2000)

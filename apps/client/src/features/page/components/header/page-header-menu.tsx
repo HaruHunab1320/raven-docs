@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Menu, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Menu, Switch, Text, Tooltip } from "@mantine/core";
 import {
   IconArrowRight,
   IconArrowsHorizontal,
@@ -8,6 +8,7 @@ import {
   IconLink,
   IconList,
   IconPrinter,
+  IconRobot,
   IconTrash,
   IconWifiOff,
   IconBulb,
@@ -17,7 +18,7 @@ import { useAtom } from "jotai";
 import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
 import { useClipboard, useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
-import { usePageQuery } from "@/features/page/queries/page-query.ts";
+import { usePageQuery, useUpdatePageMutation } from "@/features/page/queries/page-query.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { notifications } from "@mantine/notifications";
 import { getAppUrl } from "@/lib/config.ts";
@@ -98,6 +99,7 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
   ] = useDisclosure(false);
   const [researchOpened, { open: openResearchModal, close: closeResearchModal }] =
     useDisclosure(false);
+  const updatePageMutation = useUpdatePageMutation();
   const isUserProfilePage = page?.title
     ? page.title.toLowerCase().startsWith("user profile")
     : false;
@@ -116,6 +118,13 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     setTimeout(() => {
       window.print();
     }, 250);
+  };
+
+  const handleAgentAccessibleToggle = () => {
+    updatePageMutation.mutate({
+      pageId: page.id,
+      agentAccessible: !page.agentAccessible,
+    });
   };
 
   const openHistoryModal = () => {
@@ -154,6 +163,22 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
           <Menu.Item leftSection={<IconArrowsHorizontal size={16} />}>
             <Group wrap="nowrap">
               <PageWidthToggle label={t("Full width")} />
+            </Group>
+          </Menu.Item>
+
+          <Menu.Item
+            leftSection={<IconRobot size={16} />}
+            onClick={handleAgentAccessibleToggle}
+            closeMenuOnClick={false}
+          >
+            <Group justify="space-between" wrap="nowrap">
+              <Text size="sm">{t("Agent accessible")}</Text>
+              <Switch
+                size="xs"
+                checked={page.agentAccessible !== false}
+                onChange={handleAgentAccessibleToggle}
+                onClick={(e) => e.stopPropagation()}
+              />
             </Group>
           </Menu.Item>
 

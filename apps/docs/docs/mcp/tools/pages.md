@@ -188,3 +188,42 @@ Get pages for sidebar navigation.
   }
 }
 ```
+
+## Agent Access Control
+
+Pages have an `agentAccessible` field that controls whether AI agents can access them.
+
+### Response Fields
+
+Page responses include:
+
+```json
+{
+  "id": "page_789",
+  "title": "My Page",
+  "agentAccessible": true,
+  // ... other fields
+}
+```
+
+### Access Denied
+
+If a page has `agentAccessible: false`, agent requests will receive an error:
+
+```json
+{
+  "error": {
+    "code": -32003,
+    "message": "This page is not accessible by agents"
+  }
+}
+```
+
+### Use Cases
+
+Users may disable agent access for:
+- Personal journals or notes
+- Sensitive internal documents
+- Draft content not ready for agent consumption
+
+See [Agent Concepts](/concepts/agent#resource-level-access-control) for more details.
