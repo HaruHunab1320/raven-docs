@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
         'guides/user-profiles',
         'guides/research',
         'guides/daily-workflow',
+        'guides/agent-runtime',
       ],
     },
     {
