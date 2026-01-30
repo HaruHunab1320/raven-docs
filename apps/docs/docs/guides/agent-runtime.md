@@ -371,6 +371,193 @@ You need to set the runtime endpoint in Settings → Agents → Agent Runtime Ho
 - Agents only have access to resources granted via MCP permissions
 - Use resource-level `agentAccessible` flags to protect sensitive content
 
+## WebSocket Events
+
+The frontend receives real-time agent status updates via WebSocket. Connect to the main WebSocket gateway and listen for these events.
+
+### Event Mapping
+
+Parallax runtime emits events that Raven broadcasts to the workspace:
+
+| Parallax Event | Raven Broadcast | Data |
+|----------------|-----------------|------|
+| `agent_started` | `agent:started` | `{ agent }` |
+| `agent_ready` | `agent:ready` | `{ agent }` |
+| `login_required` | `agent:login_required` | `{ agent, loginUrl }` |
+| `agent_stopped` | `agent:stopped` | `{ agent, reason }` |
+| `agent_error` | `agent:error` | `{ agent, error }` |
+
+### Event: `agent:started`
+
+Fired when an agent has started spawning.
+
+```typescript
+socket.on('agent:started', (data) => {
+  console.log(`Agent ${data.agent.id} is starting`);
+  // Add agent to UI list with "starting" status
+});
+```
+
+### Event: `agent:login_required`
+
+Fired when a spawned agent needs authentication (e.g., device code flow).
+
+```typescript
+socket.on('agent:login_required', (data) => {
+  // Auto-open terminal to show login instructions
+  console.log(`Agent ${data.agent.id} needs login: ${data.loginUrl}`);
+  showTerminalPanel(data.agent.id);
+});
+```
+
+**Recommended behavior:** Auto-open the terminal panel so user can see login instructions.
+
+### Event: `agent:ready`
+
+Fired when an agent has completed authentication and is ready for work.
+
+```typescript
+socket.on('agent:ready', (data) => {
+  console.log(`Agent ${data.agent.id} is ready`);
+  // Update UI to show agent is operational
+  updateAgentStatus(data.agent.id, 'ready');
+});
+```
+
+### Event: `agent:stopped`
+
+Fired when an agent has stopped.
+
+```typescript
+socket.on('agent:stopped', (data) => {
+  console.log(`Agent ${data.agent.id} stopped: ${data.reason}`);
+  // Update UI to show agent is stopped
+});
+```
+
+### Event: `agent:error`
+
+Fired when an agent encounters an error.
+
+```typescript
+socket.on('agent:error', (data) => {
+  console.error(`Agent ${data.agent.id} error: ${data.error}`);
+  // Show error notification to user
+});
+```
+
+### Access Management Events
+
+```typescript
+// External agent requests access
+socket.on('agent:access_requested', (data) => {
+  // Show notification to admins about pending request
+});
+
+// Agent access granted
+socket.on('agent:access_approved', (data) => {
+  console.log(`Agent ${data.agent.name} approved`);
+});
+
+// Agent access revoked
+socket.on('agent:access_revoked', (data) => {
+  console.log(`Agent ${data.agent.id} revoked: ${data.reason}`);
+});
+```
+
+## Terminal Proxy
+
+Raven Docs proxies terminal connections to the Parallax runtime, handling authentication and workspace routing.
+
+### Connecting to a Terminal
+
+```typescript
+const termSocket = io('/terminal');
+
+// Attach to an agent's terminal (by agent ID)
+termSocket.emit('attach', { agentId: 'agent-123' });
+
+// Or by session ID
+termSocket.emit('attach', { sessionId: 'session-456' });
+
+// Handle attachment confirmation
+termSocket.on('attached', (session) => {
+  console.log(`Attached to session ${session.sessionId}`);
+  console.log(`Terminal size: ${session.cols}x${session.rows}`);
+});
+
+// Receive terminal output
+termSocket.on('data', (output) => {
+  xterm.write(output);
+});
+
+// Send user input
+xterm.onData((input) => {
+  termSocket.emit('input', input);
+});
+
+// Handle resize
+xterm.onResize(({ cols, rows }) => {
+  termSocket.emit('resize', { cols, rows });
+});
+
+// Handle status changes
+termSocket.on('status', (data) => {
+  if (data.status === 'login_required') {
+    showLoginUrl(data.loginUrl);
+  }
+});
+```
+
+### Resize Handling
+
+When the user resizes the terminal, Raven forwards the resize command to Parallax:
+
+```typescript
+// Frontend -> Raven
+termSocket.emit('resize', { cols: 120, rows: 40 });
+
+// Raven -> Parallax (internally)
+runtimeWs.send(JSON.stringify({ type: 'resize', cols: 120, rows: 40 }));
+```
+
+### Binary Data
+
+PTY output can include raw escape sequences and binary data. Raven preserves this data when proxying to ensure proper terminal emulation.
+
+## Parallax Integration
+
+When using Parallax Cloud, agents become **orchestratable** rather than fully autonomous:
+
+```
+┌─────────────────┐
+│ Parallax Control│
+│     Plane       │
+└────────┬────────┘
+         │ assigns tasks
+         ▼
+┌─────────────────┐
+│  Agent Runtime  │
+│  (Claude Code)  │
+└────────┬────────┘
+         │ MCP tool calls
+         ▼
+┌─────────────────┐
+│   Raven Docs    │
+│ (Knowledge Base)│
+└─────────────────┘
+```
+
+- **Parallax** decides what tasks agents work on
+- **Agents** have autonomy in how they accomplish tasks
+- **Raven Docs** provides the knowledge, tools, and approval layer
+
+Agents can:
+- Receive task assignments from Parallax pattern engine
+- Execute tasks using Raven Docs MCP tools
+- Report results back to Parallax
+- Escalate questions when stuck
+
 ## Next Steps
 
 - [Agent Permissions](/concepts/agent#agent-permissions) - Configure what agents can access

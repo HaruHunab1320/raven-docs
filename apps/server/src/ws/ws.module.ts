@@ -6,5 +6,6 @@ import { DatabaseModule } from '../database/database.module';
 @Module({
   imports: [TokenModule, DatabaseModule],
   providers: [WsGateway],
+  exports: [WsGateway],
 })
 export class WsModule {}

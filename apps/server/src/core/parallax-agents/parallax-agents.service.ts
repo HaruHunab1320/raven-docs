@@ -20,6 +20,7 @@ import {
 } from '../../database/repos/parallax-agent/agent-invite.repo';
 import { MCPApiKeyService } from '../../integrations/mcp/services/mcp-api-key.service';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
+import { RuntimeConnectionService } from './runtime-connection.service';
 import { AgentAccessRequestDto } from './dto/access-request.dto';
 import {
   AGENT_LIMITS,
@@ -45,6 +46,7 @@ export class ParallaxAgentsService {
     private readonly eventEmitter: EventEmitter2,
     @Inject(forwardRef(() => TerminalSessionService))
     private readonly terminalSessionService: TerminalSessionService,
+    private readonly runtimeConnectionService: RuntimeConnectionService,
   ) {}
 
   // ========== Access Management ==========
@@ -784,6 +786,15 @@ export class ParallaxAgentsService {
 
     if (!runtimeEndpoint) {
       throw new Error('Runtime endpoint not configured. Please configure hosting settings.');
+    }
+
+    // Ensure we're connected to the runtime's event stream
+    // This allows us to receive login_required, agent_ready, etc. events
+    try {
+      await this.runtimeConnectionService.connectToRuntime(workspaceId, runtimeEndpoint);
+    } catch (err: any) {
+      this.logger.warn(`Failed to connect to runtime event stream: ${err.message}`);
+      // Continue with spawn - we can still use HTTP callbacks as fallback
     }
 
     const spawnedAgents: Array<{ id: string; name: string; type: string; status: string }> = [];
