@@ -105,7 +105,7 @@ try {
 
 ```bash
 response=$(curl -s -w "\n%{http_code}" \
-  https://api.ravendocs.com/v1/pages/invalid \
+  http://localhost:3000/api/pages/invalid \
   -H "Authorization: Bearer $API_KEY")
 
 status=$(echo "$response" | tail -n1)

@@ -24,7 +24,7 @@ Full-text search across your workspace.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/search?workspaceId=ws_123&query=authentication" \
+curl "http://localhost:3000/api/search?workspaceId=ws_123&query=authentication" \
   -H "Authorization: Bearer $API_KEY"
 ```
 

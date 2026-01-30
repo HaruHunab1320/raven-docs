@@ -7,11 +7,23 @@ sidebar_position: 2
 
 Get up and running with Raven Docs in under 5 minutes.
 
-## Create an Account
+## Clone and Run
 
-1. Go to [app.ravendocs.com](https://app.ravendocs.com)
-2. Sign up with your email or continue with Google/GitHub
-3. Create your first workspace
+```bash
+# Clone the repository
+git clone https://github.com/HaruHunab1320/raven-docs.git
+cd raven-docs
+
+# Copy environment file and configure
+cp .env.example .env
+
+# Start with Docker Compose
+docker compose up -d
+```
+
+Once running, open `http://localhost:3000` in your browser and create your first account.
+
+For detailed deployment options, see [Self-Hosting](/self-hosting/overview).
 
 ## Create Your First Workspace
 
@@ -92,4 +104,4 @@ Now that you're set up, explore these topics:
 
 - Check the [Guides](/guides/overview) for detailed walkthroughs
 - Join our [Discord](https://discord.gg/ravendocs) for community support
-- Email us at support@ravendocs.com
+- Open an issue on [GitHub](https://github.com/HaruHunab1320/raven-docs/issues)

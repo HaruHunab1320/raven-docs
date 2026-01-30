@@ -26,7 +26,7 @@ Include in the Authorization header:
 {
   "mcpServers": {
     "raven-docs": {
-      "url": "https://api.ravendocs.com/mcp-standard",
+      "url": "http://localhost:3000/api/mcp-standard",
       "headers": {
         "Authorization": "Bearer raven_sk_your_key_here"
       }

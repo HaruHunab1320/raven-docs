@@ -16,7 +16,7 @@ Returns all workspaces the authenticated user belongs to.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/workspaces" \
+curl "http://localhost:3000/api/workspaces" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -49,7 +49,7 @@ Returns details for a specific workspace.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/workspaces/ws_abc123" \
+curl "http://localhost:3000/api/workspaces/ws_abc123" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -93,7 +93,7 @@ Creates a new workspace.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/workspaces" \
+curl -X POST "http://localhost:3000/api/workspaces" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

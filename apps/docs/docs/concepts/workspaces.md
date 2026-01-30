@@ -26,10 +26,10 @@ Workspace (e.g., "Acme Corp")
 
 ## Creating a Workspace
 
-When you sign up for Raven Docs, you'll be prompted to create your first workspace:
+When you first access Raven Docs, you'll be prompted to create your first workspace:
 
 1. Choose a name (e.g., "Acme Corp")
-2. Set a hostname (e.g., `acme.ravendocs.com`)
+2. Set a hostname identifier (e.g., `acme`)
 3. Invite team members (optional)
 
 ## Workspace Settings

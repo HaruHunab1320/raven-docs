@@ -27,7 +27,7 @@ Returns tasks with optional filters.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/tasks?workspaceId=ws_123&status=todo" \
+curl "http://localhost:3000/api/tasks?workspaceId=ws_123&status=todo" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -114,7 +114,7 @@ Creates a new task.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/tasks" \
+curl -X POST "http://localhost:3000/api/tasks" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -151,7 +151,7 @@ Updates an existing task.
 ### Example Request
 
 ```bash
-curl -X PUT "https://api.ravendocs.com/v1/tasks/task_abc123" \
+curl -X PUT "http://localhost:3000/api/tasks/task_abc123" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -177,7 +177,7 @@ Marks a task as complete.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/tasks/task_abc123/complete" \
+curl -X POST "http://localhost:3000/api/tasks/task_abc123/complete" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "workspaceId": "ws_123" }'

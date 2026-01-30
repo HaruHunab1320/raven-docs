@@ -29,7 +29,7 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "raven-docs": {
-      "url": "https://api.ravendocs.com/mcp-standard",
+      "url": "http://localhost:3000/api/mcp-standard",
       "transport": "http",
       "headers": {
         "Authorization": "Bearer raven_sk_your_key_here"
@@ -45,7 +45,7 @@ Add to your `claude_desktop_config.json`:
 import { MCPClient } from '@modelcontextprotocol/sdk';
 
 const client = new MCPClient({
-  serverUrl: 'https://api.ravendocs.com/mcp-standard',
+  serverUrl: 'http://localhost:3000/api/mcp-standard',
   headers: {
     'Authorization': `Bearer ${process.env.RAVEN_API_KEY}`,
   },
@@ -63,7 +63,7 @@ const tools = await client.listTools();
 ### List Categories
 
 ```bash
-curl -X POST "https://api.ravendocs.com/mcp-standard/list_categories" \
+curl -X POST "http://localhost:3000/api/mcp-standard/list_categories" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -82,7 +82,7 @@ Expected response:
 ### Search for Tools
 
 ```bash
-curl -X POST "https://api.ravendocs.com/mcp-standard/search_tools" \
+curl -X POST "http://localhost:3000/api/mcp-standard/search_tools" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "query": "create page" }'
@@ -91,7 +91,7 @@ curl -X POST "https://api.ravendocs.com/mcp-standard/search_tools" \
 ### Call a Tool
 
 ```bash
-curl -X POST "https://api.ravendocs.com/mcp-standard/call_tool" \
+curl -X POST "http://localhost:3000/api/mcp-standard/call_tool" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -111,7 +111,7 @@ import { MCPClient } from '@modelcontextprotocol/sdk';
 import Anthropic from '@anthropic-ai/sdk';
 
 const mcp = new MCPClient({
-  serverUrl: 'https://api.ravendocs.com/mcp-standard',
+  serverUrl: 'http://localhost:3000/api/mcp-standard',
   headers: { 'Authorization': `Bearer ${RAVEN_API_KEY}` },
 });
 
@@ -154,7 +154,7 @@ RAVEN_WORKSPACE_ID=ws_your_workspace_id
 
 ```typescript
 const mcp = new MCPClient({
-  serverUrl: 'https://api.ravendocs.com/mcp-standard',
+  serverUrl: 'http://localhost:3000/api/mcp-standard',
   headers: {
     'Authorization': `Bearer ${process.env.RAVEN_API_KEY}`,
   },

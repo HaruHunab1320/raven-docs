@@ -23,7 +23,7 @@ API keys have full access to your workspace. Treat them like passwords.
 Include your API key in the `Authorization` header:
 
 ```bash
-curl https://api.ravendocs.com/v1/workspaces \
+curl http://localhost:3000/api/workspaces \
   -H "Authorization: Bearer raven_sk_abc123..."
 ```
 
@@ -77,7 +77,7 @@ The MCP server uses the same API keys:
 {
   "mcpServers": {
     "raven-docs": {
-      "url": "https://api.ravendocs.com/mcp-standard",
+      "url": "http://localhost:3000/api/mcp-standard",
       "headers": {
         "Authorization": "Bearer raven_sk_abc123..."
       }
@@ -88,28 +88,17 @@ The MCP server uses the same API keys:
 
 See [MCP Authentication](/mcp/authentication) for details.
 
-## OAuth (Enterprise)
+## OAuth Configuration
 
-Enterprise customers can use OAuth 2.0:
+You can configure OAuth 2.0 providers (Google, GitHub) for your self-hosted instance.
 
-### Authorization Flow
+### Supported Providers
 
-1. Redirect to authorization endpoint
-2. User approves access
-3. Exchange code for tokens
-4. Use access token for API calls
+- Google OAuth
+- GitHub OAuth
+- SAML (for enterprise SSO)
 
-```typescript
-// OAuth configuration
-const oauth = {
-  authorizationUrl: 'https://ravendocs.com/oauth/authorize',
-  tokenUrl: 'https://ravendocs.com/oauth/token',
-  clientId: 'your-client-id',
-  scopes: ['read', 'write'],
-};
-```
-
-Contact sales@ravendocs.com for OAuth setup.
+See [Configuration](/self-hosting/configuration) for setup details.
 
 ## Security Best Practices
 

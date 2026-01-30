@@ -134,7 +134,7 @@ await mcpClient.callTool('research_create', {
 {
   "mcpServers": {
     "raven-docs": {
-      "url": "https://api.ravendocs.com/mcp-standard",
+      "url": "http://localhost:3000/api/mcp-standard",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }

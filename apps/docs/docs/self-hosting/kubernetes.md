@@ -15,11 +15,13 @@ Deploy Raven Docs to Kubernetes using Helm.
 
 ## Quick Start
 
-### 1. Add Helm Repository
+### 1. Clone the Repository
+
+The Helm charts are included in the repository:
 
 ```bash
-helm repo add ravendocs https://charts.ravendocs.com
-helm repo update
+git clone https://github.com/HaruHunab1320/raven-docs.git
+cd raven-docs
 ```
 
 ### 2. Create Values File
@@ -58,7 +60,7 @@ ingress:
 ```bash
 kubectl create namespace ravendocs
 
-helm install raven-docs ravendocs/raven-docs \
+helm install raven-docs ./charts/raven-docs \
   --namespace ravendocs \
   --values values.yaml
 ```
@@ -239,11 +241,11 @@ spec:
 ## Upgrading
 
 ```bash
-# Update repo
-helm repo update
+# Pull latest changes
+git pull
 
 # Upgrade
-helm upgrade raven-docs ravendocs/raven-docs \
+helm upgrade raven-docs ./charts/raven-docs \
   --namespace ravendocs \
   --values values.yaml
 ```

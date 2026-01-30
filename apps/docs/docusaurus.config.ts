@@ -30,7 +30,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://docs.ravendocs.com',
+  url: 'https://docs.ravendocs.ca',
   baseUrl: '/',
 
   organizationName: 'raven-docs',
@@ -109,12 +109,6 @@ const config: Config = {
           position: 'right',
           className: 'header-github-link',
           'aria-label': 'GitHub repository',
-        },
-        {
-          href: 'https://app.ravendocs.com',
-          label: 'Launch App',
-          position: 'right',
-          className: 'navbar-cta',
         },
       ],
     },

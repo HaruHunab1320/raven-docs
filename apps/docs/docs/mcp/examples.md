@@ -16,7 +16,7 @@ import { MCPClient } from '@modelcontextprotocol/sdk';
 import Anthropic from '@anthropic-ai/sdk';
 
 const mcp = new MCPClient({
-  serverUrl: 'https://api.ravendocs.com/mcp-standard',
+  serverUrl: 'http://localhost:3000/api/mcp-standard',
   headers: { 'Authorization': `Bearer ${process.env.RAVEN_API_KEY}` },
 });
 

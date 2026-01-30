@@ -53,7 +53,7 @@ graph TB
 
 ```bash
 # Clone the repo
-git clone https://github.com/raven-docs/raven-docs.git
+git clone https://github.com/HaruHunab1320/raven-docs.git
 cd raven-docs
 
 # Configure environment
@@ -66,15 +66,7 @@ docker compose up -d
 
 ### Kubernetes
 
-```bash
-# Add Helm repo
-helm repo add ravendocs https://charts.ravendocs.com
-
-# Install
-helm install raven-docs ravendocs/raven-docs \
-  --set postgresql.enabled=true \
-  --set redis.enabled=true
-```
+See the [Kubernetes guide](/self-hosting/kubernetes) for deploying with Helm charts included in the repository.
 
 ## Environment Variables
 
@@ -91,21 +83,19 @@ See [Configuration](/self-hosting/configuration) for all options.
 
 1. Check the [Changelog](/changelog) for breaking changes
 2. Back up your database
-3. Pull new version
+3. Pull the latest changes
 4. Run migrations
 5. Restart services
 
 ```bash
 # Docker
+git pull
 docker compose pull
 docker compose up -d
-
-# Kubernetes
-helm upgrade raven-docs ravendocs/raven-docs
 ```
 
 ## Support
 
-Self-hosted support is available for Enterprise customers. Contact sales@ravendocs.com.
-
-For community support, visit our [Discord](https://discord.gg/ravendocs).
+For community support:
+- Open an issue on [GitHub](https://github.com/HaruHunab1320/raven-docs/issues)
+- Join our [Discord](https://discord.gg/ravendocs)

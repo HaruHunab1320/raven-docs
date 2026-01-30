@@ -46,19 +46,19 @@ Best for development and quick setup. The runtime runs on your machine.
 - Requires your machine to be running
 - Not suitable for team use
 
-### Parallax Cloud
+### Parallax Runtime (Kubernetes)
 
-Managed infrastructure with automatic scaling and isolation.
+Self-hosted Kubernetes-based runtime with automatic scaling and isolation.
 
 **Pros:**
-- No infrastructure to manage
 - Strong isolation between agents
-- SLA guarantees
+- Automatic scaling
 - Audit trails
+- Full control over infrastructure
 
 **Cons:**
-- Requires Parallax subscription
-- Agents run in cloud (data leaves your network)
+- Requires Kubernetes setup
+- More complex to configure
 
 ### Custom Runtime
 
@@ -88,7 +88,7 @@ Choose your hosting mode:
 | Mode | When to Use |
 |------|-------------|
 | Local | Development, personal use |
-| Parallax Cloud | Teams, production workloads |
+| Parallax Runtime | Teams, production workloads with Kubernetes |
 | Custom | Enterprise, compliance requirements |
 
 ### Step 3: Configure Endpoint
@@ -184,7 +184,6 @@ curl -X POST https://your-raven-instance.com/api/parallax-agents/spawn \
 | `claude-code` | Anthropic's Claude Code CLI | Anthropic API key |
 | `codex` | OpenAI Codex | OpenAI API key |
 | `gemini-cli` | Google Gemini CLI | Google Cloud auth |
-| `aider` | Aider pair programming | Provider API key |
 | `custom` | Your own agent | Varies |
 
 ## Agent Authentication
@@ -266,7 +265,7 @@ When implementing a custom runtime, include terminal session support:
 
 ```javascript
 // On agent spawn, create terminal session
-const response = await fetch('https://raven-docs.com/api/terminal/sessions', {
+const response = await fetch('http://localhost:3000/api/terminal/sessions', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -278,7 +277,7 @@ const response = await fetch('https://raven-docs.com/api/terminal/sessions', {
 });
 
 // Connect to terminal gateway
-const socket = io('wss://raven-docs.com/terminal', {
+const socket = io('ws://localhost:3000/terminal', {
   query: { runtimeSessionId: ptySession.id }
 });
 
@@ -527,7 +526,7 @@ PTY output can include raw escape sequences and binary data. Raven preserves thi
 
 ## Parallax Integration
 
-When using Parallax Cloud, agents become **orchestratable** rather than fully autonomous:
+When using the Parallax runtime, agents become **orchestratable** rather than fully autonomous:
 
 ```
 ┌─────────────────┐

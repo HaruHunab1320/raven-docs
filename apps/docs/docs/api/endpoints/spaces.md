@@ -22,7 +22,7 @@ Returns all spaces in a workspace.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/spaces?workspaceId=ws_123" \
+curl "http://localhost:3000/api/spaces?workspaceId=ws_123" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -103,7 +103,7 @@ Creates a new space.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/spaces" \
+curl -X POST "http://localhost:3000/api/spaces" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

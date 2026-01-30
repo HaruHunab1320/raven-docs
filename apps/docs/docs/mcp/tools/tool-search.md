@@ -35,7 +35,7 @@ Search for tools by query, category, or tags.
 #### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/mcp-standard/search_tools" \
+curl -X POST "http://localhost:3000/api/mcp-standard/search_tools" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

@@ -26,7 +26,7 @@ Returns a list of pages in a space.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/pages?workspaceId=ws_123&spaceId=space_456" \
+curl "http://localhost:3000/api/pages?workspaceId=ws_123&spaceId=space_456" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -72,7 +72,7 @@ Returns a single page with its content.
 ### Example Request
 
 ```bash
-curl "https://api.ravendocs.com/v1/pages/page_abc123" \
+curl "http://localhost:3000/api/pages/page_abc123" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -131,7 +131,7 @@ Creates a new page.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/pages" \
+curl -X POST "http://localhost:3000/api/pages" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -191,7 +191,7 @@ Updates an existing page.
 ### Example Request
 
 ```bash
-curl -X PUT "https://api.ravendocs.com/v1/pages/page_xyz789" \
+curl -X PUT "http://localhost:3000/api/pages/page_xyz789" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -227,7 +227,7 @@ Deletes a page.
 ### Example Request
 
 ```bash
-curl -X DELETE "https://api.ravendocs.com/v1/pages/page_xyz789?workspaceId=ws_123" \
+curl -X DELETE "http://localhost:3000/api/pages/page_xyz789?workspaceId=ws_123" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -281,7 +281,7 @@ Restores a page to a previous version.
 ### Example Request
 
 ```bash
-curl -X POST "https://api.ravendocs.com/v1/pages/page_abc123/restore" \
+curl -X POST "http://localhost:3000/api/pages/page_abc123/restore" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "historyId": "hist_002" }'

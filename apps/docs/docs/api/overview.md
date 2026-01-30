@@ -10,13 +10,13 @@ The Raven Docs REST API gives you full programmatic access to your workspace.
 ## Base URL
 
 ```
-https://api.ravendocs.com/v1
+http://localhost:3000/api
 ```
 
-For self-hosted instances:
+For production deployments with a custom domain:
 
 ```
-https://your-domain.com/api/v1
+https://your-domain.com/api
 ```
 
 ## Authentication
@@ -24,7 +24,7 @@ https://your-domain.com/api/v1
 All API requests require an API key passed in the header:
 
 ```bash
-curl https://api.ravendocs.com/v1/workspaces \
+curl http://localhost:3000/api/workspaces \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -184,13 +184,13 @@ pages = client.pages.list(workspace_id="ws_123")
 
 ## Rate Limits
 
-| Plan | Requests/minute | Requests/day |
-|------|-----------------|--------------|
-| Free | 60 | 1,000 |
-| Pro | 300 | 10,000 |
-| Enterprise | 1,000 | Unlimited |
+Rate limits can be configured in your environment. Default limits:
 
-See [Rate Limits](/api/rate-limits) for details.
+| Scope | Requests/minute |
+|-------|-----------------|
+| Default | 60 |
+
+See [Rate Limits](/api/rate-limits) for configuration options.
 
 ## Webhooks
 
