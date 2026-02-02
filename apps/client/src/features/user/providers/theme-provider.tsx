@@ -35,7 +35,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  activeTheme: getThemeById("default-light"),
+  activeTheme: getThemeById("raven-moonstone"),
   setThemeById: () => {},
 });
 
@@ -54,7 +54,7 @@ export function RavenDocsThemeProvider({ children }: ThemeProviderProps) {
   // Use state for active theme to ensure it updates properly
   const [activeTheme, setActiveTheme] = useState<RavenDocsTheme>(() => {
     const defaultTheme =
-      colorScheme === "dark" ? "default-dark" : "default-light";
+      colorScheme === "dark" ? "raven-obsidian" : "raven-moonstone";
     const themeId = user?.settings?.preferences?.themeId || defaultTheme;
     return getThemeById(themeId);
   });
@@ -227,7 +227,7 @@ export function RavenDocsThemeProvider({ children }: ThemeProviderProps) {
     if (!user) return;
     if (themeBeingApplied || applyingThemeRef.current) return;
     const fallbackTheme =
-      colorScheme === "dark" ? "default-dark" : "default-light";
+      colorScheme === "dark" ? "raven-obsidian" : "raven-moonstone";
     const desiredThemeId = user.settings?.preferences?.themeId || fallbackTheme;
     if (!themeInitializedRef.current) {
       themeInitializedRef.current = true;

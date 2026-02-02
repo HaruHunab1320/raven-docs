@@ -5,7 +5,7 @@ import {
 } from "@mantine/core";
 
 // Flag to track active theme
-let activeThemeId = "default-light";
+let activeThemeId = "raven-moonstone";
 
 // Default Raven Docs blue
 const blue: MantineColorsTuple = [
@@ -607,7 +607,7 @@ export const setActiveThemeId = (themeId: string): void => {
 
 // Base theme with all color definitions
 export const theme = createTheme({
-  primaryColor: "blue",
+  primaryColor: "moonstone",
   colors: {
     blue,
     red,

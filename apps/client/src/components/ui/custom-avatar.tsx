@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Avatar, AvatarProps } from "@mantine/core";
+import { Avatar, AvatarProps, useMantineTheme } from "@mantine/core";
 import { getAvatarUrl } from "@/lib/config";
 
 interface CustomAvatarProps extends AvatarProps {
@@ -13,8 +13,9 @@ interface CustomAvatarProps extends AvatarProps {
   component?: any;
 }
 
-export function CustomAvatar({ avatarUrl, name, ...props }: CustomAvatarProps) {
+export function CustomAvatar({ avatarUrl, name, color, ...props }: CustomAvatarProps) {
   const [imgError, setImgError] = useState(false);
+  const theme = useMantineTheme();
 
   // Reset error state when the URL changes
   useEffect(() => {
@@ -34,11 +35,14 @@ export function CustomAvatar({ avatarUrl, name, ...props }: CustomAvatarProps) {
     return getAvatarUrl(avatarUrl);
   }, [avatarUrl, imgError]);
 
+  // Use provided color, or fall back to theme primary color
+  const avatarColor = color || theme.primaryColor;
+
   return (
     <Avatar
       src={avatarSource}
       alt={name || "Avatar"}
-      color="blue"
+      color={avatarColor}
       {...props}
       onError={() => setImgError(true)}
     >
