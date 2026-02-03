@@ -237,7 +237,7 @@ jobs:
   deploy-app:
     name: Deploy Application
     runs-on: ubuntu-latest
-    needs: [changes, docker]
+    needs: [changes, migrate]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
@@ -263,32 +263,11 @@ jobs:
 
       - name: Deploy to Cloud Run
         env:
-          IMAGE_URL: ${{ needs.docker.outputs.image_url }}
           FALLBACK_IMAGE: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
         run: |
-          # Use the docker job output, fallback to constructed URL if empty
-          DEPLOY_IMAGE="${IMAGE_URL:-$FALLBACK_IMAGE}"
-          echo "Deploying image: $DEPLOY_IMAGE"
-
-          if [ -z "$DEPLOY_IMAGE" ]; then
-            echo "Error: No image URL available"
-            exit 1
-          fi
-
+          echo "Deploying image: $FALLBACK_IMAGE"
           gcloud run services update raven-docs-production-app \
-            --image=$DEPLOY_IMAGE \
-            --region=${{ env.REGION }}
-
-      - name: Update migrations job image
-        env:
-          IMAGE_URL: ${{ needs.docker.outputs.image_url }}
-          FALLBACK_IMAGE: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        run: |
-          DEPLOY_IMAGE="${IMAGE_URL:-$FALLBACK_IMAGE}"
-          echo "Updating migrations job with image: $DEPLOY_IMAGE"
-
-          gcloud run jobs update raven-docs-production-migrations \
-            --image=$DEPLOY_IMAGE \
+            --image=$FALLBACK_IMAGE \
             --region=${{ env.REGION }}
 
   # ==========================================================================
@@ -341,16 +320,17 @@ jobs:
             -auto-approve
 
   # ==========================================================================
-  # Run Database Migrations (after app deploy)
+  # Run Database Migrations (before app deploy)
   # ==========================================================================
   migrate:
     name: Run Migrations
     runs-on: ubuntu-latest
-    needs: [changes, deploy-app]
+    needs: [changes, docker]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
       (needs.changes.outputs.app == 'true' || github.event_name == 'workflow_dispatch')
+    environment: production
 
     permissions:
       contents: read
@@ -368,6 +348,15 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Update migrations job image
+        env:
+          IMAGE_URL: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          echo "Updating migrations job with image: $IMAGE_URL"
+          gcloud run jobs update raven-docs-production-migrations \
+            --image=$IMAGE_URL \
+            --region=${{ env.REGION }}
 
       - name: Run migrations via Cloud Run Job
         run: |
