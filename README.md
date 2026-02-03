@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/client/public/RAVENDOCS-banner.png" alt="Raven Docs" width="600" />
+</p>
+
 # Raven Docs
 
 **AI-native knowledge management with full agentic workflows.** Organize documentation, manage tasks with GTD methodology, and orchestrate AI agent swarms—all from one platform.
