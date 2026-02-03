@@ -54,19 +54,23 @@ const project = await client.projects.create({
 
 ### Project Structure
 
-```
-Website Redesign (Project)
-├── Design Phase
-│   ├── Create wireframes
-│   ├── Design mockups
-│   └── Get stakeholder approval
-├── Development Phase
-│   ├── Set up new repo
-│   ├── Implement homepage
-│   └── Add analytics
-└── Launch
-    ├── QA testing
-    └── Deploy to production
+```mermaid
+flowchart TB
+    Project["Website Redesign (Project)"]
+
+    Project --> Design["Design Phase"]
+    Design --> D1["Create wireframes"]
+    Design --> D2["Design mockups"]
+    Design --> D3["Get stakeholder approval"]
+
+    Project --> Dev["Development Phase"]
+    Dev --> Dev1["Set up new repo"]
+    Dev --> Dev2["Implement homepage"]
+    Dev --> Dev3["Add analytics"]
+
+    Project --> Launch["Launch"]
+    Launch --> L1["QA testing"]
+    Launch --> L2["Deploy to production"]
 ```
 
 ## Workflows
@@ -106,10 +110,24 @@ Traditional task list with:
 
 Kanban columns for visual workflow:
 
-```
-| Backlog | Todo | In Progress | Review | Done |
-|---------|------|-------------|--------|------|
-| Task A  | ...  | Task C      | Task E | ...  |
+```mermaid
+block-beta
+    columns 5
+    block:backlog["Backlog"]
+        A["Task A"]
+    end
+    block:todo["Todo"]
+        B["..."]
+    end
+    block:progress["In Progress"]
+        C["Task C"]
+    end
+    block:review["Review"]
+        E["Task E"]
+    end
+    block:done["Done"]
+        F["..."]
+    end
 ```
 
 Customize columns based on your workflow.

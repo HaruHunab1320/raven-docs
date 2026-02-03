@@ -90,12 +90,13 @@ When starting a task:
 3. Link to relevant documentation
 4. Take notes as you work
 
-```
-Task: Update API Documentation
-├── Status: In Progress
-├── Notes: "Added rate limiting section"
-├── Linked: /docs/api/rate-limits
-└── Time: Started 2:30pm
+```mermaid
+flowchart TB
+    Task["Task: Update API Documentation"]
+    Task --> Status["Status: In Progress"]
+    Task --> Notes["Notes: Added rate limiting section"]
+    Task --> Linked["Linked: /docs/api/rate-limits"]
+    Task --> Time["Time: Started 2:30pm"]
 ```
 
 ### Agent Assistance

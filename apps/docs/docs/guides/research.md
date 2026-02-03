@@ -11,16 +11,15 @@ The research feature allows the AI agent to conduct in-depth research from multi
 
 Research jobs gather information and synthesize findings:
 
-```
-Research Request
-    ↓
-Source Selection (docs, web, repos)
-    ↓
-Information Gathering
-    ↓
-Analysis & Synthesis
-    ↓
-Report Generation
+```mermaid
+flowchart TB
+    Request["Research Request"]
+    Sources["Source Selection<br/>(docs, web, repos)"]
+    Gather["Information Gathering"]
+    Analysis["Analysis & Synthesis"]
+    Report["Report Generation"]
+
+    Request --> Sources --> Gather --> Analysis --> Report
 ```
 
 ## Creating Research Jobs
@@ -216,11 +215,12 @@ Agent: Research job cancelled. Partial results saved.
 
 The agent combines information from multiple sources:
 
-```
-Finding: "Use exponential backoff for rate limits"
-├── Source 1: Your API documentation
-├── Source 2: AWS best practices (web)
-└── Source 3: Express.js middleware (repo)
+```mermaid
+flowchart TB
+    Finding["Finding: Use exponential backoff for rate limits"]
+    Finding --> S1["Source 1: Your API documentation"]
+    Finding --> S2["Source 2: AWS best practices (web)"]
+    Finding --> S3["Source 3: Express.js middleware (repo)"]
 ```
 
 ### Follow-up Research

@@ -459,3 +459,32 @@ export function useTerminateTerminalSession() {
     },
   });
 }
+
+// ========== Activity Watching ==========
+
+import {
+  getWatchableTargets,
+  getRecentActivity,
+} from "../services/parallax-agent-service";
+
+export const WATCHABLE_TARGETS_KEY = ["parallax-agents", "watchable"];
+export const RECENT_ACTIVITY_KEY = (id: string) => ["parallax-agents", id, "recent-activity"];
+
+// Get watchable targets (agents that can be watched)
+export function useWatchableTargets() {
+  return useQuery({
+    queryKey: WATCHABLE_TARGETS_KEY,
+    queryFn: getWatchableTargets,
+    staleTime: 1000 * 60, // 1 minute
+  });
+}
+
+// Get recent activity for a specific agent
+export function useRecentActivity(agentId: string, limit?: number) {
+  return useQuery({
+    queryKey: [...RECENT_ACTIVITY_KEY(agentId), limit],
+    queryFn: () => getRecentActivity(agentId, limit),
+    enabled: !!agentId,
+    staleTime: 1000 * 10, // 10 seconds
+  });
+}

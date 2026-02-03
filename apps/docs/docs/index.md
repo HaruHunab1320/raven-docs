@@ -4,6 +4,10 @@ title: Introduction
 sidebar_position: 1
 ---
 
+<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+  <img src="/img/RAVENDOCS-banner.png" alt="Raven Docs" style={{maxWidth: '600px', width: '100%'}} />
+</div>
+
 # Welcome to Raven Docs
 
 Raven Docs is an AI-native knowledge management platform built for modern teams. Organize your documentation, manage tasks, and leverage AI to supercharge your productivity.

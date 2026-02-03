@@ -5,6 +5,7 @@ import {
   MCPEventType,
   MCPOperationType,
   MCPResourceType,
+  ToolExecutedEventData,
 } from '../interfaces/mcp-event.interface';
 import { MCPWebSocketGateway } from '../mcp-websocket.gateway';
 
@@ -242,6 +243,32 @@ export class MCPEventService {
       userId,
       workspaceId,
       spaceId,
+    };
+
+    this.publishEvent(event);
+  }
+
+  /**
+   * Create a tool executed event (for agent/user activity tracking)
+   *
+   * @param data Tool execution data
+   * @param userId The user who executed the tool
+   * @param workspaceId The workspace ID
+   */
+  public createToolExecutedEvent(
+    data: ToolExecutedEventData,
+    userId: string,
+    workspaceId: string,
+  ): void {
+    const event: MCPEvent = {
+      type: MCPEventType.TOOL_EXECUTED,
+      resource: MCPResourceType.AGENT,
+      operation: MCPOperationType.EXECUTE,
+      resourceId: data.agentId || userId,
+      timestamp: new Date().toISOString(),
+      data,
+      userId,
+      workspaceId,
     };
 
     this.publishEvent(event);

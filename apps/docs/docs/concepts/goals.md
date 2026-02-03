@@ -11,11 +11,14 @@ Goals in Raven Docs help you align your tasks and documentation with strategic o
 
 Goals provide direction for your work:
 
-```
-Long-term Goals (Years)
-    └── Mid-term Goals (Quarters)
-        └── Short-term Goals (Weeks/Months)
-            └── Tasks (Days)
+```mermaid
+flowchart TB
+    Long["Long-term Goals<br/>(Years)"]
+    Mid["Mid-term Goals<br/>(Quarters)"]
+    Short["Short-term Goals<br/>(Weeks/Months)"]
+    Tasks["Tasks<br/>(Days)"]
+
+    Long --> Mid --> Short --> Tasks
 ```
 
 ## Goal Horizons
@@ -100,12 +103,14 @@ The agent can suggest goal links based on:
 
 See goal progress through linked tasks:
 
-```
-Goal: Launch API v2.0
-├── ████████░░ 80% complete
-├── 8 of 10 tasks done
-├── 2 tasks in progress
-└── Due: Q1 2024
+```mermaid
+flowchart LR
+    subgraph Goal["Goal: Launch API v2.0"]
+        Progress["████████░░ 80% complete"]
+        Done["8 of 10 tasks done"]
+        InProgress["2 tasks in progress"]
+        Due["Due: Q1 2024"]
+    end
 ```
 
 ### Goal Dashboard
@@ -154,11 +159,14 @@ During planning sessions, the agent prompts:
 
 Align goals across horizons:
 
-```
-Long: "Build industry-leading product"
-  └── Mid: "Launch v2.0 with key features"
-      └── Short: "Complete authentication module"
-          └── Task: "Implement OAuth flow"
+```mermaid
+flowchart TB
+    Long["Long: Build industry-leading product"]
+    Mid["Mid: Launch v2.0 with key features"]
+    Short["Short: Complete authentication module"]
+    Task["Task: Implement OAuth flow"]
+
+    Long --> Mid --> Short --> Task
 ```
 
 ### Regular Reviews

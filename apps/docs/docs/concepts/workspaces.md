@@ -9,19 +9,30 @@ A workspace is the top-level container in Raven Docs. It represents your organiz
 
 ## Overview
 
-```
-Workspace (e.g., "Acme Corp")
-├── Spaces
-│   ├── Engineering
-│   ├── Product
-│   └── Company Wiki
-├── Members
-│   ├── Admins
-│   ├── Editors
-│   └── Viewers
-└── Settings
-    ├── Security
-    └── Integrations
+```mermaid
+flowchart TB
+    W["Workspace<br/>(e.g., Acme Corp)"]
+
+    W --> Spaces
+    W --> Members
+    W --> Settings
+
+    subgraph Spaces[" "]
+        S1["Engineering"]
+        S2["Product"]
+        S3["Company Wiki"]
+    end
+
+    subgraph Members[" "]
+        M1["Admins"]
+        M2["Editors"]
+        M3["Viewers"]
+    end
+
+    subgraph Settings[" "]
+        Set1["Security"]
+        Set2["Integrations"]
+    end
 ```
 
 ## Creating a Workspace

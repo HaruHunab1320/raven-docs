@@ -491,4 +491,34 @@ export class ParallaxAgentsController {
     await this.agentsService.handleSpawnCallback(body.workspaceId, body);
     return { success: true };
   }
+
+  // ========== Agent/User Activity Watching ==========
+
+  /**
+   * Get watchable users/agents in the workspace
+   * Returns a list of users and agents that can be watched
+   */
+  @Get('watchable')
+  @UseGuards(JwtAuthGuard)
+  async getWatchableTargets(
+    @AuthWorkspace() workspace: Workspace,
+    @AuthUser() user: User,
+  ) {
+    return this.agentsService.getWatchableTargets(workspace.id, user.id);
+  }
+
+  /**
+   * Get recent activity for a specific user/agent
+   * Useful for getting historical activity before starting a live watch
+   */
+  @Get(':id/recent-activity')
+  @UseGuards(JwtAuthGuard)
+  async getRecentActivity(
+    @Param('id') targetId: string,
+    @AuthWorkspace() workspace: Workspace,
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.agentsService.getRecentActivity(workspace.id, targetId, limitNum);
+  }
 }

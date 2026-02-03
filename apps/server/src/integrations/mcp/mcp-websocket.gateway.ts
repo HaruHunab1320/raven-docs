@@ -382,6 +382,18 @@ export class MCPWebSocketGateway
         );
 
         this.server.to(userRoom).emit('mcp:event', event);
+
+        // For TOOL_EXECUTED events, also emit to watchers of this user
+        if (event.type === MCPEventType.TOOL_EXECUTED) {
+          const watchRoom = this.getWatchRoomName(event.userId);
+          const watchRoomSize = this.getRoomSize(watchRoom);
+          if (watchRoomSize > 0) {
+            this.logger.debug(
+              `[MCP-WebSocket] Broadcasting to ${watchRoomSize} watchers in room: ${watchRoom}`,
+            );
+            this.server.to(watchRoom).emit('mcp:activity', event);
+          }
+        }
       }
 
       // For debugging, let's see if we have any connected clients at all
@@ -460,6 +472,101 @@ export class MCPWebSocketGateway
    */
   private getUserRoomName(userId: string): string {
     return `user:${userId}`;
+  }
+
+  /**
+   * Get the room name for watching a user/agent's activity
+   */
+  private getWatchRoomName(targetUserId: string): string {
+    return `watch:${targetUserId}`;
+  }
+
+  /**
+   * Subscribe to watch a user/agent's activity
+   *
+   * Allows workspace admins to observe what a user or agent is doing in real-time.
+   * Events are streamed to watchers including tool executions, page edits, etc.
+   */
+  @SubscribeMessage('mcp:watch')
+  handleWatch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      targetUserId: string;
+    },
+  ): void {
+    try {
+      if (!client) {
+        this.logger.error('Client object is undefined in handleWatch');
+        return;
+      }
+
+      const clientInfo = this.connectedClients.get(client.id);
+      if (!clientInfo) {
+        throw new Error('Client not authenticated');
+      }
+
+      const { targetUserId } = payload;
+      const watchRoom = this.getWatchRoomName(targetUserId);
+
+      this.logger.log(
+        `Client ${client.id} (user ${clientInfo.userId}) starting to watch user ${targetUserId}`,
+      );
+      client.join(watchRoom);
+
+      client.emit('mcp:watching', {
+        targetUserId,
+        message: `Now watching activity for user ${targetUserId}`,
+      });
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Watch error: ${err.message}`);
+      if (client) {
+        client.emit('mcp:error', {
+          message: 'Failed to start watching',
+          error: err.message,
+        });
+      }
+    }
+  }
+
+  /**
+   * Stop watching a user/agent's activity
+   */
+  @SubscribeMessage('mcp:unwatch')
+  handleUnwatch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      targetUserId: string;
+    },
+  ): void {
+    try {
+      if (!client) {
+        this.logger.error('Client object is undefined in handleUnwatch');
+        return;
+      }
+
+      const { targetUserId } = payload;
+      const watchRoom = this.getWatchRoomName(targetUserId);
+
+      this.logger.log(`Client ${client.id} stopped watching user ${targetUserId}`);
+      client.leave(watchRoom);
+
+      client.emit('mcp:unwatched', {
+        targetUserId,
+        message: `Stopped watching activity for user ${targetUserId}`,
+      });
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Unwatch error: ${err.message}`);
+      if (client) {
+        client.emit('mcp:error', {
+          message: 'Failed to stop watching',
+          error: err.message,
+        });
+      }
+    }
   }
 
   @SubscribeMessage('mcp:test-event')

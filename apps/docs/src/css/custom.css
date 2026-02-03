@@ -144,39 +144,39 @@
   /* Semantic */
   --raven-accent: var(--raven-violet-400);
   --raven-accent-hover: var(--raven-violet-300);
-  --raven-accent-subtle: rgba(139, 92, 246, 0.1);
+  --raven-accent-subtle: rgba(139, 92, 246, 0.12);
 
-  /* Backgrounds - Soft grey */
-  --ifm-background-color: #28282e;
-  --ifm-background-surface-color: #303038;
-  --raven-bg-subtle: #38383f;
-  --raven-bg-muted: #434350;
+  /* Backgrounds - Violet-tinted darks */
+  --ifm-background-color: #1a1625;
+  --ifm-background-surface-color: #221e2e;
+  --raven-bg-subtle: #2a2638;
+  --raven-bg-muted: #332f42;
 
   /* Text */
-  --ifm-font-color-base: #fafafa;
-  --ifm-font-color-secondary: #a1a1aa;
-  --raven-text-muted: #71717a;
-  --raven-text-subtle: #52525b;
+  --ifm-font-color-base: #f5f3ff;
+  --ifm-font-color-secondary: #b4b0c4;
+  --raven-text-muted: #8a8698;
+  --raven-text-subtle: #5c586a;
 
   /* Borders */
-  --raven-border: #45454f;
-  --raven-border-hover: #55555f;
-  --ifm-hr-border-color: #45454f;
+  --raven-border: #3d3950;
+  --raven-border-hover: #4d4862;
+  --ifm-hr-border-color: #3d3950;
 
   /* Code */
-  --ifm-code-background: #333340;
-  --docusaurus-highlighted-code-line-bg: rgba(139, 92, 246, 0.15);
+  --ifm-code-background: #252132;
+  --docusaurus-highlighted-code-line-bg: rgba(139, 92, 246, 0.18);
 
   /* Navbar */
-  --ifm-navbar-background-color: rgba(40, 40, 46, 0.92);
+  --ifm-navbar-background-color: rgba(26, 22, 37, 0.92);
 
   /* Sidebar */
-  --ifm-menu-color: #a1a1aa;
-  --ifm-menu-color-active: #fafafa;
-  --ifm-menu-color-background-active: rgba(139, 92, 246, 0.1);
+  --ifm-menu-color: #b4b0c4;
+  --ifm-menu-color-active: #f5f3ff;
+  --ifm-menu-color-background-active: rgba(139, 92, 246, 0.12);
 
   /* Tables */
-  --ifm-table-stripe-background: #303038;
+  --ifm-table-stripe-background: #221e2e;
 }
 
 /* ============================================================================
@@ -719,7 +719,7 @@ tbody tr:hover {
 }
 
 [data-theme='dark'] .footer {
-  background: #1e1e24;
+  background: #14111f;
 }
 
 .footer__title {

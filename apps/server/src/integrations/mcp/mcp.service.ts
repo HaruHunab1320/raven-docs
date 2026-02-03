@@ -31,9 +31,11 @@ import {
   createApprovalRequiredError,
 } from './utils/error.utils';
 import { MCPApprovalService } from './services/mcp-approval.service';
+import { MCPEventService } from './services/mcp-event.service';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
 import { resolveAgentSettings } from '../../core/agent/agent-settings';
+import { ToolExecutedEventData } from './interfaces/mcp-event.interface';
 
 /**
  * Machine Control Protocol (MCP) Service
@@ -61,6 +63,7 @@ export class MCPService {
     private readonly taskHandler: TaskHandler,
     private readonly approvalHandler: ApprovalHandler,
     private readonly approvalService: MCPApprovalService,
+    private readonly eventService: MCPEventService,
     private readonly policyService: AgentPolicyService,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly searchHandler: SearchHandler,
@@ -80,10 +83,16 @@ export class MCPService {
    * @param user The authenticated user
    * @returns The MCP response
    */
-  async processRequest(request: MCPRequest, user: User): Promise<MCPResponse> {
+  async processRequest(
+    request: MCPRequest,
+    user: User,
+    options?: { isApiKeyAuth?: boolean; agentId?: string },
+  ): Promise<MCPResponse> {
     this.logger.debug(
       `MCPService: Processing request ${request.method} from user ${user.email}`,
     );
+
+    const startTime = Date.now();
 
     try {
       this.validateRequest(request);
@@ -344,6 +353,19 @@ export class MCPService {
         `MCPService: Request ${request.id} completed successfully`,
       );
 
+      // Emit tool execution event for activity tracking
+      const durationMs = Date.now() - startTime;
+      this.emitToolExecutionEvent(
+        request.method,
+        request.params,
+        true,
+        durationMs,
+        user,
+        result,
+        undefined,
+        options,
+      );
+
       return {
         jsonrpc: '2.0',
         result,
@@ -353,6 +375,19 @@ export class MCPService {
       this.logger.error(
         `MCPService: Error in processRequest - ${error.message || 'Unknown error'}`,
         error.stack,
+      );
+
+      // Emit tool execution event for failed requests
+      const durationMs = Date.now() - startTime;
+      this.emitToolExecutionEvent(
+        request.method,
+        request.params,
+        false,
+        durationMs,
+        user,
+        undefined,
+        error?.message || 'Unknown error',
+        options,
       );
 
       // Return a properly formatted JSON-RPC error response
@@ -996,5 +1031,120 @@ export class MCPService {
       error: createInternalError(error?.message || String(error)),
       id: id || null,
     };
+  }
+
+  /**
+   * Emit a tool execution event for activity tracking
+   *
+   * @param tool The tool/method name (e.g., "page.create")
+   * @param params The parameters passed to the tool
+   * @param success Whether the execution succeeded
+   * @param durationMs Execution duration in milliseconds
+   * @param user The user who executed the tool
+   * @param result The result (for success cases)
+   * @param error The error message (for failure cases)
+   * @param options Additional options like isApiKeyAuth, agentId
+   */
+  private emitToolExecutionEvent(
+    tool: string,
+    params: any,
+    success: boolean,
+    durationMs: number,
+    user: User,
+    result?: any,
+    error?: string,
+    options?: { isApiKeyAuth?: boolean; agentId?: string },
+  ): void {
+    try {
+      // Skip emitting events for certain noisy/internal tools
+      const skipTools = ['system.listMethods', 'system.getMethodSchema', 'context.get', 'context.list'];
+      if (skipTools.includes(tool)) {
+        return;
+      }
+
+      // Sanitize params to remove sensitive data
+      const sanitizedParams = this.sanitizeParams(params);
+
+      // Create a brief summary of the result
+      const resultSummary = this.summarizeResult(tool, result);
+
+      const eventData: ToolExecutedEventData = {
+        tool,
+        params: sanitizedParams,
+        success,
+        durationMs,
+        error,
+        resultSummary,
+        isAgent: options?.isApiKeyAuth ?? false,
+        agentId: options?.agentId,
+      };
+
+      // Emit the event if we have a workspaceId
+      if (user.workspaceId) {
+        this.eventService.createToolExecutedEvent(eventData, user.id, user.workspaceId);
+      }
+    } catch (err) {
+      // Don't let event emission errors affect the main request
+      this.logger.warn(`Failed to emit tool execution event: ${err}`);
+    }
+  }
+
+  /**
+   * Sanitize parameters to remove sensitive data before logging
+   */
+  private sanitizeParams(params: any): Record<string, any> | undefined {
+    if (!params || typeof params !== 'object') {
+      return undefined;
+    }
+
+    const sanitized: Record<string, any> = {};
+    const sensitiveKeys = ['password', 'secret', 'token', 'apiKey', 'content', 'body'];
+
+    for (const [key, value] of Object.entries(params)) {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk.toLowerCase()))) {
+        sanitized[key] = '[REDACTED]';
+      } else if (typeof value === 'string' && value.length > 200) {
+        // Truncate long strings
+        sanitized[key] = value.substring(0, 200) + '...';
+      } else if (typeof value === 'object' && value !== null) {
+        // For nested objects, just indicate their type
+        sanitized[key] = Array.isArray(value) ? `[Array(${value.length})]` : '[Object]';
+      } else {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Create a brief summary of the result for the event
+   */
+  private summarizeResult(tool: string, result: any): string | undefined {
+    if (!result) return undefined;
+
+    try {
+      // Handle common result patterns
+      if (result.id) {
+        return `Created/Updated resource: ${result.id}`;
+      }
+      if (Array.isArray(result)) {
+        return `Returned ${result.length} items`;
+      }
+      if (result.pages && Array.isArray(result.pages)) {
+        return `Found ${result.pages.length} pages`;
+      }
+      if (result.tasks && Array.isArray(result.tasks)) {
+        return `Found ${result.tasks.length} tasks`;
+      }
+      if (result.success !== undefined) {
+        return result.success ? 'Operation succeeded' : 'Operation failed';
+      }
+
+      // Default: just indicate we got a result
+      return 'Completed';
+    } catch {
+      return 'Completed';
+    }
   }
 }

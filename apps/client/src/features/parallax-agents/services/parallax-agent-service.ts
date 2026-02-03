@@ -304,3 +304,68 @@ export async function testRuntimeConnection(endpoint?: string): Promise<RuntimeC
   });
   return response.data;
 }
+
+// ========== Activity Watching ==========
+
+export interface WatchableTarget {
+  id: string;
+  name: string;
+  type: 'agent';
+  status: string;
+  avatarUrl: string | null;
+}
+
+export interface WatchableTargetsResponse {
+  agents: WatchableTarget[];
+}
+
+export interface ActivityEntry {
+  id: string;
+  activityType: string;
+  description: string | null;
+  metadata: Record<string, any>;
+  createdAt: string;
+}
+
+export interface RecentActivityResponse {
+  activities: ActivityEntry[];
+}
+
+export interface ToolExecutedEvent {
+  type: 'tool_executed';
+  resource: 'agent';
+  operation: 'execute';
+  resourceId: string;
+  timestamp: string;
+  userId: string;
+  workspaceId: string;
+  data: {
+    tool: string;
+    params?: Record<string, any>;
+    success: boolean;
+    durationMs: number;
+    error?: string;
+    resultSummary?: string;
+    isAgent: boolean;
+    agentId?: string;
+  };
+}
+
+// Get watchable targets (agents that can be watched)
+export async function getWatchableTargets(): Promise<WatchableTargetsResponse> {
+  const response = await api.get<WatchableTargetsResponse>("/parallax-agents/watchable");
+  return response.data;
+}
+
+// Get recent activity for a specific agent
+export async function getRecentActivity(
+  agentId: string,
+  limit?: number
+): Promise<RecentActivityResponse> {
+  const params = limit ? { limit: String(limit) } : {};
+  const response = await api.get<RecentActivityResponse>(
+    `/parallax-agents/${agentId}/recent-activity`,
+    { params }
+  );
+  return response.data;
+}

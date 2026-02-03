@@ -29,17 +29,22 @@ For detailed deployment options, see [Self-Hosting](/self-hosting/overview).
 
 A workspace is where your team collaborates. Each workspace has its own members, spaces, and settings.
 
-```
-Your Organization (Workspace)
-├── Engineering Space
-│   ├── Architecture Docs
-│   └── API Reference
-├── Product Space
-│   ├── Roadmap
-│   └── Feature Specs
-└── Team Wiki
-    ├── Onboarding
-    └── Policies
+```mermaid
+flowchart TB
+    Org["Your Organization<br/>(Workspace)"]
+
+    Org --> Eng["Engineering Space"]
+    Org --> Prod["Product Space"]
+    Org --> Wiki["Team Wiki"]
+
+    Eng --> Arch["Architecture Docs"]
+    Eng --> API["API Reference"]
+
+    Prod --> Road["Roadmap"]
+    Prod --> Specs["Feature Specs"]
+
+    Wiki --> Onboard["Onboarding"]
+    Wiki --> Policies["Policies"]
 ```
 
 ## Create a Space

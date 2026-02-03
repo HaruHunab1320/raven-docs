@@ -11,37 +11,43 @@ A well-organized knowledge base is easier to navigate and maintain. This guide c
 
 ### Top-Level Structure
 
-```
-Workspace
-├── Engineering (Space)
-├── Product (Space)
-├── Sales (Space)
-├── HR & Company Wiki (Space)
-└── Archived (Space)
+```mermaid
+flowchart TB
+    W["Workspace"]
+    W --> Eng["Engineering"]
+    W --> Prod["Product"]
+    W --> Sales["Sales"]
+    W --> HR["HR & Company Wiki"]
+    W --> Archive["Archived"]
 ```
 
 ### Space Structure
 
 Each space should have a clear purpose and consistent organization:
 
-```
-Engineering Space
-├── Getting Started
-│   ├── Development Setup
-│   ├── Architecture Overview
-│   └── Contributing Guide
-├── Systems
-│   ├── API Service
-│   ├── Web App
-│   └── Infrastructure
-├── Processes
-│   ├── On-Call Runbook
-│   ├── Incident Response
-│   └── Release Process
-└── References
-    ├── API Reference
-    ├── Database Schema
-    └── Glossary
+```mermaid
+flowchart TB
+    Eng["Engineering Space"]
+
+    Eng --> GS["Getting Started"]
+    GS --> Dev["Development Setup"]
+    GS --> Arch["Architecture Overview"]
+    GS --> Contrib["Contributing Guide"]
+
+    Eng --> Sys["Systems"]
+    Sys --> API["API Service"]
+    Sys --> Web["Web App"]
+    Sys --> Infra["Infrastructure"]
+
+    Eng --> Proc["Processes"]
+    Proc --> OnCall["On-Call Runbook"]
+    Proc --> Incident["Incident Response"]
+    Proc --> Release["Release Process"]
+
+    Eng --> Ref["References"]
+    Ref --> APIRef["API Reference"]
+    Ref --> DB["Database Schema"]
+    Ref --> Glossary["Glossary"]
 ```
 
 ## Naming Conventions

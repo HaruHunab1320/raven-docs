@@ -11,12 +11,14 @@ Raven Docs includes a powerful AI agent that can assist with planning, task mana
 
 The agent operates as an intelligent assistant with access to your workspace:
 
-```
-User ←→ Agent Chat ←→ Agent Core
-                         ├── Memory System
-                         ├── Planning Engine
-                         ├── Task Manager
-                         └── Research Tools
+```mermaid
+flowchart LR
+    User <--> Chat["Agent Chat"]
+    Chat <--> Core["Agent Core"]
+    Core --> Memory["Memory System"]
+    Core --> Planning["Planning Engine"]
+    Core --> Tasks["Task Manager"]
+    Core --> Research["Research Tools"]
 ```
 
 ## Agent Chat
@@ -94,14 +96,14 @@ Agent: Based on your tasks and goals, here's a suggested plan:
 
 Plans cascade from long-term to daily:
 
-```
-Long-term: Launch product
-    ↓
-Mid-term: Complete beta features
-    ↓
-Short-term: Finish authentication
-    ↓
-Daily: Implement OAuth flow
+```mermaid
+flowchart TB
+    Long["Long-term: Launch product"]
+    Mid["Mid-term: Complete beta features"]
+    Short["Short-term: Finish authentication"]
+    Daily["Daily: Implement OAuth flow"]
+
+    Long --> Mid --> Short --> Daily
 ```
 
 ## Agent Memory

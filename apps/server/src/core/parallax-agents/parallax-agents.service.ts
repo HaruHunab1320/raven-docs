@@ -1118,4 +1118,71 @@ export class ParallaxAgentsService {
       this.logger.error(`Failed to notify Parallax: ${error.message}`);
     }
   }
+
+  // ========== Activity Watching ==========
+
+  /**
+   * Get watchable targets (agents and users) in the workspace
+   * Only workspace admins can watch, and they can watch approved agents
+   */
+  async getWatchableTargets(
+    workspaceId: string,
+    requestingUserId: string,
+  ): Promise<{
+    agents: Array<{
+      id: string;
+      name: string;
+      type: 'agent';
+      status: string;
+      avatarUrl: string | null;
+    }>;
+  }> {
+    // Get approved agents in the workspace
+    const agents = await this.agentRepo.findByWorkspace(workspaceId, 'approved');
+
+    return {
+      agents: agents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        type: 'agent' as const,
+        status: agent.status,
+        avatarUrl: agent.avatarUrl,
+      })),
+    };
+  }
+
+  /**
+   * Get recent activity for a specific agent
+   * Returns the most recent activity entries for the given agent
+   */
+  async getRecentActivity(
+    workspaceId: string,
+    targetId: string,
+    limit: number = 50,
+  ): Promise<{
+    activities: Array<{
+      id: string;
+      activityType: string;
+      description: string | null;
+      metadata: Record<string, any>;
+      createdAt: Date;
+    }>;
+  }> {
+    // Get recent activity for the agent in this workspace
+    const activities = await this.activityRepo.findByAgent(
+      targetId,
+      workspaceId,
+      limit,
+    );
+
+    return {
+      activities: activities.map((a) => ({
+        id: a.id,
+        activityType: a.activityType,
+        description: a.description,
+        metadata: a.metadata,
+        createdAt: a.createdAt,
+      })),
+    };
+  }
 }

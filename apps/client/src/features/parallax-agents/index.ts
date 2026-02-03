@@ -15,3 +15,4 @@ export { ApproveAgentModal } from "./components/approve-agent-modal";
 export { DenyAgentModal } from "./components/deny-agent-modal";
 export { InvitesList } from "./components/invites-list";
 export { CreateInviteModal } from "./components/create-invite-modal";
+export { AgentWatchPanel } from "./components/agent-watch-panel";

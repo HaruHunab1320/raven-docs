@@ -132,6 +132,11 @@ export enum MCPEventType {
    * Agent status changed (idle/working/paused)
    */
   AGENT_STATUS_CHANGED = 'agent_status_changed',
+
+  /**
+   * Tool/method was executed (for agent activity tracking)
+   */
+  TOOL_EXECUTED = 'tool_executed',
 }
 
 /**
@@ -168,6 +173,7 @@ export enum MCPOperationType {
   REVOKE = 'revoke',
   ASSIGN = 'assign',
   UNASSIGN = 'unassign',
+  EXECUTE = 'execute',
 }
 
 /**
@@ -199,4 +205,26 @@ export interface PresenceEventData {
     x: number;
     y: number;
   };
+}
+
+/**
+ * Tool execution event data (for agent activity tracking)
+ */
+export interface ToolExecutedEventData {
+  /** The tool/method that was called (e.g., "page.create") */
+  tool: string;
+  /** Sanitized input parameters (sensitive data removed) */
+  params?: Record<string, any>;
+  /** Whether the tool execution succeeded */
+  success: boolean;
+  /** Execution duration in milliseconds */
+  durationMs: number;
+  /** Error message if failed */
+  error?: string;
+  /** Summary of the result (not the full result to avoid large payloads) */
+  resultSummary?: string;
+  /** Whether the caller is an agent (vs human user) */
+  isAgent: boolean;
+  /** Agent ID if caller is an agent */
+  agentId?: string;
 }

@@ -11,13 +11,14 @@ The memory system allows the AI agent to remember context, learn from interactio
 
 Memory in Raven Docs works like a knowledge graph:
 
-```
-Memory Entry
-├── Content (what was remembered)
-├── Source (where it came from)
-├── Tags (categorization)
-├── Entities (linked items)
-└── Timestamp (when captured)
+```mermaid
+flowchart TB
+    Entry["Memory Entry"]
+    Entry --> Content["Content<br/>(what was remembered)"]
+    Entry --> Source["Source<br/>(where it came from)"]
+    Entry --> Tags["Tags<br/>(categorization)"]
+    Entry --> Entities["Entities<br/>(linked items)"]
+    Entry --> Timestamp["Timestamp<br/>(when captured)"]
 ```
 
 ## Memory Types
@@ -89,10 +90,12 @@ Agent retrieves:
 
 Memories form a connected graph:
 
-```
-[OAuth Discussion] ←→ [Auth Module Task]
-        ↓                    ↓
-[API Security Doc] ←→ [User Preferences]
+```mermaid
+flowchart TB
+    OAuth["OAuth Discussion"] <--> Auth["Auth Module Task"]
+    OAuth --> API["API Security Doc"]
+    Auth --> Prefs["User Preferences"]
+    API <--> Prefs
 ```
 
 ## Configuration
@@ -167,17 +170,21 @@ The profile system goes beyond simple activity tracking to provide meaningful be
 
 See how memories connect:
 
-```
-Task: "Implement caching"
-├── Related memories: 5
-│   ├── "Decided on Redis" (Jan 10)
-│   ├── "Research on cache strategies" (Jan 8)
-│   └── "Discussion with team" (Jan 5)
-├── Related pages: 2
-│   ├── Architecture Overview
-│   └── Performance Guide
-└── Related goals: 1
-    └── "Improve API performance"
+```mermaid
+flowchart TB
+    Task["Task: Implement caching"]
+
+    Task --> Memories["Related memories: 5"]
+    Memories --> M1["Decided on Redis (Jan 10)"]
+    Memories --> M2["Research on cache strategies (Jan 8)"]
+    Memories --> M3["Discussion with team (Jan 5)"]
+
+    Task --> Pages["Related pages: 2"]
+    Pages --> P1["Architecture Overview"]
+    Pages --> P2["Performance Guide"]
+
+    Task --> Goals["Related goals: 1"]
+    Goals --> G1["Improve API performance"]
 ```
 
 ## Memory Graph Visualization

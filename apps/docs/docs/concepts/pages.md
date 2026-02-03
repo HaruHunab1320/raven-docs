@@ -76,11 +76,12 @@ Pages use a ProseMirror-based document format:
 
 Pages can be nested under other pages:
 
-```
-Parent Page
-├── Child Page 1
-│   └── Grandchild Page
-└── Child Page 2
+```mermaid
+flowchart TB
+    Parent["Parent Page"]
+    Parent --> Child1["Child Page 1"]
+    Parent --> Child2["Child Page 2"]
+    Child1 --> Grandchild["Grandchild Page"]
 ```
 
 ### Moving Pages

@@ -11,11 +11,15 @@ Raven Docs includes a built-in Getting Things Done (GTD) productivity system tha
 
 The GTD system integrates task management with knowledge management:
 
-```
-Capture → Process → Organize → Review → Execute
-   ↓         ↓          ↓         ↓         ↓
- Inbox    Triage     Buckets   Weekly    Tasks
-                               Review
+```mermaid
+flowchart LR
+    Capture --> Process --> Organize --> Review --> Execute
+
+    Capture -.- Inbox
+    Process -.- Triage
+    Organize -.- Buckets
+    Review -.- Weekly["Weekly Review"]
+    Execute -.- Tasks
 ```
 
 ## Core Components
@@ -126,11 +130,12 @@ Tasks can link to documentation pages:
 
 Create tasks with full context:
 
-```
-Task: Update API documentation
-├── Linked to: /docs/api/endpoints
-├── Context: Memory of last discussion
-└── Goal: Complete v2.0 documentation
+```mermaid
+flowchart TB
+    Task["Task: Update API documentation"]
+    Task --> Link["Linked to: /docs/api/endpoints"]
+    Task --> Context["Context: Memory of last discussion"]
+    Task --> Goal["Goal: Complete v2.0 documentation"]
 ```
 
 ## Keyboard Shortcuts

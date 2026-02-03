@@ -2073,12 +2073,18 @@ export class MCPStandardService {
     }
 
     // Call the internal MCP service
-    const result = await this.mcpService.processRequest({
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: Date.now(),
-    }, user);
+    // Pass isApiKeyAuth=true since this endpoint uses API key authentication
+    // (indicating the caller is likely an external agent)
+    const result = await this.mcpService.processRequest(
+      {
+        jsonrpc: '2.0',
+        method,
+        params,
+        id: Date.now(),
+      },
+      user,
+      { isApiKeyAuth: true },
+    );
 
     // Return in standard MCP format
     return {

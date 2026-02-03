@@ -15,24 +15,23 @@ Raven Docs integrates with the Parallax Agent Runtime to spawn and manage intera
 - **Parallax Runtime** spawns PTY-backed CLI sessions and handles agent lifecycle
 - **Agents** connect to Raven Docs via MCP to access your knowledge base
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      RAVEN DOCS SERVER                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │ ParallaxAgents  │  │    Terminal     │  │RuntimeConnection│  │
-│  │   Controller    │  │    Gateway      │  │    Service      │  │
-│  │    (REST)       │  │  (Socket.io)    │  │   (WebSocket)   │  │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
-└───────────┼────────────────────┼────────────────────┼───────────┘
-            │ HTTP/REST          │ /terminal          │ /ws/events
-            ▼                    ▼                    ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   PARALLAX AGENT RUNTIME                        │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   /api/spawn    │  │ /ws/agents/:id  │  │   /ws/events    │  │
-│  │   /api/health   │  │   /terminal     │  │                 │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph RavenServer["RAVEN DOCS SERVER"]
+        PAC["ParallaxAgents<br/>Controller<br/>(REST)"]
+        TG["Terminal<br/>Gateway<br/>(Socket.io)"]
+        RCS["RuntimeConnection<br/>Service<br/>(WebSocket)"]
+    end
+
+    subgraph ParallaxRuntime["PARALLAX AGENT RUNTIME"]
+        API["/api/spawn<br/>/api/health"]
+        WS["/ws/agents/:id<br/>/terminal"]
+        Events["/ws/events"]
+    end
+
+    PAC -->|"HTTP/REST"| API
+    TG -->|"/terminal"| WS
+    RCS -->|"/ws/events"| Events
 ```
 
 ## Current Status
@@ -253,9 +252,10 @@ Raven Docs provides a web-based terminal to interact with running agents via PTY
 
 ### Connection Flow
 
-```
-User ↔ Raven: Socket.io /terminal (attach, input, resize, data)
-Raven ↔ Runtime: WebSocket /ws/agents/:agentId/terminal (raw PTY data)
+```mermaid
+flowchart LR
+    User <-->|"Socket.io /terminal<br/>(attach, input, resize, data)"| Raven
+    Raven <-->|"WebSocket /ws/agents/:agentId/terminal<br/>(raw PTY data)"| Runtime
 ```
 
 ### Connecting to a Terminal

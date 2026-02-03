@@ -9,11 +9,12 @@ Raven Docs uses a hierarchical permission model to control access to your conten
 
 ## Permission Hierarchy
 
-```
-Workspace
-└── Workspace Role (Admin, Editor, Viewer)
-    └── Space Permissions (can override)
-        └── Page Permissions (can override)
+```mermaid
+flowchart TB
+    W["Workspace"]
+    W --> Role["Workspace Role<br/>(Admin, Editor, Viewer)"]
+    Role --> Space["Space Permissions<br/>(can override)"]
+    Space --> Page["Page Permissions<br/>(can override)"]
 ```
 
 Permissions cascade down but can be overridden at each level.
@@ -195,39 +196,43 @@ For highly sensitive information:
 
 ### Scenario 1: Department Wiki
 
-```
-Engineering Space (Public to workspace)
-├── All engineers can edit
-├── Other departments can view
-└── No external access
+```mermaid
+flowchart TB
+    Eng["Engineering Space<br/>(Public to workspace)"]
+    Eng --> E1["All engineers can edit"]
+    Eng --> E2["Other departments can view"]
+    Eng --> E3["No external access"]
 ```
 
 ### Scenario 2: Executive Documents
 
-```
-Leadership Space (Private)
-├── Only C-suite has access
-├── Admin: CEO
-├── Editors: Other executives
-└── No viewers
+```mermaid
+flowchart TB
+    Lead["Leadership Space<br/>(Private)"]
+    Lead --> L1["Only C-suite has access"]
+    Lead --> L2["Admin: CEO"]
+    Lead --> L3["Editors: Other executives"]
+    Lead --> L4["No viewers"]
 ```
 
 ### Scenario 3: Client Documentation
 
-```
-Client Projects Space (Private)
-├── Project Team: Editor access
-├── Client Contacts: Viewer access (external)
-├── Share specific pages publicly
+```mermaid
+flowchart TB
+    Client["Client Projects Space<br/>(Private)"]
+    Client --> C1["Project Team: Editor access"]
+    Client --> C2["Client Contacts: Viewer access (external)"]
+    Client --> C3["Share specific pages publicly"]
 ```
 
 ### Scenario 4: Onboarding
 
-```
-HR Space (Public to workspace)
-├── All employees can view
-├── HR team can edit
-├── Offer letters: Private page, HR only
+```mermaid
+flowchart TB
+    HR["HR Space<br/>(Public to workspace)"]
+    HR --> H1["All employees can view"]
+    HR --> H2["HR team can edit"]
+    HR --> H3["Offer letters: Private page, HR only"]
 ```
 
 ## API Reference

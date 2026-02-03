@@ -51,11 +51,12 @@ const task = await client.tasks.create({
 
 Group related tasks into projects:
 
-```
-Q1 Roadmap (Project)
-├── Feature A (Task)
-├── Feature B (Task)
-└── Documentation Update (Task)
+```mermaid
+flowchart TB
+    Project["Q1 Roadmap<br/>(Project)"]
+    Project --> A["Feature A<br/>(Task)"]
+    Project --> B["Feature B<br/>(Task)"]
+    Project --> Docs["Documentation Update<br/>(Task)"]
 ```
 
 ### Creating Projects
@@ -83,11 +84,21 @@ Traditional task list with sorting and filtering:
 
 Kanban-style columns:
 
-```
-| Todo      | In Progress | Done    |
-|-----------|-------------|---------|
-| Task A    | Task C      | Task E  |
-| Task B    | Task D      | Task F  |
+```mermaid
+block-beta
+    columns 3
+    block:todo["Todo"]
+        A["Task A"]
+        B["Task B"]
+    end
+    block:progress["In Progress"]
+        C["Task C"]
+        D["Task D"]
+    end
+    block:done["Done"]
+        E["Task E"]
+        F["Task F"]
+    end
 ```
 
 ### Calendar View

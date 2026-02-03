@@ -11,13 +11,14 @@ Raven Docs includes a sophisticated behavioral analysis system that builds perso
 
 The profile system analyzes your activity signals to create a comprehensive behavioral profile:
 
-```
-User Profile
-├── Seven Core Traits (scored 0-10)
-├── Behavioral Patterns
-├── Trend Analysis (improving/stable/declining)
-├── Evidence-based Insights
-└── AI-generated Recommendations
+```mermaid
+flowchart TB
+    Profile["User Profile"]
+    Profile --> Traits["Seven Core Traits<br/>(scored 0-10)"]
+    Profile --> Patterns["Behavioral Patterns"]
+    Profile --> Trends["Trend Analysis<br/>(improving/stable/declining)"]
+    Profile --> Evidence["Evidence-based Insights"]
+    Profile --> AI["AI-generated Recommendations"]
 ```
 
 ## The Seven Traits

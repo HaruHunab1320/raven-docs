@@ -71,13 +71,6 @@ const config: Config = {
   themeConfig: {
     image: 'img/social-card.png',
 
-    announcementBar: {
-      id: 'alpha',
-      content:
-        'Raven Docs is currently in alpha — expect breaking changes. <a href="/changelog">View changelog</a>',
-      isCloseable: true,
-    },
-
     navbar: {
       title: '',
       logo: {

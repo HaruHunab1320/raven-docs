@@ -9,20 +9,25 @@ Spaces are containers for organizing related content within a workspace. Think o
 
 ## Overview
 
-```
-Workspace
-├── Engineering Space
-│   ├── Architecture
-│   ├── API Docs
-│   └── Runbooks
-├── Product Space
-│   ├── Roadmap
-│   ├── Specs
-│   └── Research
-└── Company Wiki
-    ├── Handbook
-    ├── Policies
-    └── Benefits
+```mermaid
+flowchart TB
+    W["Workspace"]
+
+    W --> Eng["Engineering Space"]
+    W --> Prod["Product Space"]
+    W --> Wiki["Company Wiki"]
+
+    Eng --> Arch["Architecture"]
+    Eng --> API["API Docs"]
+    Eng --> Run["Runbooks"]
+
+    Prod --> Road["Roadmap"]
+    Prod --> Specs["Specs"]
+    Prod --> Res["Research"]
+
+    Wiki --> Hand["Handbook"]
+    Wiki --> Pol["Policies"]
+    Wiki --> Ben["Benefits"]
 ```
 
 ## Creating a Space
@@ -62,15 +67,19 @@ Each space can have its own permission settings:
 
 Pages within a space can be nested to create a hierarchy:
 
-```
-Engineering Space
-├── Getting Started (page)
-│   ├── Development Setup (subpage)
-│   └── Contributing Guide (subpage)
-├── Architecture (page)
-│   ├── System Overview (subpage)
-│   └── Data Flow (subpage)
-└── API Reference (page)
+```mermaid
+flowchart TB
+    Eng["Engineering Space"]
+
+    Eng --> GS["Getting Started"]
+    Eng --> Arch["Architecture"]
+    Eng --> API["API Reference"]
+
+    GS --> Dev["Development Setup"]
+    GS --> Contrib["Contributing Guide"]
+
+    Arch --> Sys["System Overview"]
+    Arch --> Data["Data Flow"]
 ```
 
 ### Navigation
