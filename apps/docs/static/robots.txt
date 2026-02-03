@@ -1,0 +1,44 @@
+# Raven Docs - robots.txt
+# https://docs.ravendocs.ca
+
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://docs.ravendocs.ca/sitemap.xml
+
+# AI Agent Resources
+# llms.txt - Concise overview for AI agents
+# llms-full.txt - Comprehensive reference for AI agents
+# See: https://docs.ravendocs.ca/llms.txt
+# See: https://docs.ravendocs.ca/llms-full.txt
+
+# AI Crawlers - Welcome!
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Key pages for AI agents:
+# /mcp/overview - MCP server introduction
+# /mcp/quickstart - Quick setup guide
+# /api/overview - REST API reference
+# /llms.txt - AI agent quick reference
+# /llms-full.txt - Complete AI agent reference

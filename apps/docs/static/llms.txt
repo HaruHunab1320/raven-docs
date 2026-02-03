@@ -1,0 +1,129 @@
+# Raven Docs
+
+> AI-native knowledge management platform with MCP server for agent integration.
+
+## Overview
+
+Raven Docs is a documentation and task management platform that provides:
+- Knowledge management with real-time collaboration
+- GTD-based task and project management
+- AI agent integration via Model Context Protocol (MCP)
+- 100+ tools for agents to interact with workspaces
+
+## Quick Start for AI Agents
+
+### MCP Connection
+
+Connect to Raven Docs via MCP:
+
+```json
+{
+  "mcpServers": {
+    "raven-docs": {
+      "url": "https://YOUR_INSTANCE/api/mcp-standard",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Authentication
+
+All requests require an API key in the Authorization header:
+```
+Authorization: Bearer raven_sk_...
+```
+
+Get an API key from Settings > API Keys in the Raven Docs UI.
+
+### Key MCP Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| POST /mcp-standard/initialize | Initialize connection |
+| POST /mcp-standard/list_tools | List all available tools |
+| POST /mcp-standard/search_tools | Search for tools by query |
+| POST /mcp-standard/call_tool | Execute a tool |
+| POST /mcp-standard/list_categories | List tool categories |
+
+### Tool Categories
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| page | 14 | Create, read, update, delete pages |
+| task | 11 | Task management and GTD workflow |
+| space | 10 | Workspace organization |
+| project | 7 | Project management |
+| search | 2 | Full-text search |
+| memory | 4 | Persistent agent memory |
+| research | 3 | Autonomous research jobs |
+| goals | 6 | Goal tracking across horizons |
+
+### Common Tools
+
+**Pages:**
+- `page_list` - List pages in a space
+- `page_get` - Get page content
+- `page_create` - Create a new page
+- `page_update` - Update page content
+- `search_query` - Full-text search
+
+**Tasks:**
+- `task_list` - List tasks
+- `task_create` - Create a task
+- `task_update` - Update task status/details
+- `task_complete` - Mark task complete
+
+**Memory:**
+- `memory_ingest` - Store information
+- `memory_query` - Query stored memories
+
+**Research:**
+- `research_create` - Start research job
+- `research_status` - Check job status
+- `research_get_report` - Get completed report
+
+## Documentation Structure
+
+- /mcp/overview - MCP server introduction
+- /mcp/quickstart - 5-minute setup guide
+- /mcp/authentication - Auth details
+- /mcp/tools/* - Individual tool documentation
+- /api/overview - REST API reference
+- /api/authentication - API key setup
+- /api/endpoints/* - Endpoint documentation
+- /concepts/* - Core concepts (workspaces, spaces, pages, tasks)
+
+## Example: Search and Read
+
+```typescript
+// Search for relevant tools
+const { tools } = await mcp.searchTools({ query: "create page" });
+
+// Call the tool
+const result = await mcp.callTool("page_create", {
+  workspaceId: "ws_123",
+  spaceId: "space_456",
+  title: "New Page",
+  content: { type: "doc", content: [] }
+});
+```
+
+## Error Codes
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| UNAUTHORIZED | 401 | Invalid API key |
+| FORBIDDEN | 403 | Insufficient permissions |
+| NOT_FOUND | 404 | Resource not found |
+| RATE_LIMITED | 429 | Too many requests |
+
+## Links
+
+- Documentation: https://docs.ravendocs.ca
+- MCP Quickstart: https://docs.ravendocs.ca/mcp/quickstart
+- API Reference: https://docs.ravendocs.ca/api/overview
+- Tool Search: https://docs.ravendocs.ca/mcp/tools/tool-search

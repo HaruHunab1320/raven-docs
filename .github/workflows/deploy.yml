@@ -133,9 +133,11 @@ jobs:
 
       - name: Build and push image
         id: build
+        env:
+          IMAGE_URL: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          IMAGE_LATEST: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
         run: |
-          IMAGE_URL="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          IMAGE_LATEST="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest"
+          echo "Building image: $IMAGE_URL"
 
           docker build \
             -f Dockerfile.production \
@@ -149,6 +151,7 @@ jobs:
           docker push $IMAGE_LATEST
 
           echo "image_url=$IMAGE_URL" >> $GITHUB_OUTPUT
+          echo "Set output image_url=$IMAGE_URL"
 
   # ==========================================================================
   # Terraform Plan (PRs only)
@@ -259,15 +262,33 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to Cloud Run
+        env:
+          IMAGE_URL: ${{ needs.docker.outputs.image_url }}
+          FALLBACK_IMAGE: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
         run: |
+          # Use the docker job output, fallback to constructed URL if empty
+          DEPLOY_IMAGE="${IMAGE_URL:-$FALLBACK_IMAGE}"
+          echo "Deploying image: $DEPLOY_IMAGE"
+
+          if [ -z "$DEPLOY_IMAGE" ]; then
+            echo "Error: No image URL available"
+            exit 1
+          fi
+
           gcloud run services update raven-docs-production-app \
-            --image=${{ needs.docker.outputs.image_url }} \
+            --image=$DEPLOY_IMAGE \
             --region=${{ env.REGION }}
 
       - name: Update migrations job image
+        env:
+          IMAGE_URL: ${{ needs.docker.outputs.image_url }}
+          FALLBACK_IMAGE: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
         run: |
+          DEPLOY_IMAGE="${IMAGE_URL:-$FALLBACK_IMAGE}"
+          echo "Updating migrations job with image: $DEPLOY_IMAGE"
+
           gcloud run jobs update raven-docs-production-migrations \
-            --image=${{ needs.docker.outputs.image_url }} \
+            --image=$DEPLOY_IMAGE \
             --region=${{ env.REGION }}
 
   # ==========================================================================

@@ -1,0 +1,355 @@
+# Raven Docs - Complete AI Agent Reference
+
+> AI-native knowledge management platform with MCP server for agent integration.
+
+This document provides comprehensive information for AI agents to integrate with Raven Docs.
+
+---
+
+## 1. OVERVIEW
+
+Raven Docs is a documentation and productivity platform featuring:
+- Real-time collaborative documentation
+- GTD-based task management (inbox, triage, goals)
+- AI agent integration via Model Context Protocol (MCP)
+- 100+ tools for programmatic access
+- Persistent agent memory system
+- Autonomous research capabilities
+
+---
+
+## 2. MCP SERVER CONNECTION
+
+### Configuration
+
+```json
+{
+  "mcpServers": {
+    "raven-docs": {
+      "url": "https://YOUR_INSTANCE/api/mcp-standard",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Authentication
+
+All requests require Bearer token authentication:
+```
+Authorization: Bearer raven_sk_your_api_key
+```
+
+API keys are created in the Raven Docs UI: Settings > API Keys
+
+### MCP Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /mcp-standard/initialize | Initialize MCP connection |
+| POST | /mcp-standard/list_tools | List all tools (100+) |
+| POST | /mcp-standard/search_tools | Search tools by query/category |
+| POST | /mcp-standard/call_tool | Execute a tool |
+| POST | /mcp-standard/list_categories | List tool categories |
+| POST | /mcp-standard/get_tools_by_category | Get tools in a category |
+
+---
+
+## 3. TOOL CATEGORIES AND TOOLS
+
+### Page Management (14 tools)
+- `page_list` - List pages in a space
+- `page_get` - Get page with content
+- `page_create` - Create new page
+- `page_update` - Update page content
+- `page_delete` - Delete a page
+- `page_move` - Move page to different parent/space
+- `page_history` - Get page version history
+- `page_restore` - Restore previous version
+
+### Task Management (11 tools)
+- `task_list` - List tasks with filters
+- `task_get` - Get task details
+- `task_create` - Create new task
+- `task_update` - Update task properties
+- `task_complete` - Mark task as done
+- `task_assign` - Assign task to user
+- `task_delete` - Delete a task
+
+### Space Management (10 tools)
+- `space_list` - List spaces in workspace
+- `space_get` - Get space details
+- `space_create` - Create new space
+- `space_update` - Update space settings
+- `space_delete` - Delete a space
+- `space_members` - List space members
+- `space_add_member` - Add member to space
+
+### Project Management (7 tools)
+- `project_list` - List projects
+- `project_get` - Get project details
+- `project_create` - Create project
+- `project_update` - Update project
+- `project_tasks` - Get project tasks
+
+### Search (2 tools)
+- `search_query` - Full-text search across workspace
+- `tool_search` - Search for MCP tools
+
+### Memory (4 tools)
+- `memory_ingest` - Store information in memory
+- `memory_query` - Query memories by semantic similarity
+- `memory_daily` - Get daily memory summary
+- `memory_days` - List days with memory entries
+
+### Research (3 tools)
+- `research_create` - Start autonomous research job
+- `research_status` - Check research job status
+- `research_get_report` - Get completed research report
+
+### Goals (6 tools)
+- `goals_list` - List goals by horizon
+- `goals_get` - Get goal with linked tasks
+- `goals_create` - Create new goal
+- `goals_update` - Update goal
+- `goals_link_task` - Link task to goal
+- `goals_unlink_task` - Unlink task from goal
+
+---
+
+## 4. COMMON WORKFLOWS
+
+### Reading Documentation
+
+```typescript
+// 1. List spaces
+const spaces = await mcp.callTool("space_list", {
+  workspaceId: "ws_123"
+});
+
+// 2. List pages in a space
+const pages = await mcp.callTool("page_list", {
+  workspaceId: "ws_123",
+  spaceId: "space_456"
+});
+
+// 3. Get page content
+const page = await mcp.callTool("page_get", {
+  workspaceId: "ws_123",
+  pageId: "page_789"
+});
+```
+
+### Creating Content
+
+```typescript
+// Create a new page
+const page = await mcp.callTool("page_create", {
+  workspaceId: "ws_123",
+  spaceId: "space_456",
+  title: "API Documentation",
+  content: {
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [{ type: "text", text: "API Documentation" }]
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "This document describes..." }]
+      }
+    ]
+  }
+});
+```
+
+### Task Management
+
+```typescript
+// Create a task
+const task = await mcp.callTool("task_create", {
+  workspaceId: "ws_123",
+  title: "Review documentation",
+  description: "Review and update API docs",
+  priority: "high",
+  dueDate: "2025-02-15"
+});
+
+// Complete a task
+await mcp.callTool("task_complete", {
+  workspaceId: "ws_123",
+  taskId: task.id
+});
+```
+
+### Using Memory
+
+```typescript
+// Store a memory
+await mcp.callTool("memory_ingest", {
+  workspaceId: "ws_123",
+  content: "User prefers TypeScript examples over JavaScript",
+  tags: ["preferences", "code"]
+});
+
+// Query memories
+const memories = await mcp.callTool("memory_query", {
+  workspaceId: "ws_123",
+  query: "user preferences",
+  limit: 5
+});
+```
+
+### Running Research
+
+```typescript
+// Start research
+const job = await mcp.callTool("research_create", {
+  workspaceId: "ws_123",
+  topic: "Best practices for API authentication",
+  sources: ["docs", "web"],
+  outputMode: "longform",
+  timeBudget: 30
+});
+
+// Check status
+const status = await mcp.callTool("research_status", {
+  workspaceId: "ws_123",
+  jobId: job.id
+});
+
+// Get report when complete
+if (status.status === "completed") {
+  const report = await mcp.callTool("research_get_report", {
+    workspaceId: "ws_123",
+    jobId: job.id
+  });
+}
+```
+
+---
+
+## 5. DATA MODELS
+
+### Workspace
+```typescript
+{
+  id: string;           // "ws_123"
+  name: string;         // "Acme Corp"
+  hostname: string;     // "acme"
+}
+```
+
+### Space
+```typescript
+{
+  id: string;           // "space_456"
+  name: string;         // "Engineering"
+  description?: string;
+  workspaceId: string;
+  visibility: "public" | "private";
+}
+```
+
+### Page
+```typescript
+{
+  id: string;           // "page_789"
+  title: string;
+  slug: string;
+  icon?: string;
+  content: ProseMirrorDoc;
+  parentId?: string;
+  spaceId: string;
+  workspaceId: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+```
+
+### Task
+```typescript
+{
+  id: string;           // "task_abc"
+  title: string;
+  description?: string;
+  status: "todo" | "in_progress" | "done";
+  priority: "high" | "medium" | "low";
+  assigneeId?: string;
+  projectId?: string;
+  dueDate?: string;
+  bucket?: "now" | "next" | "later" | "none";
+}
+```
+
+### Goal
+```typescript
+{
+  id: string;           // "goal_xyz"
+  title: string;
+  description?: string;
+  horizon: "short" | "mid" | "long";
+  keywords: string[];
+  progress: number;     // 0-100
+}
+```
+
+---
+
+## 6. ERROR HANDLING
+
+### Error Response Format
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Page not found"
+  }
+}
+```
+
+### Common Error Codes
+| Code | HTTP | Meaning |
+|------|------|---------|
+| UNAUTHORIZED | 401 | Invalid or missing API key |
+| FORBIDDEN | 403 | Insufficient permissions |
+| NOT_FOUND | 404 | Resource doesn't exist |
+| VALIDATION_ERROR | 422 | Invalid request parameters |
+| RATE_LIMITED | 429 | Too many requests |
+| INTERNAL_ERROR | 500 | Server error |
+
+### Retry Strategy
+- 429 errors: Retry with exponential backoff
+- 500+ errors: Retry up to 3 times
+- Check `Retry-After` header for wait time
+
+---
+
+## 7. BEST PRACTICES
+
+1. **Use tool_search first** - Don't load all 100+ tools, search for relevant ones
+2. **Cache workspace/space IDs** - These rarely change
+3. **Use memory for context** - Store important information between sessions
+4. **Respect rate limits** - Implement exponential backoff
+5. **Handle errors gracefully** - Check for permission errors especially
+
+---
+
+## 8. DOCUMENTATION LINKS
+
+- MCP Overview: /mcp/overview
+- MCP Quickstart: /mcp/quickstart
+- Tool Search: /mcp/tools/tool-search
+- Authentication: /mcp/authentication
+- API Overview: /api/overview
+- API Endpoints: /api/endpoints/*
+- Concepts: /concepts/*
+- Guides: /guides/*
+
+Full documentation: https://docs.ravendocs.ca
