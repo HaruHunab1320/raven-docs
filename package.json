@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "nx run-many -t build",
+    "build:docker": "nx run-many -t build --exclude=@raven-docs/docs",
     "start": "pnpm --filter ./apps/server run start:prod",
     "collab": "pnpm --filter ./apps/server run collab:prod",
     "collab:dev": "pnpm --filter ./apps/server run collab:dev",

@@ -36,7 +36,8 @@ COPY --from=deps /app ./
 COPY . .
 
 # Build the application (NODE_ENV must not be production during build or devDeps are skipped)
-RUN pnpm build
+# Use build:docker to exclude docs (deployed separately)
+RUN pnpm build:docker
 
 # Create a standalone production deployment for the server
 RUN pnpm --filter server deploy --prod --legacy /app/deploy
