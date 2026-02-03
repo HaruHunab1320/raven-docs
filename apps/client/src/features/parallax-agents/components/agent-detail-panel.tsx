@@ -16,7 +16,6 @@ import {
 } from "@mantine/core";
 import {
   IconArrowLeft,
-  IconRobot,
   IconShield,
   IconActivity,
   IconTrash,
@@ -24,7 +23,9 @@ import {
   IconPlayerStop,
   IconChevronDown,
   IconChevronUp,
+  IconInfoCircle,
 } from "@tabler/icons-react";
+import { AgentAvatar } from "./agent-avatar";
 import { useTranslation } from "react-i18next";
 import { ParallaxAgent, ParallaxAgentStatus } from "../services/parallax-agent-service";
 import { AgentActivityFeed } from "./agent-activity-feed";
@@ -108,7 +109,11 @@ export function AgentDetailPanel({ agent, onBack }: AgentDetailPanelProps) {
         <ActionIcon variant="subtle" onClick={onBack}>
           <IconArrowLeft size={20} />
         </ActionIcon>
-        <IconRobot size={28} />
+        <AgentAvatar
+          name={agent.name}
+          avatarUrl={agent.avatarUrl}
+          size="lg"
+        />
         <Title order={2}>{agent.name}</Title>
         <Badge color={STATUS_COLORS[agent.status]} size="lg">
           {t(agent.status)}
@@ -120,7 +125,7 @@ export function AgentDetailPanel({ agent, onBack }: AgentDetailPanelProps) {
         <Paper p="md" withBorder>
           <Stack gap="sm">
             <Group>
-              <IconRobot size={20} />
+              <IconInfoCircle size={20} />
               <Title order={4}>{t("Agent Information")}</Title>
             </Group>
             <Divider />

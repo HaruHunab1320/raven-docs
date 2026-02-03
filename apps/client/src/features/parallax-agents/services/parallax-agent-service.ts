@@ -7,6 +7,7 @@ export interface ParallaxAgent {
   workspaceId: string;
   name: string;
   description: string | null;
+  avatarUrl: string | null;
   capabilities: string[];
   status: ParallaxAgentStatus;
   requestedPermissions: string[];

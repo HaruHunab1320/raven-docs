@@ -18,8 +18,8 @@ import {
   IconTrash,
   IconSettings,
   IconActivity,
-  IconRobot,
 } from "@tabler/icons-react";
+import { AgentAvatar } from "./agent-avatar";
 import { useWorkspaceAgents, useRevokeAgent } from "../queries/parallax-agent-query";
 import { ParallaxAgent, ParallaxAgentStatus } from "../services/parallax-agent-service";
 import { modals } from "@mantine/modals";
@@ -127,7 +127,11 @@ export function AgentList({ onSelectAgent }: AgentListProps) {
                 >
                   <Table.Td>
                     <Group gap="sm">
-                      <IconRobot size={20} />
+                      <AgentAvatar
+                        name={agent.name}
+                        avatarUrl={agent.avatarUrl}
+                        size="sm"
+                      />
                       <div>
                         <Text fw={500}>{agent.name}</Text>
                         {agent.description && (

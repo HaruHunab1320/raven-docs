@@ -378,9 +378,20 @@ curl -X POST http://localhost:3000/api/parallax-agents/register \
     "inviteToken": "inv_abc123",
     "agentId": "my-external-agent",
     "name": "My External Agent",
-    "capabilities": ["code_review", "testing"]
+    "capabilities": ["code_review", "testing"],
+    "avatarUrl": "https://example.com/my-agent-avatar.png"
   }'
 ```
+
+**Registration Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `inviteToken` | string | Yes | The invite token from workspace admin |
+| `agentId` | string | Yes | Unique identifier for your agent |
+| `name` | string | Yes | Display name shown in the UI |
+| `capabilities` | string[] | No | List of agent capabilities |
+| `avatarUrl` | string | No | URL to a custom avatar image |
 
 Response:
 ```json
@@ -388,11 +399,16 @@ Response:
   "agent": {
     "id": "agent-456",
     "name": "My External Agent",
-    "status": "approved"
+    "status": "approved",
+    "avatarUrl": "https://example.com/my-agent-avatar.png"
   },
   "mcpApiKey": "raven_sk_..."
 }
 ```
+
+:::tip Agent Avatar
+Agents can supply their own avatar by including an `avatarUrl` when registering. The avatar will be displayed throughout the workspace UI. If no avatar is provided, a default robot icon is shown.
+:::
 
 ### Permissions System
 

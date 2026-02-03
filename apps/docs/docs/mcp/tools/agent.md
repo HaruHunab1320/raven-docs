@@ -349,10 +349,21 @@ Register an external agent with the workspace using an invite token.
     "invite_token": "inv_abc123def456",
     "agent_name": "My Custom Agent",
     "agent_description": "A custom agent for task automation",
-    "capabilities": ["task.read", "task.write", "page.read"]
+    "capabilities": ["task.read", "task.write", "page.read"],
+    "avatar_url": "https://example.com/my-agent-avatar.png"
   }
 }
 ```
+
+**Arguments:**
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `invite_token` | string | Yes | The invite token provided by workspace admin |
+| `agent_name` | string | Yes | Display name for the agent |
+| `agent_description` | string | No | Description of what the agent does |
+| `capabilities` | string[] | No | List of capabilities the agent has |
+| `avatar_url` | string | No | URL to a custom avatar image for the agent |
 
 **Response:**
 
@@ -364,6 +375,10 @@ Register an external agent with the workspace using an invite token.
   "workspace_id": "ws_123"
 }
 ```
+
+:::tip Custom Avatar
+Agents can provide their own avatar by including an `avatar_url` when registering. This avatar will be displayed in the workspace UI alongside the agent's name. If no avatar is provided, a default robot icon is shown.
+:::
 
 :::caution
 Store the API key securely - it will only be shown once.
@@ -388,6 +403,7 @@ Get the current agent's profile and permissions.
     "id": "agent_789",
     "name": "My Custom Agent",
     "description": "A custom agent for task automation",
+    "avatarUrl": "https://example.com/my-agent-avatar.png",
     "status": "active",
     "permissions": ["task.read", "task.write", "page.read"],
     "createdAt": "2024-01-15T10:00:00Z",

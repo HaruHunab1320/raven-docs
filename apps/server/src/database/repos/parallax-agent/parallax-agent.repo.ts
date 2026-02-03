@@ -14,6 +14,7 @@ export interface ParallaxAgent {
   workspaceId: string;
   name: string;
   description: string | null;
+  avatarUrl: string | null;
   capabilities: string[];
   status: ParallaxAgentStatus;
   requestedPermissions: string[];
@@ -35,6 +36,7 @@ export interface InsertableParallaxAgent {
   workspaceId: string;
   name: string;
   description?: string | null;
+  avatarUrl?: string | null;
   capabilities: string[];
   status?: ParallaxAgentStatus;
   requestedPermissions: string[];
@@ -48,6 +50,7 @@ export interface InsertableParallaxAgent {
 export interface UpdateableParallaxAgent {
   name?: string;
   description?: string | null;
+  avatarUrl?: string | null;
   capabilities?: string[];
   status?: ParallaxAgentStatus;
   requestedPermissions?: string[];
@@ -71,6 +74,7 @@ export class ParallaxAgentRepo {
     'workspaceId',
     'name',
     'description',
+    'avatarUrl',
     'capabilities',
     'status',
     'requestedPermissions',

@@ -11,7 +11,8 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { IconRobot, IconCheck, IconX } from "@tabler/icons-react";
+import { IconCheck, IconX } from "@tabler/icons-react";
+import { AgentAvatar } from "./agent-avatar";
 import { usePendingRequests } from "../queries/parallax-agent-query";
 import { ParallaxAgent } from "../services/parallax-agent-service";
 import { useTranslation } from "react-i18next";
@@ -66,7 +67,11 @@ export function PendingAgentsList() {
           <Card key={agent.id} shadow="sm" padding="lg" radius="md" withBorder>
             <Group justify="space-between" mb="xs">
               <Group>
-                <IconRobot size={24} />
+                <AgentAvatar
+                  name={agent.name}
+                  avatarUrl={agent.avatarUrl}
+                  size="md"
+                />
                 <Text fw={500}>{agent.name}</Text>
               </Group>
               <Badge color="yellow" variant="light">

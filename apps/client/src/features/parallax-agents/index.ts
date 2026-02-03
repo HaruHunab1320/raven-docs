@@ -7,6 +7,7 @@ export * from "./queries/parallax-agent-query";
 // Components
 export { AgentManagementPanel } from "./components/agent-management-panel";
 export { AgentList } from "./components/agent-list";
+export { AgentAvatar } from "./components/agent-avatar";
 export { AgentActivityFeed } from "./components/agent-activity-feed";
 export { AgentDetailPanel } from "./components/agent-detail-panel";
 export { PendingAgentsList } from "./components/pending-agents-list";

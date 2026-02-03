@@ -299,6 +299,7 @@ export interface ParallaxAgentAssignments {
 }
 
 export interface ParallaxAgents {
+  avatarUrl: string | null;
   capabilities: string[];
   createdAt: Generated<Timestamp>;
   denialReason: string | null;
