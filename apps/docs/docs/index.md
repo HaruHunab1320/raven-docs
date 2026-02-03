@@ -4,7 +4,7 @@ title: Introduction
 sidebar_position: 1
 ---
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{textAlign: 'center', marginBottom: '2rem', background: 'white' }}>
   <img src="/img/RAVENDOCS-banner.png" alt="Raven Docs" style={{maxWidth: '600px', width: '100%'}} />
 </div>
 

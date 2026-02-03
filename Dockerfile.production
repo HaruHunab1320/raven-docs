@@ -53,6 +53,8 @@ RUN adduser -S nodejs -u 1001
 
 # Copy the deployed server with all dependencies
 COPY --from=builder --chown=nodejs:nodejs /app/deploy ./
+# Copy the built server output
+COPY --from=builder --chown=nodejs:nodejs /app/apps/server/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/apps/client/dist /client/dist
 COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json /mcp-method-schemas.json
