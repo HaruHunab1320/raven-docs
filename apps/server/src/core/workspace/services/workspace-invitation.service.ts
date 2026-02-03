@@ -94,19 +94,23 @@ export class WorkspaceInvitationService {
   ): Promise<void> {
     const { emails, role, groupIds } = inviteUserDto;
 
+    if (!emails || emails.length === 0) {
+      return;
+    }
+
     let invites: WorkspaceInvitation[] = [];
 
     try {
       await executeTx(this.db, async (trx) => {
         // we do not want to invite existing members
-        const findExistingUsers = await this.db
+        const findExistingUsers = await trx
           .selectFrom('users')
           .select(['email'])
           .where('users.email', 'in', emails)
           .where('users.workspaceId', '=', workspace.id)
           .execute();
 
-        let existingUserEmails = [];
+        let existingUserEmails: string[] = [];
         if (findExistingUsers) {
           existingUserEmails = findExistingUsers.map((user) => user.email);
         }
@@ -116,7 +120,12 @@ export class WorkspaceInvitationService {
           (email) => !existingUserEmails.includes(email),
         );
 
-        let validGroups = [];
+        // no new emails to invite
+        if (inviteEmails.length === 0) {
+          return;
+        }
+
+        let validGroups: Partial<Group>[] = [];
         if (groupIds && groupIds.length > 0) {
           validGroups = await trx
             .selectFrom('groups')
@@ -132,7 +141,7 @@ export class WorkspaceInvitationService {
           token: nanoIdGen(16),
           workspaceId: workspace.id,
           invitedById: authUser.id,
-          groupIds: validGroups?.map((group: Partial<Group>) => group.id),
+          groupIds: validGroups?.map((group) => group.id),
         }));
 
         invites = await trx
@@ -143,7 +152,7 @@ export class WorkspaceInvitationService {
           .execute();
       });
     } catch (err) {
-      this.logger.error(`createInvitation - ${err}`);
+      this.logger.error(`createInvitation - error: ${err}`);
       throw new BadRequestException(
         'An error occurred while processing the invitations.',
       );
