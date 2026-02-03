@@ -108,5 +108,5 @@ Now that you're set up, explore these topics:
 ## Need Help?
 
 - Check the [Guides](/guides/overview) for detailed walkthroughs
-- Join our [Discord](https://discord.gg/ravendocs) for community support
+- Join our [Discord](https://discord.gg/jEmMBA2S) for community support
 - Open an issue on [GitHub](https://github.com/HaruHunab1320/raven-docs/issues)

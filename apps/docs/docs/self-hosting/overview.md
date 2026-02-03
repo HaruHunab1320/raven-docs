@@ -98,4 +98,4 @@ docker compose up -d
 
 For community support:
 - Open an issue on [GitHub](https://github.com/HaruHunab1320/raven-docs/issues)
-- Join our [Discord](https://discord.gg/ravendocs)
+- Join our [Discord](https://discord.gg/jEmMBA2S)

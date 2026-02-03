@@ -95,9 +95,9 @@ const page = await client.pages.create({
 
 ## Getting Help
 
-- **Discord**: Join our [Discord community](https://discord.gg/ravendocs) for support and discussions
+- **Discord**: Join our [Discord community](https://discord.gg/jEmMBA2S) for support and discussions
 - **GitHub**: Report issues and contribute on [GitHub](https://github.com/raven-docs/raven-docs)
-- **Twitter**: Follow [@ravendocs](https://twitter.com/ravendocs) for updates
+- **X**: Follow [@Raven_Docs](https://x.com/Raven_Docs) for updates
 
 ## What's Next?
 
