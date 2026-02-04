@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AgentController } from './agent.controller';
 import { AgentService } from './agent.service';
 import { AgentPlannerService } from './agent-planner.service';
@@ -25,7 +25,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     PageModule,
     CaslModule,
     AIModule,
-    MCPModule,
+    forwardRef(() => MCPModule),
   ],
   controllers: [AgentController],
   providers: [

@@ -93,7 +93,7 @@ import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents
     AgentMemoryModule,
     ResearchModule,
     GoalModule,
-    AgentModule,
+    forwardRef(() => AgentModule),
     forwardRef(() => ParallaxAgentsModule),
     EventEmitterModule.forRoot(),
   ],
