@@ -1,5 +1,6 @@
 # Production Dockerfile for Raven Docs
 # Multi-stage build for optimal image size and security
+# syntax=docker/dockerfile:1
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
@@ -18,8 +19,9 @@ COPY apps/server/package.json ./apps/server/
 COPY packages/*/package.json ./packages/
 COPY patches ./patches
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies with BuildKit cache mount for pnpm store
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder

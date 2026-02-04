@@ -131,27 +131,28 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push image
         id: build
-        env:
-          IMAGE_URL: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          IMAGE_LATEST: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDTIME=${{ github.event.head_commit.timestamp }}
+            REVISION=${{ github.sha }}
+
+      - name: Set output
         run: |
-          echo "Building image: $IMAGE_URL"
-
-          docker build \
-            -f Dockerfile.production \
-            -t $IMAGE_URL \
-            -t $IMAGE_LATEST \
-            --build-arg BUILDTIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-            --build-arg REVISION=${{ github.sha }} \
-            .
-
-          docker push $IMAGE_URL
-          docker push $IMAGE_LATEST
-
-          echo "image_url=$IMAGE_URL" >> $GITHUB_OUTPUT
-          echo "Set output image_url=$IMAGE_URL"
+          echo "image_url=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
 
   # ==========================================================================
   # Terraform Plan (PRs only)

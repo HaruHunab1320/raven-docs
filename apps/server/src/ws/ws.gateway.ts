@@ -78,7 +78,7 @@ export class WsGateway implements OnGatewayConnection, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.server) {
-      this.server.close();
+      this.server.disconnectSockets(true);
     }
   }
 
