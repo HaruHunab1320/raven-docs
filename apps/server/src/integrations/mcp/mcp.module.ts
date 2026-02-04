@@ -21,6 +21,10 @@ import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
 import { ResearchHandler } from './handlers/research.handler';
 import { ParallaxAgentHandler } from './handlers/parallax-agent.handler';
+import { GoalHandler } from './handlers/goal.handler';
+import { ProfileHandler } from './handlers/profile.handler';
+import { ReviewHandler } from './handlers/review.handler';
+import { InsightsHandler } from './handlers/insights.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -55,6 +59,8 @@ import { StorageModule } from '../../integrations/storage/storage.module';
 import { AIModule } from '../../integrations/ai/ai.module';
 import { AgentMemoryModule } from '../../core/agent-memory/agent-memory.module';
 import { ResearchModule } from '../../core/research/research.module';
+import { GoalModule } from '../../core/goal/goal.module';
+import { AgentModule } from '../../core/agent/agent.module';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents.module';
 
@@ -86,6 +92,8 @@ import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents
     AIModule,
     AgentMemoryModule,
     ResearchModule,
+    GoalModule,
+    AgentModule,
     forwardRef(() => ParallaxAgentsModule),
     EventEmitterModule.forRoot(),
   ],
@@ -114,6 +122,10 @@ import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents
     RepoHandler,
     ResearchHandler,
     ParallaxAgentHandler,
+    GoalHandler,
+    ProfileHandler,
+    ReviewHandler,
+    InsightsHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

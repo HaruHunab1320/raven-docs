@@ -7,6 +7,10 @@ sidebar_position: 9
 
 This guide walks through a productive daily workflow using Raven Docs' GTD and agent features.
 
+:::info Your Personal Workflow
+Your daily notes, journal entries, and inbox are **personal to you**. While you collaborate with your team on shared tasks and projects, your GTD workflow, goals, and reflections remain private. This lets you focus on personal productivity without worrying about others seeing your captures or planning notes.
+:::
+
 ## Morning Routine
 
 ### 1. Check Your Daily Plan
@@ -31,19 +35,19 @@ Agent: Good morning! Here's your plan for today:
        - "Launch v2.0" - 3 related tasks due this week
 ```
 
-### 2. Open Daily Note
+### 2. Open Your Daily Note
 
-Create or open today's daily note:
+Create or open your personal daily note:
 
 - Use `Cmd/Ctrl + Shift + D`
 - Or click **Today** in the sidebar
 
-Your daily note includes:
+Each user has their own daily note—even if you're collaborating on the same projects, your daily note is yours alone. Your daily note includes:
 
 - Date header
-- Links to tasks due today
-- Space for notes and captures
-- Connection to journal entry
+- Links to tasks assigned to you or due today
+- Space for personal notes and captures
+- Connection to your journal entry
 
 ### 3. Morning Journal (Optional)
 

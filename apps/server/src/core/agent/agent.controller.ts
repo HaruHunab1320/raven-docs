@@ -232,6 +232,7 @@ export class AgentController {
     return this.reviewPromptService.listPending({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       weekKey,
     });
   }
@@ -261,6 +262,7 @@ export class AgentController {
     return this.reviewPromptService.consumePending({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       weekKey,
     });
   }

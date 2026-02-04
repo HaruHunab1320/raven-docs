@@ -7,6 +7,10 @@ sidebar_position: 8
 
 Raven Docs includes a sophisticated behavioral analysis system that builds personalized user profiles based on activity patterns. Rather than simple XP or levels, the system evaluates users across seven core behavioral traits.
 
+:::info Your Private Profile
+Your behavioral profile is **personal and private**. Only you can see your trait scores, insights, and recommendations. This allows for honest self-reflection and growth tracking without external pressure.
+:::
+
 ## Overview
 
 The profile system analyzes your activity signals to create a comprehensive behavioral profile:

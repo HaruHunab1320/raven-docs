@@ -7,6 +7,10 @@ sidebar_position: 6
 
 Raven Docs includes a built-in Getting Things Done (GTD) productivity system that helps you capture, organize, and process your work alongside your documentation.
 
+:::info Personal Workspace
+All GTD features are **personal to each user**. Your inbox, goals, journal entries, weekly reviews, and memories are private and visible only to you. Team collaboration happens at the task and project level, while your personal productivity system remains yours alone.
+:::
+
 ## Overview
 
 The GTD system integrates task management with knowledge management:
@@ -45,12 +49,13 @@ Process inbox items into buckets:
 
 ### Daily Notes
 
-Automatically generated daily pages for capturing thoughts and tasks.
+Your personal daily page for capturing thoughts and tasks. Each user has their own daily note—even team members working on the same projects maintain separate daily notes.
 
+- **Personal to you** - Your daily note is private, not shared
 - Date-based titles (e.g., "2024-01-15")
-- Quick access from the sidebar
-- Links to tasks created that day
-- Integration with journal entries
+- Quick access from the sidebar via **Today**
+- Links to tasks you created or worked on that day
+- Integration with your journal entries
 
 ### Journal Entries
 

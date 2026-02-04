@@ -134,6 +134,7 @@ export class AgentMemoryController {
   @Post('query')
   async query(
     @Body() dto: MemoryQueryDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -144,6 +145,7 @@ export class AgentMemoryController {
       {
         workspaceId: workspace.id,
         spaceId: dto.spaceId,
+        creatorId: user.id,
         tags: dto.tags,
         sources: dto.sources,
         from: dto.from,
@@ -158,6 +160,7 @@ export class AgentMemoryController {
   @Post('delete')
   async delete(
     @Body() dto: MemoryDeleteDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -168,6 +171,7 @@ export class AgentMemoryController {
       {
         workspaceId: workspace.id,
         spaceId: dto.spaceId,
+        creatorId: user.id,
         tags: dto.tags,
         sources: dto.sources,
         limit: dto.limit,
@@ -180,6 +184,7 @@ export class AgentMemoryController {
   @Post('daily')
   async daily(
     @Body() dto: MemoryDailyDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -190,6 +195,7 @@ export class AgentMemoryController {
       {
         workspaceId: workspace.id,
         spaceId: dto.spaceId,
+        creatorId: user.id,
         limit: dto.limit,
       },
       dto.date,
@@ -200,6 +206,7 @@ export class AgentMemoryController {
   @Post('days')
   async days(
     @Body() dto: MemoryDaysDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -209,6 +216,7 @@ export class AgentMemoryController {
     return this.memoryService.listMemoryDays({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       limit: dto.days,
     });
   }
@@ -217,6 +225,7 @@ export class AgentMemoryController {
   @Post('graph')
   async graph(
     @Body() dto: MemoryGraphDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -226,6 +235,7 @@ export class AgentMemoryController {
     return this.memoryService.getMemoryGraph({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       tags: dto.tags,
       sources: dto.sources,
       from: dto.from,
@@ -240,6 +250,7 @@ export class AgentMemoryController {
   @Post('entity')
   async entity(
     @Body() dto: MemoryEntityDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -249,6 +260,7 @@ export class AgentMemoryController {
     return this.memoryService.getEntityMemories({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       entityId: dto.entityId,
       limit: dto.limit,
     });
@@ -258,6 +270,7 @@ export class AgentMemoryController {
   @Post('entity-details')
   async entityDetails(
     @Body() dto: MemoryEntityDetailsDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -267,6 +280,7 @@ export class AgentMemoryController {
     return this.memoryService.getEntityDetails({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       entityId: dto.entityId,
       limit: dto.limit,
     });
@@ -276,6 +290,7 @@ export class AgentMemoryController {
   @Post('links')
   async links(
     @Body() dto: MemoryLinksDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
@@ -285,6 +300,7 @@ export class AgentMemoryController {
     return this.memoryService.getEntityLinks({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
+      creatorId: user.id,
       taskIds: dto.taskIds,
       goalIds: dto.goalIds,
       limit: dto.limit,

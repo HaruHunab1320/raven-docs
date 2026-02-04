@@ -22,6 +22,7 @@ export interface MemoryRecord {
 interface MemoryQueryFilters {
   workspaceId: string;
   spaceId?: string;
+  creatorId?: string;
   tags?: string[];
   sources?: string[];
   from?: Date;
@@ -162,6 +163,7 @@ export class AgentMemoryService {
         MERGE (m:Memory {id: $id})
         SET m.workspaceId = $workspaceId,
             m.spaceId = $spaceId,
+            m.creatorId = $creatorId,
             m.source = $source,
             m.summary = $summary,
             m.tags = $tags,
@@ -175,6 +177,7 @@ export class AgentMemoryService {
           id: memoryId,
           workspaceId: input.workspaceId,
           spaceId: input.spaceId || null,
+          creatorId: input.creatorId || null,
           source: input.source || null,
           summary,
           tags: normalizedTags,
@@ -327,6 +330,10 @@ export class AgentMemoryService {
       query = query.where('spaceId', '=', filters.spaceId);
     }
 
+    if (filters.creatorId) {
+      query = query.where('creatorId', '=', filters.creatorId);
+    }
+
     if (filters.sources?.length) {
       query = query.where('source', 'in', filters.sources);
     }
@@ -395,6 +402,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       tags: filters.tags || [],
       sources: filters.sources || [],
       fromMs: filters.from ? filters.from.getTime() : null,
@@ -405,6 +413,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
       filters.tags?.length ? 'ANY(tag IN $tags WHERE tag IN m.tags)' : null,
       filters.sources?.length ? 'm.source IN $sources' : null,
       filters.from ? 'm.timestampMs >= $fromMs' : null,
@@ -492,6 +501,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       fromMs: start.getTime(),
       toMs: end.getTime(),
     };
@@ -499,6 +509,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
       'm.timestampMs >= $fromMs',
       'm.timestampMs <= $toMs',
     ].filter(Boolean);
@@ -547,6 +558,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       tags: filters.tags || [],
       sources: filters.sources || [],
       fromMs: filters.from ? filters.from.getTime() : null,
@@ -559,6 +571,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
       filters.tags?.length ? 'ANY(tag IN $tags WHERE tag IN m.tags)' : null,
       filters.sources?.length ? 'm.source IN $sources' : null,
       filters.from ? 'm.timestampMs >= $fromMs' : null,
@@ -650,6 +663,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       entityId: filters.entityId,
       fetchLimit: neo4jInt(Math.max(limit * 4, 40)),
     };
@@ -657,6 +671,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
     ].filter(Boolean);
 
     const whereClause = whereParts.length
@@ -707,6 +722,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       entityId: filters.entityId,
       fetchLimit: neo4jInt(Math.max(limit * 4, 40)),
     };
@@ -714,6 +730,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
     ].filter(Boolean);
 
     const whereClause = whereParts.length
@@ -805,15 +822,21 @@ export class AgentMemoryService {
       );
     };
 
-    const baseQuery = this.db
+    let baseQuery = this.db
       .selectFrom('agentMemories')
       .select(['content', 'createdAt'])
       .where('workspaceId', '=', filters.workspaceId)
       .where('source', '=', 'entity-link');
 
-    const scopedQuery = filters.spaceId
-      ? baseQuery.where('spaceId', '=', filters.spaceId)
-      : baseQuery;
+    if (filters.spaceId) {
+      baseQuery = baseQuery.where('spaceId', '=', filters.spaceId);
+    }
+
+    if (filters.creatorId) {
+      baseQuery = baseQuery.where('creatorId', '=', filters.creatorId);
+    }
+
+    const scopedQuery = baseQuery;
 
     let taskLinks = {};
     let goalLinks = {};
@@ -841,6 +864,7 @@ export class AgentMemoryService {
     const params: any = {
       workspaceId: filters.workspaceId,
       spaceId: filters.spaceId || null,
+      creatorId: filters.creatorId || null,
       tags: filters.tags || [],
       sources: filters.sources || [],
       fromMs: filters.from ? filters.from.getTime() : null,
@@ -851,6 +875,7 @@ export class AgentMemoryService {
     const whereParts = [
       'm.workspaceId = $workspaceId',
       filters.spaceId ? 'm.spaceId = $spaceId' : null,
+      filters.creatorId ? 'm.creatorId = $creatorId' : null,
       filters.tags?.length ? 'ANY(tag IN $tags WHERE tag IN m.tags)' : null,
       filters.sources?.length ? 'm.source IN $sources' : null,
       filters.from ? 'm.timestampMs >= $fromMs' : null,

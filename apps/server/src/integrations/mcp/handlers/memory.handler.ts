@@ -82,6 +82,7 @@ export class MemoryHandler {
         {
           workspaceId: params.workspaceId,
           spaceId: params.spaceId,
+          creatorId: userId,
           tags: params.tags,
           from: params.from ? new Date(params.from) : undefined,
           to: params.to ? new Date(params.to) : undefined,
@@ -112,6 +113,7 @@ export class MemoryHandler {
         {
           workspaceId: params.workspaceId,
           spaceId: params.spaceId,
+          creatorId: userId,
           limit: params.limit,
         },
         params.date ? new Date(params.date) : undefined,
@@ -138,6 +140,7 @@ export class MemoryHandler {
       return await this.memoryService.listMemoryDays({
         workspaceId: params.workspaceId,
         spaceId: params.spaceId,
+        creatorId: userId,
         limit: params.days || params.limit,
       });
     } catch (error: any) {

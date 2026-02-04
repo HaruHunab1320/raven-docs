@@ -131,6 +131,54 @@ export class UserRepo {
       .executeTakeFirst();
   }
 
+  /**
+   * Create a user account for an agent.
+   * Agents don't have passwords - they authenticate via MCP API keys.
+   */
+  async insertAgentUser(
+    agentUser: {
+      agentId: string;
+      name: string;
+      email: string;
+      workspaceId: string;
+      avatarUrl?: string;
+    },
+    trx?: KyselyTransaction,
+  ): Promise<User> {
+    const db = dbOrTx(this.db, trx);
+    return db
+      .insertInto('users')
+      .values({
+        agentId: agentUser.agentId,
+        name: agentUser.name,
+        email: agentUser.email.toLowerCase(),
+        workspaceId: agentUser.workspaceId,
+        avatarUrl: agentUser.avatarUrl || null,
+        locale: 'en-US',
+        role: 'agent',
+        password: null, // Agents don't have passwords
+        emailVerifiedAt: new Date(), // Agents are pre-verified
+      })
+      .returning(this.baseFields)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Find a user by their agent ID within a workspace.
+   */
+  async findByAgentId(
+    agentId: string,
+    workspaceId: string,
+  ): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .select(this.baseFields)
+      .where('agentId', '=', agentId)
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
+
   async roleCountByWorkspaceId(
     role: string,
     workspaceId: string,

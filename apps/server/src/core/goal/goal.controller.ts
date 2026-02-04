@@ -52,7 +52,7 @@ export class GoalController {
       throw new ForbiddenException();
     }
 
-    return this.goalService.listGoals(workspace.id, dto.spaceId);
+    return this.goalService.listGoals(workspace.id, user.id, dto.spaceId);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -74,6 +74,7 @@ export class GoalController {
 
     return this.goalService.createGoal({
       workspaceId: workspace.id,
+      creatorId: user.id,
       spaceId: dto.spaceId,
       name: dto.name,
       horizon: dto.horizon,
@@ -102,6 +103,7 @@ export class GoalController {
     return this.goalService.updateGoal({
       goalId: dto.goalId,
       workspaceId: workspace.id,
+      creatorId: user.id,
       spaceId: dto.spaceId,
       name: dto.name,
       horizon: dto.horizon,
@@ -127,7 +129,7 @@ export class GoalController {
       throw new ForbiddenException();
     }
 
-    return this.goalService.deleteGoal(workspace.id, dto.goalId);
+    return this.goalService.deleteGoal(workspace.id, user.id, dto.goalId);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -146,25 +148,27 @@ export class GoalController {
   @Post('by-task')
   async listByTask(
     @Body() dto: GoalTaskListDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
       throw new ForbiddenException();
     }
 
-    return this.goalService.listGoalsForTask(dto.taskId, workspace.id);
+    return this.goalService.listGoalsForTask(dto.taskId, workspace.id, user.id);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('by-tasks')
   async listByTasks(
     @Body() dto: GoalTasksListDto,
+    @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     if (dto.workspaceId !== workspace.id) {
       throw new ForbiddenException();
     }
 
-    return this.goalService.listGoalsForTasks(dto.taskIds, workspace.id);
+    return this.goalService.listGoalsForTasks(dto.taskIds, workspace.id, user.id);
   }
 }

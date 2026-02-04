@@ -21,6 +21,10 @@ import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
 import { ResearchHandler } from './handlers/research.handler';
 import { ParallaxAgentHandler } from './handlers/parallax-agent.handler';
+import { GoalHandler } from './handlers/goal.handler';
+import { ProfileHandler } from './handlers/profile.handler';
+import { ReviewHandler } from './handlers/review.handler';
+import { InsightsHandler } from './handlers/insights.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -74,6 +78,10 @@ export class MCPService {
     private readonly repoHandler: RepoHandler,
     private readonly researchHandler: ResearchHandler,
     private readonly parallaxAgentHandler: ParallaxAgentHandler,
+    private readonly goalHandler: GoalHandler,
+    private readonly profileHandler: ProfileHandler,
+    private readonly reviewHandler: ReviewHandler,
+    private readonly insightsHandler: InsightsHandler,
   ) {}
 
   /**
@@ -338,6 +346,38 @@ export class MCPService {
               `MCPService: Delegating to parallax agent handler`,
             );
             result = await this.handleAgentRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'goal':
+            this.logger.debug(`MCPService: Delegating to goal handler`);
+            result = await this.handleGoalRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'profile':
+            this.logger.debug(`MCPService: Delegating to profile handler`);
+            result = await this.handleProfileRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'review':
+            this.logger.debug(`MCPService: Delegating to review handler`);
+            result = await this.handleReviewRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'insights':
+            this.logger.debug(`MCPService: Delegating to insights handler`);
+            result = await this.handleInsightsRequest(
               operation,
               request.params,
               user.id,
@@ -640,6 +680,101 @@ export class MCPService {
         return this.memoryHandler.days(params, userId);
       default:
         throw createMethodNotFoundError(`memory.${operation}`);
+    }
+  }
+
+  /**
+   * Handle goal-related requests
+   *
+   * Goals are personal to each user - operations are scoped to the
+   * authenticated user's goals only.
+   */
+  private async handleGoalRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'list':
+        return this.goalHandler.list(params, userId);
+      case 'create':
+        return this.goalHandler.create(params, userId);
+      case 'update':
+        return this.goalHandler.update(params, userId);
+      case 'delete':
+        return this.goalHandler.delete(params, userId);
+      case 'assignTask':
+        return this.goalHandler.assignTask(params, userId);
+      case 'unassignTask':
+        return this.goalHandler.unassignTask(params, userId);
+      case 'byTask':
+        return this.goalHandler.byTask(params, userId);
+      case 'match':
+        return this.goalHandler.match(params, userId);
+      default:
+        throw createMethodNotFoundError(`goal.${operation}`);
+    }
+  }
+
+  /**
+   * Handle profile-related requests (user behavioral insights).
+   */
+  private async handleProfileRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'distill':
+        return this.profileHandler.distill(params, userId);
+      case 'get':
+        return this.profileHandler.get(params, userId);
+      default:
+        throw createMethodNotFoundError(`profile.${operation}`);
+    }
+  }
+
+  /**
+   * Handle weekly review-related requests.
+   */
+  private async handleReviewRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'ensurePage':
+        return this.reviewHandler.ensurePage(params, userId);
+      case 'createPrompts':
+        return this.reviewHandler.createPrompts(params, userId);
+      case 'listPending':
+        return this.reviewHandler.listPending(params, userId);
+      default:
+        throw createMethodNotFoundError(`review.${operation}`);
+    }
+  }
+
+  /**
+   * Handle insights-related requests (summaries, graphs, entities).
+   */
+  private async handleInsightsRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'generateSummary':
+        return this.insightsHandler.generateSummary(params, userId);
+      case 'graph':
+        return this.insightsHandler.graph(params, userId);
+      case 'entityMemories':
+        return this.insightsHandler.entityMemories(params, userId);
+      case 'entityDetails':
+        return this.insightsHandler.entityDetails(params, userId);
+      case 'topEntities':
+        return this.insightsHandler.topEntities(params, userId);
+      default:
+        throw createMethodNotFoundError(`insights.${operation}`);
     }
   }
 

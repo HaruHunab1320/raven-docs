@@ -19,6 +19,7 @@ export class AgentReviewPromptsService {
   async createPrompts(input: {
     workspaceId: string;
     spaceId: string;
+    creatorId?: string;
     weekKey: string;
     questions: string[];
     source?: string;
@@ -38,6 +39,7 @@ export class AgentReviewPromptsService {
         questions.map((question) => ({
           workspaceId: input.workspaceId,
           spaceId: input.spaceId,
+          creatorId: input.creatorId || null,
           weekKey: input.weekKey,
           question,
           status: 'pending',
@@ -47,7 +49,7 @@ export class AgentReviewPromptsService {
       )
       .onConflict((oc) =>
         oc
-          .columns(['spaceId', 'weekKey', 'question'])
+          .columns(['spaceId', 'weekKey', 'question', 'creatorId'])
           .doNothing(),
       )
       .execute();
@@ -58,8 +60,10 @@ export class AgentReviewPromptsService {
   async listPending(input: {
     workspaceId: string;
     spaceId: string;
+    creatorId: string;
     weekKey: string;
   }): Promise<ReviewPromptRecord[]> {
+    // Get user's personal prompts AND workspace-level agent prompts (creatorId = null)
     return this.db
       .selectFrom('agentReviewPrompts')
       .select([
@@ -73,6 +77,9 @@ export class AgentReviewPromptsService {
       ])
       .where('workspaceId', '=', input.workspaceId)
       .where('spaceId', '=', input.spaceId)
+      .where((eb) =>
+        eb('creatorId', '=', input.creatorId).or('creatorId', 'is', null),
+      )
       .where('weekKey', '=', input.weekKey)
       .where('status', '=', 'pending')
       .orderBy('createdAt', 'asc')
@@ -82,6 +89,7 @@ export class AgentReviewPromptsService {
   async consumePending(input: {
     workspaceId: string;
     spaceId: string;
+    creatorId: string;
     weekKey: string;
   }): Promise<ReviewPromptRecord[]> {
     const prompts = await this.listPending(input);

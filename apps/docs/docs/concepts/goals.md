@@ -7,6 +7,10 @@ sidebar_position: 7
 
 Goals in Raven Docs help you align your tasks and documentation with strategic objectives across different time horizons.
 
+:::info Personal Goals
+Goals are **personal to each user**. Each team member maintains their own set of goals across short, mid, and long-term horizons. While tasks can be shared and collaborative, your goals remain private and tailored to your individual objectives.
+:::
+
 ## Overview
 
 Goals provide direction for your work:

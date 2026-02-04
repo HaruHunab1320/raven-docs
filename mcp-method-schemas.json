@@ -2109,6 +2109,355 @@
       ],
       "examples": [],
       "relatedMethods": []
+    },
+    {
+      "name": "goal.list",
+      "description": "List personal goals for the authenticated user. Goals are private and scoped to each user.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to filter goals" }
+      },
+      "returns": {
+        "goals": { "type": "array", "description": "Array of goals belonging to the user" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" },
+        { "code": "PERMISSION_DENIED", "message": "User not found in workspace", "resolution": "Check workspace access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.create", "goal.update", "goal.delete", "goal.match"]
+    },
+    {
+      "name": "goal.create",
+      "description": "Create a new personal goal. Goals help track objectives across short, mid, and long-term horizons.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to associate goal with" },
+        "name": { "type": "string", "description": "Goal name/title", "required": true },
+        "horizon": { "type": "string", "description": "Goal horizon: short, mid, or long", "required": true },
+        "description": { "type": "string", "description": "Detailed description of the goal" },
+        "keywords": { "type": "array", "description": "Keywords for matching tasks to this goal" }
+      },
+      "returns": {
+        "id": { "type": "string", "description": "Created goal ID" },
+        "name": { "type": "string", "description": "Goal name" },
+        "horizon": { "type": "string", "description": "Goal horizon" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing name or horizon", "resolution": "Provide name and horizon (short/mid/long)" },
+        { "code": "PERMISSION_DENIED", "message": "Permission denied", "resolution": "Check workspace access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.list", "goal.update", "goal.assignTask"]
+    },
+    {
+      "name": "goal.update",
+      "description": "Update a personal goal. Only the goal owner can update their goals.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "goalId": { "type": "string", "description": "Goal ID to update", "required": true },
+        "name": { "type": "string", "description": "New goal name" },
+        "horizon": { "type": "string", "description": "New horizon: short, mid, or long" },
+        "description": { "type": "string", "description": "New description" },
+        "keywords": { "type": "array", "description": "New keywords" },
+        "spaceId": { "type": "string", "description": "New space association" }
+      },
+      "returns": {
+        "id": { "type": "string", "description": "Updated goal ID" },
+        "name": { "type": "string", "description": "Goal name" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing goalId", "resolution": "Provide goalId" },
+        { "code": "RESOURCE_NOT_FOUND", "message": "Goal not found", "resolution": "Check goalId" },
+        { "code": "PERMISSION_DENIED", "message": "You can only update your own goals", "resolution": "Use your own goal ID" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.list", "goal.create"]
+    },
+    {
+      "name": "goal.delete",
+      "description": "Delete a personal goal. Only the goal owner can delete their goals.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "goalId": { "type": "string", "description": "Goal ID to delete", "required": true }
+      },
+      "returns": {
+        "deleted": { "type": "boolean", "description": "Success status" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing goalId", "resolution": "Provide goalId" },
+        { "code": "RESOURCE_NOT_FOUND", "message": "Goal not found", "resolution": "Check goalId" },
+        { "code": "PERMISSION_DENIED", "message": "You can only delete your own goals", "resolution": "Use your own goal ID" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.list"]
+    },
+    {
+      "name": "goal.assignTask",
+      "description": "Link a task to a goal. This helps track which tasks contribute to achieving a goal.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "taskId": { "type": "string", "description": "Task ID to link", "required": true },
+        "goalId": { "type": "string", "description": "Goal ID to link to", "required": true }
+      },
+      "returns": {
+        "success": { "type": "boolean", "description": "Success status" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing taskId or goalId", "resolution": "Provide both taskId and goalId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.unassignTask", "goal.byTask", "task.create"]
+    },
+    {
+      "name": "goal.unassignTask",
+      "description": "Unlink a task from a goal.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "taskId": { "type": "string", "description": "Task ID to unlink", "required": true },
+        "goalId": { "type": "string", "description": "Goal ID to unlink from", "required": true }
+      },
+      "returns": {
+        "deleted": { "type": "boolean", "description": "Success status" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing taskId or goalId", "resolution": "Provide both taskId and goalId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.assignTask", "goal.byTask"]
+    },
+    {
+      "name": "goal.byTask",
+      "description": "Get goals linked to a specific task. Only returns goals owned by the authenticated user.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "taskId": { "type": "string", "description": "Task ID to query", "required": true }
+      },
+      "returns": {
+        "goals": { "type": "array", "description": "Goals linked to the task" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing taskId", "resolution": "Provide taskId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.assignTask", "goal.list"]
+    },
+    {
+      "name": "goal.match",
+      "description": "Find goals matching text by keywords. Useful for suggesting goal links when creating tasks.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "text": { "type": "string", "description": "Text to match against goal keywords", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to filter goals" }
+      },
+      "returns": {
+        "goals": { "type": "array", "description": "Matching goals" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing text", "resolution": "Provide text to match" }
+      ],
+      "examples": [],
+      "relatedMethods": ["goal.list", "goal.assignTask"]
+    },
+    {
+      "name": "profile.distill",
+      "description": "Generate or refresh behavioral profile from activity patterns. Returns trait scores, patterns, strengths, and recommendations.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to scope analysis" }
+      },
+      "returns": {
+        "traits": { "type": "object", "description": "Seven behavioral traits scored 0-10" },
+        "patterns": { "type": "object", "description": "Behavioral patterns (completion, consistency, etc.)" },
+        "strengths": { "type": "array", "description": "Identified strengths" },
+        "challenges": { "type": "array", "description": "Areas for improvement" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" },
+        { "code": "PERMISSION_DENIED", "message": "User not found in workspace", "resolution": "Check workspace access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["profile.get", "insights.graph"]
+    },
+    {
+      "name": "profile.get",
+      "description": "Get current behavioral profile without regenerating. Returns the most recent profile snapshot.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to scope" }
+      },
+      "returns": {
+        "traits": { "type": "object", "description": "Behavioral trait scores" },
+        "patterns": { "type": "object", "description": "Behavioral patterns" },
+        "strengths": { "type": "array", "description": "Identified strengths" },
+        "challenges": { "type": "array", "description": "Areas for improvement" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["profile.distill"]
+    },
+    {
+      "name": "review.ensurePage",
+      "description": "Create or fetch weekly review page for current week. Includes GTD checklist sections.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Space ID for review page", "required": true }
+      },
+      "returns": {
+        "page": { "type": "object", "description": "The weekly review page" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing spaceId", "resolution": "Provide spaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Cannot create pages in this space", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["review.createPrompts", "review.listPending"]
+    },
+    {
+      "name": "review.createPrompts",
+      "description": "Create review questions for reflection during weekly review.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Space ID", "required": true },
+        "questions": { "type": "array", "description": "Array of question strings", "required": true },
+        "source": { "type": "string", "description": "Source identifier (default: 'agent')" }
+      },
+      "returns": {
+        "prompts": { "type": "array", "description": "Created review prompts" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing questions array", "resolution": "Provide questions" }
+      ],
+      "examples": [],
+      "relatedMethods": ["review.listPending", "review.ensurePage"]
+    },
+    {
+      "name": "review.listPending",
+      "description": "List pending review prompts for the current week that haven't been addressed.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Space ID", "required": true }
+      },
+      "returns": {
+        "prompts": { "type": "array", "description": "Pending review prompts" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing spaceId", "resolution": "Provide spaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["review.createPrompts", "review.ensurePage"]
+    },
+    {
+      "name": "insights.generateSummary",
+      "description": "Generate AI summary of space activity (daily, weekly, or monthly).",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Space ID", "required": true },
+        "period": { "type": "string", "description": "Summary period: daily, weekly, or monthly" }
+      },
+      "returns": {
+        "summary": { "type": "object", "description": "Generated summary with insights" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing spaceId", "resolution": "Provide spaceId" },
+        { "code": "PERMISSION_DENIED", "message": "Cannot access this space", "resolution": "Request access" }
+      ],
+      "examples": [],
+      "relatedMethods": ["insights.graph", "insights.topEntities"]
+    },
+    {
+      "name": "insights.graph",
+      "description": "Get memory/entity relationship graph showing connections between mentioned entities.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space ID to filter" },
+        "limit": { "type": "number", "description": "Maximum entities to include (default: 100)" }
+      },
+      "returns": {
+        "nodes": { "type": "array", "description": "Entity nodes" },
+        "edges": { "type": "array", "description": "Relationships between entities" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["insights.entityDetails", "insights.topEntities"]
+    },
+    {
+      "name": "insights.entityMemories",
+      "description": "Get memories related to a specific entity.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "entityId": { "type": "string", "description": "Entity ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space filter" },
+        "limit": { "type": "number", "description": "Maximum memories (default: 50)" }
+      },
+      "returns": {
+        "memories": { "type": "array", "description": "Memories mentioning the entity" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing entityId", "resolution": "Provide entityId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["insights.entityDetails", "insights.graph"]
+    },
+    {
+      "name": "insights.entityDetails",
+      "description": "Get detailed information about an entity including related memories.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "entityId": { "type": "string", "description": "Entity ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space filter" }
+      },
+      "returns": {
+        "entity": { "type": "object", "description": "Entity details" },
+        "memories": { "type": "array", "description": "Related memories" },
+        "links": { "type": "array", "description": "Links to tasks, goals, etc." }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing entityId", "resolution": "Provide entityId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["insights.entityMemories", "insights.graph"]
+    },
+    {
+      "name": "insights.topEntities",
+      "description": "List the most frequently mentioned entities in your memories.",
+      "category": "Personal Productivity",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space filter" },
+        "limit": { "type": "number", "description": "Maximum entities (default: 20)" }
+      },
+      "returns": {
+        "entities": { "type": "array", "description": "Top entities by mention frequency" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["insights.graph", "insights.entityDetails"]
     }
   ]
 }  

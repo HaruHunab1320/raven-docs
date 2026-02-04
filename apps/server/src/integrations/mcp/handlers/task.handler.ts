@@ -216,6 +216,7 @@ export class TaskHandler {
       return this.taskService.getDailyTriageSummary(params.spaceId, {
         limit: params.limit,
         workspaceId: params.workspaceId,
+        userId,
       });
     } catch (error: any) {
       this.logger.error(

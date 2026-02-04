@@ -19,6 +19,9 @@ import {
   CreateAgentInviteInput,
 } from '../../database/repos/parallax-agent/agent-invite.repo';
 import { MCPApiKeyService } from '../../integrations/mcp/services/mcp-api-key.service';
+import { UserRepo } from '../../database/repos/user/user.repo';
+import { WorkspaceService } from '../workspace/services/workspace.service';
+import { GroupUserRepo } from '@raven-docs/db/repos/group/group-user.repo';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { RuntimeConnectionService } from './runtime-connection.service';
 import { AgentAccessRequestDto } from './dto/access-request.dto';
@@ -47,6 +50,9 @@ export class ParallaxAgentsService {
     @Inject(forwardRef(() => TerminalSessionService))
     private readonly terminalSessionService: TerminalSessionService,
     private readonly runtimeConnectionService: RuntimeConnectionService,
+    private readonly userRepo: UserRepo,
+    private readonly workspaceService: WorkspaceService,
+    private readonly groupUserRepo: GroupUserRepo,
   ) {}
 
   // ========== Access Management ==========
@@ -157,9 +163,12 @@ export class ParallaxAgentsService {
       throw new Error(`Invalid permissions: ${invalidPermissions.join(', ')}`);
     }
 
-    // Create MCP API key for this agent
+    // Create a user account for this agent (agents are first-class users)
+    const agentUser = await this.createAgentUser(agent, workspaceId);
+
+    // Create MCP API key using the real user ID
     const apiKey = await this.mcpApiKeyService.generateApiKey(
-      `agent:${agentId}`, // Use agent ID as pseudo-user
+      agentUser.id, // Use real user ID, not pseudo-user
       workspaceId,
       `Agent: ${agent.name}`,
     );
@@ -175,6 +184,7 @@ export class ParallaxAgentsService {
     await this.logActivity(agentId, workspaceId, 'access_approved', {
       approvedBy,
       grantedPermissions,
+      userId: agentUser.id,
     });
 
     // Emit event
@@ -182,6 +192,7 @@ export class ParallaxAgentsService {
       agent: updatedAgent,
       workspaceId,
       grantedPermissions,
+      userId: agentUser.id,
     });
 
     // Notify Parallax control plane
@@ -190,9 +201,49 @@ export class ParallaxAgentsService {
       mcpApiKey: apiKey,
     });
 
-    this.logger.log(`Agent access approved: ${agentId} in workspace ${workspaceId}`);
+    this.logger.log(
+      `Agent access approved: ${agentId} in workspace ${workspaceId} (user: ${agentUser.id})`,
+    );
 
     return { agent: updatedAgent, mcpApiKey: apiKey };
+  }
+
+  /**
+   * Create a user account for an agent.
+   * Agents are first-class users with their own goals, memories, and productivity features.
+   */
+  private async createAgentUser(
+    agent: ParallaxAgent,
+    workspaceId: string,
+  ) {
+    // Check if user already exists for this agent
+    const existingUser = await this.userRepo.findByAgentId(
+      agent.id,
+      workspaceId,
+    );
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // Create the agent user
+    const agentEmail = `${agent.id}@agents.internal`;
+    const user = await this.userRepo.insertAgentUser({
+      agentId: agent.id,
+      name: agent.name,
+      email: agentEmail,
+      workspaceId,
+      avatarUrl: agent.avatarUrl,
+    });
+
+    // Add user to workspace
+    await this.workspaceService.addUserToWorkspace(user.id, workspaceId);
+
+    // Add user to default group
+    await this.groupUserRepo.addUserToDefaultGroup(user.id, workspaceId);
+
+    this.logger.log(`Created user account for agent: ${agent.id} -> ${user.id}`);
+
+    return user;
   }
 
   async denyAccess(
@@ -717,9 +768,12 @@ export class ParallaxAgentsService {
     // Increment invite usage
     await this.inviteRepo.incrementUsage(invite.id);
 
-    // Create MCP API key for this agent
+    // Create a user account for this agent (agents are first-class users)
+    const agentUser = await this.createAgentUser(agent, invite.workspaceId);
+
+    // Create MCP API key using the real user ID
     const apiKey = await this.mcpApiKeyService.generateApiKey(
-      `agent:${request.agentId}`,
+      agentUser.id, // Use real user ID, not pseudo-user
       invite.workspaceId,
       `Agent: ${request.agentName}`,
     );
@@ -737,12 +791,14 @@ export class ParallaxAgentsService {
       inviteId: invite.id,
       inviteName: invite.name,
       grantedPermissions: invite.permissions,
+      userId: agentUser.id,
     });
 
     this.eventEmitter.emit('parallax.access_approved', {
       agent: updatedAgent,
       workspaceId: invite.workspaceId,
       grantedPermissions: invite.permissions,
+      userId: agentUser.id,
       via: 'invite',
     });
 

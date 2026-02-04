@@ -7,6 +7,10 @@ sidebar_position: 6
 
 Tools for managing goals across different time horizons.
 
+:::info Personal Goals
+Goals are **personal to each user**. All goal operations are automatically scoped to the authenticated user—you can only view, create, update, and delete your own goals. This allows agents to help manage your personal objectives without exposing them to others in your workspace.
+:::
+
 ## Available Tools
 
 ### goals_list

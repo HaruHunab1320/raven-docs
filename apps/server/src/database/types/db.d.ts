@@ -72,6 +72,7 @@ export interface AgentMemories {
 
 export interface AgentReviewPrompts {
   createdAt: Generated<Timestamp>;
+  creatorId: string | null;
   id: Generated<string>;
   metadata: Json | null;
   question: string;
@@ -180,6 +181,7 @@ export interface Comments {
 
 export interface Goals {
   createdAt: Generated<Timestamp>;
+  creatorId: string | null;
   description: string | null;
   horizon: string;
   id: Generated<string>;
@@ -501,6 +503,7 @@ export interface TerminalSessions {
 }
 
 export interface Users {
+  agentId: string | null;
   avatarUrl: string | null;
   createdAt: Generated<Timestamp>;
   deactivatedAt: Timestamp | null;

@@ -7,6 +7,10 @@ sidebar_position: 7
 
 The memory system allows the AI agent to remember context, learn from interactions, and provide personalized assistance over time.
 
+:::info Personal Memory
+Your memories are **private to you**. The agent builds a personal knowledge graph from your interactions, activity, and notes. Other team members cannot see your memories, ensuring your work patterns and preferences remain confidential.
+:::
+
 ## Overview
 
 Memory in Raven Docs works like a knowledge graph:

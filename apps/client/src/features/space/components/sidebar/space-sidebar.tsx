@@ -206,46 +206,6 @@ export function SpaceSidebar() {
 
             <UnstyledButton
               component={Link}
-              to={APP_ROUTE.SPACE.INBOX(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/inbox`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconInbox
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Inbox")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.TODAY(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/today`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconCalendar
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Today")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
               to={`/files?spaceId=${space.id}`}
               className={clsx(
                 classes.menu,
@@ -267,86 +227,6 @@ export function SpaceSidebar() {
 
             <UnstyledButton
               component={Link}
-              to={APP_ROUTE.SPACE.TRIAGE(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/triage`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconListCheck
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Triage")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.REVIEW(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/review`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconClipboardList
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Weekly Review")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.JOURNAL(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/journal`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconNotebook
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Journal")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.INSIGHTS(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/insights`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconChartDots
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Insights")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
               to={APP_ROUTE.SPACE.RESEARCH(space.id)}
               className={clsx(
                 classes.menu,
@@ -358,66 +238,6 @@ export function SpaceSidebar() {
               <div className={classes.menuItemInner}>
                 <IconBulb size={18} className={classes.menuItemIcon} stroke={2} />
                 <span>{t("Research")}</span>
-              </div>
-            </UnstyledButton>
-
-            {pinnedEntities.length ? (
-              <div className={classes.subSection}>
-                <Text size="xs" c="dimmed" fw={600} mb={4}>
-                  {t("Pinned entities")}
-                </Text>
-                <Group gap={6} wrap="wrap">
-                  {pinnedEntities.map((entity) => (
-                    <UnstyledButton
-                      key={entity.id}
-                      component={Link}
-                      to={`${APP_ROUTE.SPACE.INSIGHTS(space.id)}?entityId=${entity.id}`}
-                      className={classes.subMenu}
-                    >
-                      <Text size="xs">{entity.name}</Text>
-                    </UnstyledButton>
-                  ))}
-                </Group>
-              </div>
-            ) : null}
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.WAITING(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/waiting`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconClock
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Waiting")}</span>
-              </div>
-            </UnstyledButton>
-
-            <UnstyledButton
-              component={Link}
-              to={APP_ROUTE.SPACE.SOMEDAY(space.id)}
-              className={clsx(
-                classes.menu,
-                location.pathname.includes(`/spaces/${space.id}/someday`)
-                  ? classes.activeButton
-                  : ""
-              )}
-            >
-              <div className={classes.menuItemInner}>
-                <IconCloud
-                  size={18}
-                  className={classes.menuItemIcon}
-                  stroke={2}
-                />
-                <span>{t("Someday")}</span>
               </div>
             </UnstyledButton>
 
@@ -501,6 +321,193 @@ export function SpaceSidebar() {
                 </div>
               </UnstyledButton>
             )}
+          </div>
+        </div>
+
+        <div className={classes.section}>
+          <Text size="xs" fw={500} c="dimmed" mb={8} ml={12}>
+            {t("Personal")}
+          </Text>
+          <div className={classes.menuItems}>
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.TODAY(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/today`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconCalendar
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Today")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.INBOX(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/inbox`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconInbox
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Inbox")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.TRIAGE(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/triage`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconListCheck
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Triage")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.WAITING(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/waiting`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconClock
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Waiting")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.SOMEDAY(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/someday`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconCloud
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Someday")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.REVIEW(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/review`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconClipboardList
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Weekly Review")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.JOURNAL(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/journal`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconNotebook
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Journal")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={APP_ROUTE.SPACE.INSIGHTS(space.id)}
+              className={clsx(
+                classes.menu,
+                location.pathname.includes(`/spaces/${space.id}/insights`)
+                  ? classes.activeButton
+                  : ""
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconChartDots
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Insights")}</span>
+              </div>
+            </UnstyledButton>
+
+            {pinnedEntities.length ? (
+              <div className={classes.subSection}>
+                <Text size="xs" c="dimmed" fw={600} mb={4}>
+                  {t("Pinned entities")}
+                </Text>
+                <Group gap={6} wrap="wrap">
+                  {pinnedEntities.map((entity) => (
+                    <UnstyledButton
+                      key={entity.id}
+                      component={Link}
+                      to={`${APP_ROUTE.SPACE.INSIGHTS(space.id)}?entityId=${entity.id}`}
+                      className={classes.subMenu}
+                    >
+                      <Text size="xs">{entity.name}</Text>
+                    </UnstyledButton>
+                  ))}
+                </Group>
+              </div>
+            ) : null}
           </div>
         </div>
 

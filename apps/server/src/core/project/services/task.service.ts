@@ -243,10 +243,11 @@ export class TaskService {
     options?: {
       limit?: number;
       workspaceId?: string;
+      userId?: string;
     },
   ) {
     const triage = await this.taskRepo.getDailyTriageSummary(spaceId, options);
-    if (!options?.workspaceId) {
+    if (!options?.workspaceId || !options?.userId) {
       return triage;
     }
 
@@ -267,7 +268,7 @@ export class TaskService {
       { goalId: string; name: string; horizon?: string; tasks: Task[] }
     >();
 
-    const goals = await this.goalService.listGoals(workspaceId, spaceId);
+    const goals = await this.goalService.listGoals(workspaceId, options.userId, spaceId);
 
     const matchGoals = (text: string) => {
       const lowered = text.toLowerCase();
@@ -415,6 +416,7 @@ export class TaskService {
         if (text) {
           const matches = await this.goalService.findMatchingGoals(
             workspaceId,
+            userId,
             task.spaceId,
             text,
           );

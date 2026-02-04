@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { v7 as uuid7 } from 'uuid';
@@ -7,11 +11,12 @@ import { v7 as uuid7 } from 'uuid';
 export class GoalService {
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
 
-  async listGoals(workspaceId: string, spaceId?: string) {
+  async listGoals(workspaceId: string, creatorId: string, spaceId?: string) {
     let query = this.db
       .selectFrom('goals')
       .selectAll()
-      .where('workspaceId', '=', workspaceId);
+      .where('workspaceId', '=', workspaceId)
+      .where('creatorId', '=', creatorId);
 
     if (spaceId) {
       query = query.where((eb) =>
@@ -22,7 +27,7 @@ export class GoalService {
     return query.orderBy('createdAt', 'desc').execute();
   }
 
-  async listGoalsForTask(taskId: string, workspaceId: string) {
+  async listGoalsForTask(taskId: string, workspaceId: string, creatorId: string) {
     return this.db
       .selectFrom('taskGoalAssignments')
       .innerJoin('tasks', 'tasks.id', 'taskGoalAssignments.taskId')
@@ -36,10 +41,11 @@ export class GoalService {
       ])
       .where('taskGoalAssignments.taskId', '=', taskId)
       .where('tasks.workspaceId', '=', workspaceId)
+      .where('goals.creatorId', '=', creatorId)
       .execute();
   }
 
-  async listGoalsForTasks(taskIds: string[], workspaceId: string) {
+  async listGoalsForTasks(taskIds: string[], workspaceId: string, creatorId: string) {
     if (taskIds.length === 0) {
       return [];
     }
@@ -58,11 +64,13 @@ export class GoalService {
       ])
       .where('taskGoalAssignments.taskId', 'in', taskIds)
       .where('tasks.workspaceId', '=', workspaceId)
+      .where('goals.creatorId', '=', creatorId)
       .execute();
   }
 
   async createGoal(input: {
     workspaceId: string;
+    creatorId: string;
     spaceId?: string;
     name: string;
     horizon: string;
@@ -75,6 +83,7 @@ export class GoalService {
       .values({
         id: uuid7(),
         workspaceId: input.workspaceId,
+        creatorId: input.creatorId,
         spaceId: input.spaceId || null,
         name: input.name,
         horizon: input.horizon,
@@ -90,12 +99,29 @@ export class GoalService {
   async updateGoal(input: {
     goalId: string;
     workspaceId: string;
+    creatorId: string;
     spaceId?: string;
     name?: string;
     horizon?: string;
     description?: string;
     keywords?: string[];
   }) {
+    // Verify ownership
+    const existing = await this.db
+      .selectFrom('goals')
+      .select(['creatorId'])
+      .where('id', '=', input.goalId)
+      .where('workspaceId', '=', input.workspaceId)
+      .executeTakeFirst();
+
+    if (!existing) {
+      throw new NotFoundException('Goal not found');
+    }
+
+    if (existing.creatorId !== input.creatorId) {
+      throw new ForbiddenException('You can only update your own goals');
+    }
+
     const updatePayload: Record<string, any> = {
       updatedAt: new Date(),
     };
@@ -113,26 +139,37 @@ export class GoalService {
       .set(updatePayload)
       .where('id', '=', input.goalId)
       .where('workspaceId', '=', input.workspaceId)
+      .where('creatorId', '=', input.creatorId)
       .returningAll()
       .executeTakeFirst();
-
-    if (!updated) {
-      throw new NotFoundException('Goal not found');
-    }
 
     return updated;
   }
 
-  async deleteGoal(workspaceId: string, goalId: string) {
-    const deleted = await this.db
+  async deleteGoal(workspaceId: string, creatorId: string, goalId: string) {
+    // Verify ownership
+    const existing = await this.db
+      .selectFrom('goals')
+      .select(['creatorId'])
+      .where('id', '=', goalId)
+      .where('workspaceId', '=', workspaceId)
+      .executeTakeFirst();
+
+    if (!existing) {
+      throw new NotFoundException('Goal not found');
+    }
+
+    if (existing.creatorId !== creatorId) {
+      throw new ForbiddenException('You can only delete your own goals');
+    }
+
+    await this.db
       .deleteFrom('goals')
       .where('id', '=', goalId)
       .where('workspaceId', '=', workspaceId)
-      .returning(['id'])
-      .executeTakeFirst();
-    if (!deleted) {
-      throw new NotFoundException('Goal not found');
-    }
+      .where('creatorId', '=', creatorId)
+      .execute();
+
     return { deleted: true };
   }
 
@@ -160,10 +197,11 @@ export class GoalService {
 
   async findMatchingGoals(
     workspaceId: string,
+    creatorId: string,
     spaceId: string | undefined,
     text: string,
   ) {
-    const goals = await this.listGoals(workspaceId, spaceId);
+    const goals = await this.listGoals(workspaceId, creatorId, spaceId);
     const lowered = text.toLowerCase();
     return goals.filter((goal) => {
       const keywords = Array.isArray(goal.keywords) ? goal.keywords : [];

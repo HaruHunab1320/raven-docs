@@ -45,11 +45,13 @@ export class WeeklyReviewService {
     const weekKey = getWeekKey(reviewDate);
     const title = `Weekly Review ${weekKey}`;
 
+    // Each user gets their own weekly review page
     const existing = await this.db
       .selectFrom('pages')
       .select(['id', 'title', 'slugId', 'spaceId'])
       .where('spaceId', '=', params.spaceId)
       .where('title', '=', title)
+      .where('creatorId', '=', params.userId)
       .where('deletedAt', 'is', null)
       .executeTakeFirst();
 
@@ -60,6 +62,7 @@ export class WeeklyReviewService {
     const prompts = await this.reviewPromptService.consumePending({
       workspaceId: params.workspaceId,
       spaceId: params.spaceId,
+      creatorId: params.userId,
       weekKey,
     });
 
