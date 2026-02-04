@@ -4,7 +4,45 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { AIService } from '../../integrations/ai/ai.service';
 import { AgentMemoryService } from './agent-memory.service';
+import { TaskRepo } from '../../database/repos/task/task.repo';
 import { resolveAgentSettings } from '../agent/agent-settings';
+
+// Response types for structured summary data
+export interface DailySummaryResponse {
+  period: 'daily';
+  spaceId: string;
+  spaceName: string;
+  triage: {
+    inbox: number;
+    waiting: number;
+    someday: number;
+    overdue: number;
+    dueToday: number;
+  };
+  overdueTasks: Array<{ id: string; title: string }>;
+  dueTodayTasks: Array<{ id: string; title: string }>;
+  summaryText: string;
+  generatedAt: string;
+}
+
+export interface WeeklyMonthlySummaryResponse {
+  period: 'weekly' | 'monthly';
+  spaceId: string;
+  spaceName: string;
+  metrics: {
+    tasksCompleted: number;
+    tasksCreated: number;
+    pagesCreated: number;
+    pagesUpdated: number;
+    memoriesAdded: number;
+  };
+  topProjects: Array<{ id: string; name: string; activity: number }>;
+  topEntities: Array<{ id: string; name: string; type: string; count: number }>;
+  summaryText: string;
+  generatedAt: string;
+}
+
+export type SummaryResponse = DailySummaryResponse | WeeklyMonthlySummaryResponse;
 
 @Injectable()
 export class AgentInsightsService {
@@ -14,10 +52,20 @@ export class AgentInsightsService {
     @InjectKysely() private readonly db: KyselyDB,
     private readonly aiService: AIService,
     private readonly memoryService: AgentMemoryService,
+    private readonly taskRepo: TaskRepo,
   ) {}
 
   private getAgentModel() {
     return process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview';
+  }
+
+  private hasApiKey() {
+    return !!(
+      process.env.GEMINI_API_KEY ||
+      process.env.gemini_api_key ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.google_api_key
+    );
   }
 
   private async getRecentMemoryText(
@@ -47,6 +95,94 @@ export class AgentInsightsService {
       .join('\n');
   }
 
+  // ============================================================================
+  // Metrics gathering
+  // ============================================================================
+
+  private async getMetricsForPeriod(spaceId: string, workspaceId: string, days: number) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Tasks completed in period
+    const tasksCompleted = await this.db
+      .selectFrom('tasks')
+      .select(this.db.fn.count('id').as('count'))
+      .where('spaceId', '=', spaceId)
+      .where('status', '=', 'done')
+      .where('updatedAt', '>=', since)
+      .executeTakeFirst();
+
+    // Tasks created in period
+    const tasksCreated = await this.db
+      .selectFrom('tasks')
+      .select(this.db.fn.count('id').as('count'))
+      .where('spaceId', '=', spaceId)
+      .where('createdAt', '>=', since)
+      .executeTakeFirst();
+
+    // Pages created in period
+    const pagesCreated = await this.db
+      .selectFrom('pages')
+      .select(this.db.fn.count('id').as('count'))
+      .where('spaceId', '=', spaceId)
+      .where('createdAt', '>=', since)
+      .executeTakeFirst();
+
+    // Pages updated in period
+    const pagesUpdated = await this.db
+      .selectFrom('pages')
+      .select(this.db.fn.count('id').as('count'))
+      .where('spaceId', '=', spaceId)
+      .where('updatedAt', '>=', since)
+      .where('createdAt', '<', since) // Only count updates, not new pages
+      .executeTakeFirst();
+
+    // Memories added in period
+    const memoriesAdded = await this.db
+      .selectFrom('agentMemories')
+      .select(this.db.fn.count('id').as('count'))
+      .where('spaceId', '=', spaceId)
+      .where('createdAt', '>=', since)
+      .executeTakeFirst();
+
+    return {
+      tasksCompleted: Number(tasksCompleted?.count || 0),
+      tasksCreated: Number(tasksCreated?.count || 0),
+      pagesCreated: Number(pagesCreated?.count || 0),
+      pagesUpdated: Number(pagesUpdated?.count || 0),
+      memoriesAdded: Number(memoriesAdded?.count || 0),
+    };
+  }
+
+  private async getTopProjects(spaceId: string, days: number, limit = 5) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Get projects with task activity in the period
+    const projects = await this.db
+      .selectFrom('projects')
+      .leftJoin('tasks', 'tasks.projectId', 'projects.id')
+      .select([
+        'projects.id',
+        'projects.name',
+        this.db.fn.count('tasks.id').as('activity'),
+      ])
+      .where('projects.spaceId', '=', spaceId)
+      .where('tasks.updatedAt', '>=', since)
+      .groupBy(['projects.id', 'projects.name'])
+      .orderBy('activity', 'desc')
+      .limit(limit)
+      .execute();
+
+    return projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      activity: Number(p.activity || 0),
+    }));
+  }
+
+  // ============================================================================
+  // Summary generation (internal, stores to memory)
+  // ============================================================================
+
   private async generateSummary(
     spaceId: string,
     workspaceId: string,
@@ -54,28 +190,21 @@ export class AgentInsightsService {
     label: string,
     days: number,
     tag: string,
-  ) {
+  ): Promise<string> {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const memoryText = await this.getRecentMemoryText(spaceId, since);
-    if (!memoryText) {
-      return;
-    }
-
-    const prompt = [
-      `You are Raven Docs' memory analyst.`,
-      `Provide a concise ${label} summary based on the recent memory log.`,
-      `Highlight themes, progress, and open loops.`,
-      `Memory log:`,
-      memoryText,
-    ].join('\n');
 
     let summaryText = `${label} summary unavailable.`;
-    if (
-      process.env.GEMINI_API_KEY ||
-      process.env.gemini_api_key ||
-      process.env.GOOGLE_API_KEY ||
-      process.env.google_api_key
-    ) {
+
+    if (memoryText && this.hasApiKey()) {
+      const prompt = [
+        `You are Raven Docs' memory analyst.`,
+        `Provide a concise ${label} summary based on the recent memory log.`,
+        `Highlight themes, progress, and open loops.`,
+        `Memory log:`,
+        memoryText,
+      ].join('\n');
+
       try {
         const response = await this.aiService.generateContent({
           model: this.getAgentModel(),
@@ -98,7 +227,150 @@ export class AgentInsightsService {
       content: { text: summaryText },
       tags: ['agent', 'agent-insight', tag],
     });
+
+    return summaryText;
   }
+
+  private async generateDailySummaryText(
+    spaceName: string,
+    triage: {
+      inbox: any[];
+      overdue: any[];
+      dueToday: any[];
+      counts: { inbox: number; waiting: number; someday: number };
+    },
+  ): Promise<string> {
+    if (!this.hasApiKey()) {
+      return 'Daily summary unavailable (no API key configured).';
+    }
+
+    const prompt = [
+      `You are Raven Docs' daily planner assistant.`,
+      `Space: ${spaceName}`,
+      `Summarize today's triage, suggest 3-5 priorities, and propose time blocks.`,
+      `Counts: inbox=${triage.counts.inbox}, waiting=${triage.counts.waiting}, someday=${triage.counts.someday}.`,
+      `Overdue: ${triage.overdue.map((task) => task.title).join(', ') || 'none'}.`,
+      `Due today: ${triage.dueToday.map((task) => task.title).join(', ') || 'none'}.`,
+      `Return markdown with sections: Summary, Priorities, Time Blocks, Risks.`,
+    ].join('\n');
+
+    try {
+      const response = await this.aiService.generateContent({
+        model: this.getAgentModel(),
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      return (
+        response?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        'Daily summary unavailable.'
+      );
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to generate AI daily summary: ${error?.message || String(error)}`,
+      );
+      return 'Daily summary unavailable.';
+    }
+  }
+
+  // ============================================================================
+  // Public API: Generate summary with structured response
+  // ============================================================================
+
+  /**
+   * Public method to generate a summary for a specific space.
+   * Returns structured data appropriate to the period:
+   * - Daily: triage counts, overdue/due today tasks, AI summary
+   * - Weekly/Monthly: metrics, top projects, top entities, AI summary
+   */
+  async generateSummaryForSpace(params: {
+    spaceId: string;
+    workspaceId: string;
+    userId: string;
+    period: 'daily' | 'weekly' | 'monthly';
+  }): Promise<SummaryResponse> {
+    const space = await this.db
+      .selectFrom('spaces')
+      .select(['id', 'name', 'workspaceId'])
+      .where('id', '=', params.spaceId)
+      .where('workspaceId', '=', params.workspaceId)
+      .executeTakeFirst();
+
+    if (!space) {
+      throw new Error('Space not found');
+    }
+
+    const generatedAt = new Date().toISOString();
+
+    if (params.period === 'daily') {
+      // Daily: triage-focused
+      const triage = await this.taskRepo.getDailyTriageSummary(space.id, { limit: 10 });
+
+      const summaryText = await this.generateDailySummaryText(space.name, triage);
+
+      // Store to memory
+      await this.memoryService.ingestMemory({
+        workspaceId: space.workspaceId,
+        spaceId: space.id,
+        source: 'agent-insight',
+        summary: `Daily summary for ${space.name}`,
+        content: { text: summaryText },
+        tags: ['agent', 'agent-insight', 'daily-summary'],
+      });
+
+      return {
+        period: 'daily',
+        spaceId: space.id,
+        spaceName: space.name,
+        triage: {
+          inbox: triage.counts.inbox,
+          waiting: triage.counts.waiting,
+          someday: triage.counts.someday,
+          overdue: triage.overdue.length,
+          dueToday: triage.dueToday.length,
+        },
+        overdueTasks: triage.overdue.slice(0, 5).map((t) => ({ id: t.id, title: t.title })),
+        dueTodayTasks: triage.dueToday.slice(0, 5).map((t) => ({ id: t.id, title: t.title })),
+        summaryText,
+        generatedAt,
+      };
+    } else {
+      // Weekly/Monthly: metrics-focused
+      const days = params.period === 'weekly' ? 7 : 30;
+      const tag = params.period === 'weekly' ? 'weekly-summary' : 'monthly-summary';
+      const label = params.period === 'weekly' ? 'Weekly' : 'Monthly';
+
+      const [metrics, topProjects, topEntities, summaryText] = await Promise.all([
+        this.getMetricsForPeriod(space.id, space.workspaceId, days),
+        this.getTopProjects(space.id, days),
+        this.memoryService.listTopEntities({
+          workspaceId: space.workspaceId,
+          spaceId: space.id,
+          from: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+          limit: 5,
+        }),
+        this.generateSummary(space.id, space.workspaceId, space.name, label, days, tag),
+      ]);
+
+      return {
+        period: params.period,
+        spaceId: space.id,
+        spaceName: space.name,
+        metrics,
+        topProjects,
+        topEntities: topEntities.map((e) => ({
+          id: e.id,
+          name: e.name,
+          type: e.type,
+          count: e.count,
+        })),
+        summaryText,
+        generatedAt,
+      };
+    }
+  }
+
+  // ============================================================================
+  // Signals, clusters, trends (for cron jobs)
+  // ============================================================================
 
   private async generateSignals(
     spaceId: string,
@@ -207,10 +479,7 @@ export class AgentInsightsService {
     });
   }
 
-  private async generateGoalTrends(
-    spaceId: string,
-    workspaceId: string,
-  ) {
+  private async generateGoalTrends(spaceId: string, workspaceId: string) {
     const recentSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const baselineSince = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
     const recentText = (await this.getRecentMemoryText(spaceId, recentSince)).toLowerCase();
@@ -269,7 +538,86 @@ export class AgentInsightsService {
     });
   }
 
-  private async runForSpaces(handler: (space: any) => Promise<void>) {
+  private async generateActivityDigest(space: {
+    id: string;
+    name: string;
+    workspaceId: string;
+  }) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    // Check if we already have a digest for today
+    const existing = await this.db
+      .selectFrom('agentMemories')
+      .select(['id'])
+      .where('spaceId', '=', space.id)
+      .where('source', '=', 'activity-digest')
+      .where('createdAt', '>=', start)
+      .limit(1)
+      .execute();
+
+    if (existing.length > 0) return;
+
+    const entries = await this.db
+      .selectFrom('agentMemories')
+      .select(['summary', 'source', 'createdAt'])
+      .where('spaceId', '=', space.id)
+      .where('createdAt', '>=', start)
+      .where((eb) =>
+        eb.or([
+          eb('source', 'like', 'page.%'),
+          eb('source', 'like', 'task.%'),
+          eb('source', 'like', 'project.%'),
+          eb('source', 'like', 'comment.%'),
+          eb('source', 'like', 'goal.%'),
+          eb('source', 'in', ['agent-chat', 'agent-summary']),
+        ]),
+      )
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .execute();
+
+    if (!entries.length) return;
+
+    const grouped = new Map<string, string[]>();
+    for (const entry of entries) {
+      const source = entry.source || 'activity';
+      const [bucket] = source.split('.');
+      const key = bucket || source;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)?.push(entry.summary || source);
+    }
+
+    let digestText = `# Activity Digest\n\n`;
+    for (const [bucket, lines] of grouped) {
+      const title = bucket.charAt(0).toUpperCase() + bucket.slice(1);
+      digestText += `## ${title}\n`;
+      lines.slice(0, 10).forEach((line) => {
+        digestText += `- ${line}\n`;
+      });
+      digestText += '\n';
+    }
+
+    await this.memoryService.ingestMemory({
+      workspaceId: space.workspaceId,
+      spaceId: space.id,
+      source: 'activity-digest',
+      summary: `Activity digest for ${space.name}`,
+      content: { text: digestText },
+      tags: ['activity-digest'],
+    });
+  }
+
+  // ============================================================================
+  // Cron jobs
+  // ============================================================================
+
+  private async runForSpaces(
+    handler: (space: any) => Promise<void>,
+    options?: { requireDailySummary?: boolean },
+  ) {
     const spaces = await this.db
       .selectFrom('spaces')
       .innerJoin('workspaces', 'workspaces.id', 'spaces.workspaceId')
@@ -283,9 +631,9 @@ export class AgentInsightsService {
 
     for (const space of spaces) {
       const settings = resolveAgentSettings(space.settings);
-      if (!settings.enabled || !settings.enableMemoryInsights) {
-        continue;
-      }
+      if (!settings.enabled) continue;
+      if (!settings.enableMemoryInsights && !options?.requireDailySummary) continue;
+      if (options?.requireDailySummary && !settings.enableDailySummary) continue;
 
       try {
         await handler(space);
@@ -297,45 +645,30 @@ export class AgentInsightsService {
     }
   }
 
-  /**
-   * Public method to generate a summary for a specific space and user.
-   * Can be called via MCP to generate on-demand summaries.
-   */
-  async generateSummaryForSpace(params: {
-    spaceId: string;
-    workspaceId: string;
-    userId: string;
-    period: 'daily' | 'weekly' | 'monthly';
-  }) {
-    const space = await this.db
-      .selectFrom('spaces')
-      .select(['id', 'name', 'workspaceId'])
-      .where('id', '=', params.spaceId)
-      .where('workspaceId', '=', params.workspaceId)
-      .executeTakeFirst();
-
-    if (!space) {
-      throw new Error('Space not found');
+  @Cron('0 7 * * *')
+  async runDailySummaries() {
+    if (!this.hasApiKey()) {
+      this.logger.debug('Skipping daily summaries: no API key configured');
+      return;
     }
 
-    const periodConfig = {
-      daily: { label: 'Daily', days: 1, tag: 'daily-summary' },
-      weekly: { label: 'Weekly', days: 7, tag: 'weekly-summary' },
-      monthly: { label: 'Monthly', days: 30, tag: 'monthly-summary' },
-    };
-
-    const config = periodConfig[params.period];
-
-    await this.generateSummary(
-      space.id,
-      space.workspaceId,
-      space.name,
-      config.label,
-      config.days,
-      config.tag,
+    await this.runForSpaces(
+      async (space) => {
+        await this.generateActivityDigest(space);
+        // Generate daily summary via the cron (stores to memory)
+        const triage = await this.taskRepo.getDailyTriageSummary(space.id, { limit: 5 });
+        const summaryText = await this.generateDailySummaryText(space.name, triage);
+        await this.memoryService.ingestMemory({
+          workspaceId: space.workspaceId,
+          spaceId: space.id,
+          source: 'agent-insight',
+          summary: `Daily summary for ${space.name}`,
+          content: { text: summaryText },
+          tags: ['agent', 'agent-insight', 'daily-summary'],
+        });
+      },
+      { requireDailySummary: true },
     );
-
-    return { success: true, period: params.period, spaceId: params.spaceId };
   }
 
   @Cron('0 7 * * 1')

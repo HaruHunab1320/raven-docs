@@ -402,8 +402,9 @@ export class TerminalGateway
     }
     this.proxyConnections.clear();
 
+    // Disconnect all socket.io clients - NestJS handles the underlying server cleanup
     if (this.server) {
-      this.server.close();
+      this.server.disconnectSockets(true);
     }
   }
 }

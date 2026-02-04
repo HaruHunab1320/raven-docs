@@ -15,7 +15,7 @@ Insights are **personal to each user**. All analysis, summaries, and entity grap
 
 ### insights_generate_summary
 
-Generate an AI-powered summary of activity in a space for a given time period.
+Generate an AI-powered summary of activity in a space for a given time period. Returns structured data appropriate to the period type.
 
 ```json
 {
@@ -23,22 +23,65 @@ Generate an AI-powered summary of activity in a space for a given time period.
   "arguments": {
     "workspace_id": "ws_123",
     "space_id": "space_456",
-    "period": "weekly"
+    "period": "daily"
   }
 }
 ```
 
-**Response:**
+**Daily Response** (triage-focused):
 
 ```json
 {
-  "success": true,
-  "period": "weekly",
-  "spaceId": "space_456"
+  "period": "daily",
+  "spaceId": "space_456",
+  "spaceName": "My Space",
+  "triage": {
+    "inbox": 12,
+    "waiting": 5,
+    "someday": 8,
+    "overdue": 3,
+    "dueToday": 2
+  },
+  "overdueTasks": [
+    { "id": "task_001", "title": "Review Q4 report" },
+    { "id": "task_002", "title": "Send invoice" }
+  ],
+  "dueTodayTasks": [
+    { "id": "task_003", "title": "Team standup" }
+  ],
+  "summaryText": "## Summary\nYou have 3 overdue tasks...",
+  "generatedAt": "2024-01-15T07:00:00Z"
 }
 ```
 
-The summary is generated asynchronously and stored as a memory in the space. The generated summary includes highlights, themes, progress updates, and open loops based on recent activity. You can retrieve it using the memory tools.
+**Weekly/Monthly Response** (metrics-focused):
+
+```json
+{
+  "period": "weekly",
+  "spaceId": "space_456",
+  "spaceName": "My Space",
+  "metrics": {
+    "tasksCompleted": 15,
+    "tasksCreated": 8,
+    "pagesCreated": 3,
+    "pagesUpdated": 12,
+    "memoriesAdded": 45
+  },
+  "topProjects": [
+    { "id": "proj_001", "name": "API v2", "activity": 23 },
+    { "id": "proj_002", "name": "Documentation", "activity": 15 }
+  ],
+  "topEntities": [
+    { "id": "entity_api", "name": "API v2", "type": "project", "count": 23 },
+    { "id": "entity_auth", "name": "OAuth", "type": "concept", "count": 15 }
+  ],
+  "summaryText": "## Weekly Summary\nThis week you completed 15 tasks...",
+  "generatedAt": "2024-01-15T07:00:00Z"
+}
+```
+
+The summary is also stored as a memory in the space for future reference.
 
 ### insights_graph
 
@@ -205,14 +248,25 @@ The system automatically categorizes entities mentioned in memories:
 ## Example: Building Context
 
 ```typescript
-// Get an overview of recent activity
-const summary = await mcp.call("insights_generate_summary", {
+// Get daily triage for planning
+const daily = await mcp.call("insights_generate_summary", {
+  workspace_id: "ws_123",
+  space_id: "space_456",
+  period: "daily"
+});
+
+console.log(`Inbox: ${daily.triage.inbox}, Overdue: ${daily.triage.overdue}`);
+console.log(`Due today: ${daily.dueTodayTasks.map(t => t.title).join(", ")}`);
+
+// Get weekly metrics and top projects
+const weekly = await mcp.call("insights_generate_summary", {
   workspace_id: "ws_123",
   space_id: "space_456",
   period: "weekly"
 });
 
-console.log(`This week: ${summary.summary.highlights.join(", ")}`);
+console.log(`Completed ${weekly.metrics.tasksCompleted} tasks this week`);
+console.log(`Top projects: ${weekly.topProjects.map(p => p.name).join(", ")}`);
 
 // Find the most important topics
 const topEntities = await mcp.call("insights_top_entities", {

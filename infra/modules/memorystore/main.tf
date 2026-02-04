@@ -17,7 +17,7 @@ resource "google_redis_instance" "main" {
   display_name = "${var.resource_prefix} Redis"
 
   redis_configs = {
-    maxmemory-policy = "allkeys-lru"
+    maxmemory-policy = "noeviction"
   }
 
   maintenance_policy {
