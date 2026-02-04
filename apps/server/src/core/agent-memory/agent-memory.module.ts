@@ -6,10 +6,9 @@ import { AgentInsightsService } from './agent-insights.service';
 import { AgentProfileService } from './agent-profile.service';
 import { MemgraphModule } from '../../integrations/memgraph/memgraph.module';
 import { AIModule } from '../../integrations/ai/ai.module';
-import { ProjectModule } from '../project/project.module';
 
 @Module({
-  imports: [DatabaseModule, MemgraphModule, AIModule, ProjectModule],
+  imports: [DatabaseModule, MemgraphModule, AIModule],
   controllers: [AgentMemoryController],
   providers: [
     AgentMemoryService,
