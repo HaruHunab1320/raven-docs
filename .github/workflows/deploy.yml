@@ -323,15 +323,21 @@ jobs:
             echo "tag=latest" >> $GITHUB_OUTPUT
           fi
 
-      - name: Terraform Apply
+      - name: Terraform Plan
         run: |
-          terraform apply \
+          terraform plan \
             -var="project_id=${{ env.PROJECT_ID }}" \
             -var="app_secret=${{ secrets.APP_SECRET }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="app_url=${{ secrets.APP_URL }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.tag }}" \
-            -auto-approve
+            -out=tfplan
+
+      - name: Terraform Show Plan
+        run: terraform show tfplan
+
+      - name: Terraform Apply
+        run: terraform apply tfplan
 
   # ==========================================================================
   # Run Database Migrations (before app deploy)
