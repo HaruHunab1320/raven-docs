@@ -54,6 +54,19 @@ export class ReviewHandler {
     return { workspace, user };
   }
 
+  private getWeekKey(date = new Date()) {
+    const firstDay = new Date(date.getFullYear(), 0, 1);
+    const dayOffset = firstDay.getDay() || 7;
+    const weekStart = new Date(firstDay);
+    weekStart.setDate(firstDay.getDate() + (7 - dayOffset));
+    const diff =
+      date.getTime() -
+      new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate())
+        .getTime();
+    const weekNumber = Math.ceil((diff / (1000 * 60 * 60 * 24) + 1) / 7);
+    return `${date.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+  }
+
   /**
    * Ensure a weekly review page exists for the current week.
    * Creates the page if it doesn't exist, with standard GTD sections.
@@ -77,13 +90,13 @@ export class ReviewHandler {
         );
       }
 
-      const page = await this.weeklyReviewService.ensureWeeklyReviewPage(
-        params.spaceId,
-        params.workspaceId,
+      const result = await this.weeklyReviewService.ensureWeeklyReviewPage({
+        spaceId: params.spaceId,
+        workspaceId: params.workspaceId,
         userId,
-      );
+      });
 
-      return { page };
+      return { page: result.page, status: result.status };
     } catch (error: any) {
       this.logger.error(
         `Error in review.ensurePage: ${error.message || 'Unknown error'}`,
@@ -112,13 +125,16 @@ export class ReviewHandler {
         throw createInvalidParamsError('questions array is required');
       }
 
-      const prompts = await this.reviewPromptsService.createPrompts(
-        params.workspaceId,
-        params.spaceId,
-        userId,
-        params.questions,
-        params.source || 'agent',
-      );
+      const weekKey = params.weekKey || this.getWeekKey();
+
+      const prompts = await this.reviewPromptsService.createPrompts({
+        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
+        creatorId: userId,
+        weekKey,
+        questions: params.questions,
+        source: params.source || 'agent',
+      });
 
       return { prompts };
     } catch (error: any) {
@@ -146,11 +162,14 @@ export class ReviewHandler {
         throw createInvalidParamsError('spaceId is required');
       }
 
-      const prompts = await this.reviewPromptsService.listPending(
-        params.workspaceId,
-        params.spaceId,
-        userId,
-      );
+      const weekKey = params.weekKey || this.getWeekKey();
+
+      const prompts = await this.reviewPromptsService.listPending({
+        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
+        creatorId: userId,
+        weekKey,
+      });
 
       return { prompts };
     } catch (error: any) {

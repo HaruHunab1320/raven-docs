@@ -32,29 +32,13 @@ Generate an AI-powered summary of activity in a space for a given time period.
 
 ```json
 {
-  "summary": {
-    "period": "weekly",
-    "startDate": "2024-01-08",
-    "endDate": "2024-01-14",
-    "highlights": [
-      "Completed 12 tasks across 3 projects",
-      "Created 5 new documentation pages",
-      "Added 8 memories about API design decisions"
-    ],
-    "metrics": {
-      "tasksCompleted": 12,
-      "tasksCreated": 15,
-      "pagesUpdated": 8,
-      "memoriesAdded": 8
-    },
-    "topProjects": [
-      { "name": "API Redesign", "activity": 45 },
-      { "name": "Documentation", "activity": 28 }
-    ],
-    "generatedAt": "2024-01-15T10:00:00Z"
-  }
+  "success": true,
+  "period": "weekly",
+  "spaceId": "space_456"
 }
 ```
+
+The summary is generated asynchronously and stored as a memory in the space. The generated summary includes highlights, themes, progress updates, and open loops based on recent activity. You can retrieve it using the memory tools.
 
 ### insights_graph
 

@@ -297,6 +297,47 @@ export class AgentInsightsService {
     }
   }
 
+  /**
+   * Public method to generate a summary for a specific space and user.
+   * Can be called via MCP to generate on-demand summaries.
+   */
+  async generateSummaryForSpace(params: {
+    spaceId: string;
+    workspaceId: string;
+    userId: string;
+    period: 'daily' | 'weekly' | 'monthly';
+  }) {
+    const space = await this.db
+      .selectFrom('spaces')
+      .select(['id', 'name', 'workspaceId'])
+      .where('id', '=', params.spaceId)
+      .where('workspaceId', '=', params.workspaceId)
+      .executeTakeFirst();
+
+    if (!space) {
+      throw new Error('Space not found');
+    }
+
+    const periodConfig = {
+      daily: { label: 'Daily', days: 1, tag: 'daily-summary' },
+      weekly: { label: 'Weekly', days: 7, tag: 'weekly-summary' },
+      monthly: { label: 'Monthly', days: 30, tag: 'monthly-summary' },
+    };
+
+    const config = periodConfig[params.period];
+
+    await this.generateSummary(
+      space.id,
+      space.workspaceId,
+      space.name,
+      config.label,
+      config.days,
+      config.tag,
+    );
+
+    return { success: true, period: params.period, spaceId: params.spaceId };
+  }
+
   @Cron('0 7 * * 1')
   async runWeeklySummary() {
     await this.runForSpaces(async (space) => {

@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AgentInsightsService } from '../../../core/agent-memory/agent-insights.service';
-import { AgentSummaryService } from '../../../core/agent-memory/agent-summary.service';
 import { AgentMemoryService } from '../../../core/agent-memory/agent-memory.service';
 import { UserService } from '../../../core/user/user.service';
 import { WorkspaceService } from '../../../core/workspace/services/workspace.service';
@@ -20,8 +19,8 @@ import {
 /**
  * Handler for insights and summaries MCP operations.
  *
- * Provides access to AI-generated summaries, activity digests,
- * and entity relationship graphs - all scoped to the authenticated user.
+ * Provides access to AI-generated summaries, entity relationship graphs,
+ * and memory analysis - all scoped to the authenticated user.
  */
 @Injectable()
 export class InsightsHandler {
@@ -29,7 +28,6 @@ export class InsightsHandler {
 
   constructor(
     private readonly insightsService: AgentInsightsService,
-    private readonly summaryService: AgentSummaryService,
     private readonly memoryService: AgentMemoryService,
     private readonly userService: UserService,
     private readonly workspaceService: WorkspaceService,
@@ -78,14 +76,19 @@ export class InsightsHandler {
         );
       }
 
-      const period = params.period || 'daily'; // daily, weekly, monthly
-      const summary = await this.insightsService.generateSummary(
-        params.spaceId,
-        params.workspaceId,
-        period,
-      );
+      const period = params.period || 'daily';
+      if (!['daily', 'weekly', 'monthly'].includes(period)) {
+        throw createInvalidParamsError('period must be daily, weekly, or monthly');
+      }
 
-      return summary;
+      const result = await this.insightsService.generateSummaryForSpace({
+        spaceId: params.spaceId,
+        workspaceId: params.workspaceId,
+        userId,
+        period,
+      });
+
+      return result;
     } catch (error: any) {
       this.logger.error(
         `Error in insights.generateSummary: ${error.message || 'Unknown error'}`,
