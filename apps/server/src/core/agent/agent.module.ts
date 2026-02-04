@@ -45,6 +45,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     AgentLoopService,
     AgentMemoryContextService,
     WeeklyReviewService,
+    AgentReviewPromptsService,
   ],
 })
 export class AgentModule {}
