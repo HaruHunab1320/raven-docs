@@ -204,6 +204,8 @@ jobs:
             -var="app_secret=${{ secrets.APP_SECRET }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="app_url=${{ secrets.APP_URL }}" \
+            -var="mail_driver=resend" \
+            -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest" \
             -no-color \
             -out=tfplan
@@ -331,6 +333,8 @@ jobs:
             -var="app_secret=${{ secrets.APP_SECRET }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="app_url=${{ secrets.APP_URL }}" \
+            -var="mail_driver=resend" \
+            -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.tag }}" \
             -out=tfplan
 
