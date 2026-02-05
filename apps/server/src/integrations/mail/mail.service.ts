@@ -30,7 +30,12 @@ export class MailService {
       from = message.from;
     }
 
-    const sender = `${this.environmentService.getMailFromName()} <${from}> `;
+    if (!from) {
+      throw new Error('MAIL_FROM_ADDRESS is not configured');
+    }
+
+    const fromName = this.environmentService.getMailFromName();
+    const sender = fromName ? `${fromName} <${from}>` : from;
     await this.mailDriver.sendMail({ from: sender, ...message });
   }
 

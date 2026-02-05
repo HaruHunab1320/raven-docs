@@ -206,6 +206,7 @@ jobs:
             -var="app_url=${{ secrets.APP_URL }}" \
             -var="mail_driver=resend" \
             -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
+            -var="mail_from_address=${{ secrets.MAIL_FROM_ADDRESS }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest" \
             -no-color \
             -out=tfplan
@@ -235,59 +236,21 @@ jobs:
         run: exit 1
 
   # ==========================================================================
-  # Deploy Application (main branch, app changes)
-  # ==========================================================================
-  deploy-app:
-    name: Deploy Application
-    runs-on: ubuntu-latest
-    needs: [changes, migrate]
-    if: |
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.app == 'true' || github.event_name == 'workflow_dispatch')
-    environment: production
-
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy to Cloud Run
-        env:
-          FALLBACK_IMAGE: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        run: |
-          echo "Deploying image: $FALLBACK_IMAGE"
-          gcloud run services update raven-docs-production-app \
-            --image=$FALLBACK_IMAGE \
-            --region=${{ env.REGION }}
-
-  # ==========================================================================
-  # Terraform Apply (main branch, infra changes only)
-  # Wait for docker build if app changes exist to avoid stale image
+  # Terraform Apply (main branch - handles ALL deployments)
+  # Runs after docker build and migrations complete
   # ==========================================================================
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
-    needs: [changes, docker]
-    # Run if infra changed OR manual trigger. Docker job may be skipped, so use always()
+    needs: [changes, docker, migrate]
+    # Run if app OR infra changed, or manual trigger. Use always() since docker/migrate may be skipped.
     if: |
       always() &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch') &&
-      (needs.docker.result == 'success' || needs.docker.result == 'skipped')
+      (needs.changes.outputs.app == 'true' || needs.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.docker.result == 'success' || needs.docker.result == 'skipped') &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
     environment: production
 
     permissions:
@@ -335,6 +298,7 @@ jobs:
             -var="app_url=${{ secrets.APP_URL }}" \
             -var="mail_driver=resend" \
             -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
+            -var="mail_from_address=${{ secrets.MAIL_FROM_ADDRESS }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.tag }}" \
             -out=tfplan
 
