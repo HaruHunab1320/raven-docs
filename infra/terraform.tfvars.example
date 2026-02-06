@@ -63,7 +63,7 @@ db_password = ""
 # Optional: Memgraph Configuration
 # -----------------------------------------------------------------------------
 
-# memgraph_machine_type = "e2-small"   # e2-medium for better performance
+# memgraph_machine_type = "n1-standard-1"   # Must use N1/N2/C2 series (E2 lacks required CPU instructions)
 # memgraph_disk_size_gb = 20
 
 # -----------------------------------------------------------------------------

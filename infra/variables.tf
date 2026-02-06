@@ -151,9 +151,9 @@ variable "storage_class" {
 # =============================================================================
 
 variable "memgraph_machine_type" {
-  description = "Machine type for Memgraph VM"
+  description = "Machine type for Memgraph VM. Must be N1/N2/C2 series (not E2) for CPU instruction compatibility."
   type        = string
-  default     = "e2-small"
+  default     = "n1-standard-1"
 }
 
 variable "memgraph_disk_size_gb" {
