@@ -201,12 +201,12 @@ jobs:
         run: |
           terraform plan \
             -var="project_id=${{ env.PROJECT_ID }}" \
-            -var="app_secret=${{ secrets.APP_SECRET }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="app_url=${{ secrets.APP_URL }}" \
-            -var="mail_driver=resend" \
-            -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
-            -var="mail_from_address=${{ secrets.MAIL_FROM_ADDRESS }}" \
+            -var="app_url=${{ vars.APP_URL }}" \
+            -var="subdomain_host=${{ vars.SUBDOMAIN_HOST }}" \
+            -var="mail_driver=${{ vars.MAIL_DRIVER }}" \
+            -var="mail_from_address=${{ vars.MAIL_FROM_ADDRESS }}" \
+            -var="mail_from_name=${{ vars.MAIL_FROM_NAME }}" \
+            -var="gemini_enabled=${{ vars.GEMINI_ENABLED }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest" \
             -no-color \
             -out=tfplan
@@ -293,12 +293,12 @@ jobs:
         run: |
           terraform plan \
             -var="project_id=${{ env.PROJECT_ID }}" \
-            -var="app_secret=${{ secrets.APP_SECRET }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="app_url=${{ secrets.APP_URL }}" \
-            -var="mail_driver=resend" \
-            -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
-            -var="mail_from_address=${{ secrets.MAIL_FROM_ADDRESS }}" \
+            -var="app_url=${{ vars.APP_URL }}" \
+            -var="subdomain_host=${{ vars.SUBDOMAIN_HOST }}" \
+            -var="mail_driver=${{ vars.MAIL_DRIVER }}" \
+            -var="mail_from_address=${{ vars.MAIL_FROM_ADDRESS }}" \
+            -var="mail_from_name=${{ vars.MAIL_FROM_NAME }}" \
+            -var="gemini_enabled=${{ vars.GEMINI_ENABLED }}" \
             -var="container_image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.tag }}" \
             -out=tfplan
 

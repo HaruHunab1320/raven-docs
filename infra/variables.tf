@@ -41,10 +41,10 @@ variable "app_url" {
   default     = ""
 }
 
-variable "app_secret" {
-  description = "Application secret for JWT signing (min 32 characters)"
+variable "subdomain_host" {
+  description = "Base domain for multi-tenant subdomains (e.g., imaginal.media)"
   type        = string
-  sensitive   = true
+  default     = ""
 }
 
 variable "jwt_token_expires_in" {
@@ -108,12 +108,6 @@ variable "db_user" {
   default     = "raven_docs"
 }
 
-variable "db_password" {
-  description = "PostgreSQL database password"
-  type        = string
-  sensitive   = true
-}
-
 variable "db_deletion_protection" {
   description = "Enable deletion protection for Cloud SQL"
   type        = bool
@@ -169,7 +163,7 @@ variable "memgraph_disk_size_gb" {
 }
 
 # =============================================================================
-# Email Configuration (Optional)
+# Email Configuration
 # =============================================================================
 
 variable "mail_driver" {
@@ -202,41 +196,12 @@ variable "smtp_port" {
   default     = 587
 }
 
-variable "smtp_username" {
-  description = "SMTP username"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "smtp_password" {
-  description = "SMTP password"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "postmark_token" {
-  description = "Postmark API token"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "resend_api_key" {
-  description = "Resend API key"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 # =============================================================================
 # AI Configuration
 # =============================================================================
 
-variable "gemini_api_key" {
-  description = "Google Gemini API key for AI features (embeddings, agent)"
-  type        = string
-  default     = ""
-  sensitive   = true
+variable "gemini_enabled" {
+  description = "Enable Gemini AI features (requires gemini-api-key secret in Secret Manager)"
+  type        = bool
+  default     = false
 }

@@ -129,6 +129,18 @@ variable "postmark_token_id" {
   default     = ""
 }
 
+variable "resend_api_key_id" {
+  description = "Secret Manager secret ID for RESEND_API_KEY"
+  type        = string
+  default     = ""
+}
+
+variable "gemini_api_key_id" {
+  description = "Secret Manager secret ID for GEMINI_API_KEY"
+  type        = string
+  default     = ""
+}
+
 variable "storage_bucket_name" {
   description = "Cloud Storage bucket name for file uploads"
   type        = string

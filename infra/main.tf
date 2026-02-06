@@ -71,11 +71,11 @@ module "secrets" {
   resource_prefix = local.resource_prefix
   labels          = local.common_labels
 
-  app_secret       = var.app_secret
-  db_password      = var.db_password
-  smtp_username    = var.smtp_username
-  smtp_password    = var.smtp_password
-  postmark_token   = var.postmark_token
+  # Feature flags for optional secrets (derived from config)
+  enable_smtp     = var.mail_driver == "smtp"
+  enable_postmark = var.mail_driver == "postmark"
+  enable_resend   = var.mail_driver == "resend"
+  enable_gemini   = var.gemini_enabled
 
   depends_on = [google_project_service.required_apis]
 }
@@ -92,17 +92,18 @@ module "cloud_sql" {
   resource_prefix = local.resource_prefix
   labels          = local.common_labels
 
-  db_tier                = var.db_tier
-  db_name                = var.db_name
-  db_user                = var.db_user
-  db_password            = var.db_password
-  deletion_protection    = var.db_deletion_protection
-  private_network        = module.networking.vpc_id
-  private_ip_range_name  = module.networking.private_ip_range_name
+  db_tier               = var.db_tier
+  db_name               = var.db_name
+  db_user               = var.db_user
+  db_password           = module.secrets.db_password_value
+  deletion_protection   = var.db_deletion_protection
+  private_network       = module.networking.vpc_id
+  private_ip_range_name = module.networking.private_ip_range_name
 
   depends_on = [
     google_project_service.required_apis,
     module.networking,
+    module.secrets,
   ]
 }
 
@@ -118,9 +119,9 @@ module "memorystore" {
   resource_prefix = local.resource_prefix
   labels          = local.common_labels
 
-  memory_size_gb   = var.redis_memory_size_gb
-  redis_version    = var.redis_version
-  vpc_network      = module.networking.vpc_id
+  memory_size_gb = var.redis_memory_size_gb
+  redis_version  = var.redis_version
+  vpc_network    = module.networking.vpc_id
 
   depends_on = [
     google_project_service.required_apis,
@@ -193,6 +194,8 @@ module "cloud_run" {
   # Environment configuration
   environment_variables = {
     NODE_ENV             = "production"
+    CLOUD                = "true"
+    SUBDOMAIN_HOST       = var.subdomain_host
     JWT_TOKEN_EXPIRES_IN = var.jwt_token_expires_in
     STORAGE_DRIVER       = "gcs"
     GCS_BUCKET           = module.cloud_storage.bucket_name
@@ -202,8 +205,6 @@ module "cloud_run" {
     MAIL_FROM_NAME       = var.mail_from_name
     SMTP_HOST            = var.smtp_host
     SMTP_PORT            = tostring(var.smtp_port)
-    RESEND_API_KEY       = var.resend_api_key
-    GEMINI_API_KEY       = var.gemini_api_key
     DISABLE_TELEMETRY    = "true"
   }
 
@@ -227,6 +228,8 @@ module "cloud_run" {
   smtp_username_id  = module.secrets.smtp_username_id
   smtp_password_id  = module.secrets.smtp_password_id
   postmark_token_id = module.secrets.postmark_token_id
+  resend_api_key_id = module.secrets.resend_api_key_id
+  gemini_api_key_id = module.secrets.gemini_api_key_id
 
   # Storage service account for GCS access
   storage_bucket_name = module.cloud_storage.bucket_name

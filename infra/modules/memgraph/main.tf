@@ -91,7 +91,7 @@ resource "google_compute_firewall" "memgraph" {
 
   allow {
     protocol = "tcp"
-    ports    = ["7687", "7444"]  # Bolt protocol and Lab
+    ports    = ["7687", "7444"] # Bolt protocol and Lab
   }
 
   source_ranges = ["10.0.0.0/8"]

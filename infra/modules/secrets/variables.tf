@@ -19,35 +19,27 @@ variable "labels" {
   default     = {}
 }
 
-variable "app_secret" {
-  description = "Application secret for JWT signing"
-  type        = string
-  sensitive   = true
+# Feature flags for optional secrets
+variable "enable_smtp" {
+  description = "Whether SMTP secrets exist in Secret Manager"
+  type        = bool
+  default     = false
 }
 
-variable "db_password" {
-  description = "Database password"
-  type        = string
-  sensitive   = true
+variable "enable_postmark" {
+  description = "Whether Postmark secret exists in Secret Manager"
+  type        = bool
+  default     = false
 }
 
-variable "smtp_username" {
-  description = "SMTP username"
-  type        = string
-  default     = ""
-  sensitive   = true
+variable "enable_resend" {
+  description = "Whether Resend API key exists in Secret Manager"
+  type        = bool
+  default     = false
 }
 
-variable "smtp_password" {
-  description = "SMTP password"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "postmark_token" {
-  description = "Postmark API token"
-  type        = string
-  default     = ""
-  sensitive   = true
+variable "enable_gemini" {
+  description = "Whether Gemini API key exists in Secret Manager"
+  type        = bool
+  default     = false
 }

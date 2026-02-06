@@ -50,6 +50,22 @@ resource "google_secret_manager_secret_iam_member" "postmark_token" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "resend_api_key" {
+  count     = var.resend_api_key_id != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = var.resend_api_key_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "gemini_api_key" {
+  count     = var.gemini_api_key_id != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = var.gemini_api_key_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # Grant Cloud SQL Client access
 resource "google_project_iam_member" "cloud_sql_client" {
   project = var.project_id
@@ -223,6 +239,34 @@ resource "google_cloud_run_v2_service" "main" {
           value_source {
             secret_key_ref {
               secret  = var.postmark_token_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      # Secret: RESEND_API_KEY (optional)
+      dynamic "env" {
+        for_each = var.resend_api_key_id != "" ? [1] : []
+        content {
+          name = "RESEND_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.resend_api_key_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      # Secret: GEMINI_API_KEY (optional)
+      dynamic "env" {
+        for_each = var.gemini_api_key_id != "" ? [1] : []
+        content {
+          name = "GEMINI_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.gemini_api_key_id
               version = "latest"
             }
           }
