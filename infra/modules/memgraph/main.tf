@@ -34,26 +34,34 @@ locals {
       systemctl start docker
     fi
 
-    # Create data directory
+    # Log CPU info for debugging
+    echo "=== CPU INFO ==="
+    cat /proc/cpuinfo | grep -E "model name|flags" | head -4
+    echo "=== END CPU INFO ==="
+
+    # Create data directory with correct ownership for memgraph container user
+    # UID 101:GID 103 is the memgraph user inside the container
+    # See: https://github.com/memgraph/memgraph/issues/3443
     mkdir -p /var/lib/memgraph
-    chmod 777 /var/lib/memgraph
+    chown -R 101:103 /var/lib/memgraph
+    chmod 755 /var/lib/memgraph
 
     # Stop existing container if running
     docker stop memgraph 2>/dev/null || true
     docker rm memgraph 2>/dev/null || true
 
-    # Pull and run Memgraph
-    # --privileged: Full access to host (bypasses all security restrictions)
-    # Trying this to debug the general protection fault issue
+    # Pull and run Memgraph with proper volume permissions
+    # Using memgraph user's UID:GID for volume mount
     docker pull memgraph/memgraph:2.14.1
     docker run -d \
       --name memgraph \
       --restart always \
-      --privileged \
+      --user 101:103 \
       -p 7687:7687 \
       -p 7444:7444 \
       -v /var/lib/memgraph:/var/lib/memgraph \
       memgraph/memgraph:2.14.1 \
+      --log-level=TRACE \
       --also-log-to-stderr
 
     echo "Memgraph started successfully"
