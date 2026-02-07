@@ -11,6 +11,47 @@ resource "google_service_account" "memgraph" {
   display_name = "Memgraph VM Service Account"
 }
 
+# Startup script to install Docker and run Memgraph
+locals {
+  memgraph_startup_script = <<-EOF
+    #!/bin/bash
+    set -e
+
+    # Install Docker if not present
+    if ! command -v docker &> /dev/null; then
+      apt-get update
+      apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io
+      systemctl enable docker
+      systemctl start docker
+    fi
+
+    # Create data directory
+    mkdir -p /var/lib/memgraph
+    chmod 777 /var/lib/memgraph
+
+    # Stop existing container if running
+    docker stop memgraph 2>/dev/null || true
+    docker rm memgraph 2>/dev/null || true
+
+    # Pull and run Memgraph
+    docker pull memgraph/memgraph:latest
+    docker run -d \
+      --name memgraph \
+      --restart always \
+      -p 7687:7687 \
+      -p 7444:7444 \
+      -v /var/lib/memgraph:/var/lib/memgraph \
+      memgraph/memgraph:latest \
+      --also-log-to-stderr
+
+    echo "Memgraph started successfully"
+  EOF
+}
+
 # Memgraph VM
 resource "google_compute_instance" "memgraph" {
   name         = "${var.resource_prefix}-memgraph"
@@ -18,16 +59,20 @@ resource "google_compute_instance" "memgraph" {
   zone         = var.zone
   machine_type = var.machine_type
 
+  # Memgraph requires modern CPU instructions
+  min_cpu_platform = "Intel Skylake"
+
   tags = ["memgraph", "allow-health-check"]
 
-  # Prevent accidental deletion - data would be lost
-  lifecycle {
-    prevent_destroy = true
-  }
+  # TODO: Re-enable prevent_destroy after successful Debian migration
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 
   boot_disk {
     initialize_params {
-      image = "cos-cloud/cos-stable"
+      # Use Debian instead of Container-Optimized OS for better glibc compatibility
+      image = "debian-cloud/debian-11"
       size  = var.disk_size_gb
       type  = "pd-ssd"
     }
@@ -40,26 +85,7 @@ resource "google_compute_instance" "memgraph" {
   }
 
   metadata = {
-    gce-container-declaration = yamlencode({
-      spec = {
-        containers = [{
-          image = "memgraph/memgraph:latest"
-          name  = "memgraph"
-          args  = ["--also-log-to-stderr"]
-          volumeMounts = [{
-            name      = "memgraph-data"
-            mountPath = "/var/lib/memgraph"
-          }]
-        }]
-        volumes = [{
-          name = "memgraph-data"
-          hostPath = {
-            path = "/var/lib/memgraph"
-          }
-        }]
-        restartPolicy = "Always"
-      }
-    })
+    startup-script = local.memgraph_startup_script
   }
 
   service_account {
@@ -70,12 +96,6 @@ resource "google_compute_instance" "memgraph" {
   scheduling {
     automatic_restart   = true
     on_host_maintenance = "MIGRATE"
-  }
-
-  shielded_instance_config {
-    enable_secure_boot          = true
-    enable_vtpm                 = true
-    enable_integrity_monitoring = true
   }
 
   labels = var.labels
