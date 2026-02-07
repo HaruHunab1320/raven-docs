@@ -87,6 +87,14 @@ resource "google_cloud_run_v2_service" "main" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # Image is managed by CI/CD pipeline (gcloud run deploy), not Terraform
+  # This prevents Terraform from reverting to an old image during infra-only changes
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
+
   template {
     service_account = google_service_account.cloud_run.email
 
