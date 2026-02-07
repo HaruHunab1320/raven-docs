@@ -37,15 +37,15 @@ locals {
     docker stop memgraph 2>/dev/null || true
     docker rm memgraph 2>/dev/null || true
 
-    # Pull and run Memgraph
-    docker pull memgraph/memgraph:latest
+    # Pull and run Memgraph (using 2.18.1 for better compatibility)
+    docker pull memgraph/memgraph:2.18.1
     docker run -d \
       --name memgraph \
       --restart always \
       -p 7687:7687 \
       -p 7444:7444 \
       -v /var/lib/memgraph:/var/lib/memgraph \
-      memgraph/memgraph:latest \
+      memgraph/memgraph:2.18.1 \
       --also-log-to-stderr
 
     echo "Memgraph started successfully"
