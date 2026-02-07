@@ -43,18 +43,17 @@ locals {
     docker rm memgraph 2>/dev/null || true
 
     # Pull and run Memgraph
-    # --security-opt seccomp=unconfined: Disable seccomp filtering (may block syscalls Memgraph needs)
-    # --cap-add SYS_PTRACE: Allow ptrace for debugging/profiling
-    docker pull memgraph/memgraph:2.18.1
+    # --privileged: Full access to host (bypasses all security restrictions)
+    # Trying this to debug the general protection fault issue
+    docker pull memgraph/memgraph:2.14.1
     docker run -d \
       --name memgraph \
       --restart always \
-      --security-opt seccomp=unconfined \
-      --cap-add SYS_PTRACE \
+      --privileged \
       -p 7687:7687 \
       -p 7444:7444 \
       -v /var/lib/memgraph:/var/lib/memgraph \
-      memgraph/memgraph:2.18.1 \
+      memgraph/memgraph:2.14.1 \
       --also-log-to-stderr
 
     echo "Memgraph started successfully"
