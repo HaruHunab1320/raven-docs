@@ -17,6 +17,11 @@ locals {
     #!/bin/bash
     set -e
 
+    # Set kernel parameters required by Memgraph
+    # vm.max_map_count is critical for Memgraph to avoid memory-related crashes
+    sysctl -w vm.max_map_count=262144
+    echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+
     # Install Docker if not present
     if ! command -v docker &> /dev/null; then
       apt-get update
@@ -37,11 +42,15 @@ locals {
     docker stop memgraph 2>/dev/null || true
     docker rm memgraph 2>/dev/null || true
 
-    # Pull and run Memgraph (using 2.18.1 for better compatibility)
+    # Pull and run Memgraph
+    # --security-opt seccomp=unconfined: Disable seccomp filtering (may block syscalls Memgraph needs)
+    # --cap-add SYS_PTRACE: Allow ptrace for debugging/profiling
     docker pull memgraph/memgraph:2.18.1
     docker run -d \
       --name memgraph \
       --restart always \
+      --security-opt seccomp=unconfined \
+      --cap-add SYS_PTRACE \
       -p 7687:7687 \
       -p 7444:7444 \
       -v /var/lib/memgraph:/var/lib/memgraph \
