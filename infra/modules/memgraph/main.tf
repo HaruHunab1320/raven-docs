@@ -11,14 +11,28 @@ resource "google_service_account" "memgraph" {
   display_name = "Memgraph VM Service Account"
 }
 
-# Startup script to install Docker and run Memgraph
+# Startup script - test with completely bare container first
+# If bare container crashes, it's a Memgraph/kernel incompatibility
+# If bare container works, issue is with data/config/volumes
 locals {
   memgraph_startup_script = <<-EOF
     #!/bin/bash
     set -e
 
-    # Set kernel parameters required by Memgraph
-    # vm.max_map_count is critical for Memgraph to avoid memory-related crashes
+    echo "=== Starting Memgraph debug test ==="
+    date
+
+    # Log system info
+    echo "=== SYSTEM INFO ==="
+    uname -a
+    cat /etc/os-release | head -5
+    echo "=== CPU INFO ==="
+    cat /proc/cpuinfo | grep -E "model name|flags" | head -4
+    echo "=== GLIBC VERSION ==="
+    ldd --version | head -1
+    echo "=== END SYSTEM INFO ==="
+
+    # Set kernel parameters
     sysctl -w vm.max_map_count=262144
     echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
@@ -34,37 +48,58 @@ locals {
       systemctl start docker
     fi
 
-    # Log CPU info for debugging
-    echo "=== CPU INFO ==="
-    cat /proc/cpuinfo | grep -E "model name|flags" | head -4
-    echo "=== END CPU INFO ==="
-
-    # Create data directory with correct ownership for memgraph container user
-    # UID 101:GID 103 is the memgraph user inside the container
-    # See: https://github.com/memgraph/memgraph/issues/3443
-    mkdir -p /var/lib/memgraph
-    chown -R 101:103 /var/lib/memgraph
-    chmod 755 /var/lib/memgraph
-
-    # Stop existing container if running
+    # Stop any existing container
     docker stop memgraph 2>/dev/null || true
     docker rm memgraph 2>/dev/null || true
 
-    # Pull and run Memgraph with proper volume permissions
-    # Using memgraph user's UID:GID for volume mount
-    docker pull memgraph/memgraph:2.14.1
-    docker run -d \
-      --name memgraph \
-      --restart always \
-      --user 101:103 \
-      -p 7687:7687 \
-      -p 7444:7444 \
-      -v /var/lib/memgraph:/var/lib/memgraph \
-      memgraph/memgraph:2.14.1 \
-      --log-level=TRACE \
-      --also-log-to-stderr
+    echo "=== TESTING BARE CONTAINER (no volumes, no config) ==="
 
-    echo "Memgraph started successfully"
+    # Try different versions to find one that works
+    for VERSION in "2.11.0" "2.10.1" "2.6.0"; do
+      echo "=== Testing memgraph/memgraph:$VERSION ==="
+
+      # Pull the image
+      docker pull memgraph/memgraph:$VERSION
+
+      # Run completely bare - no volumes, no user, no extra flags
+      # Just the minimal container to test if it starts at all
+      timeout 30 docker run --rm \
+        memgraph/memgraph:$VERSION \
+        --log-level=TRACE --also-log-to-stderr 2>&1 | head -50 || true
+
+      # Check if it stayed up (run in background and check)
+      docker run -d --name memgraph_test \
+        -p 7687:7687 \
+        memgraph/memgraph:$VERSION \
+        --log-level=INFO --also-log-to-stderr
+
+      sleep 10
+
+      if docker ps | grep -q memgraph_test; then
+        echo "=== SUCCESS: Version $VERSION works! ==="
+        docker stop memgraph_test
+        docker rm memgraph_test
+
+        # Use this working version for production
+        docker run -d \
+          --name memgraph \
+          --restart always \
+          -p 7687:7687 \
+          -p 7444:7444 \
+          memgraph/memgraph:$VERSION \
+          --log-level=INFO --also-log-to-stderr
+
+        echo "=== Memgraph $VERSION started successfully ==="
+        exit 0
+      else
+        echo "=== FAILED: Version $VERSION crashed ==="
+        docker logs memgraph_test 2>&1 | tail -20 || true
+        docker rm memgraph_test 2>/dev/null || true
+      fi
+    done
+
+    echo "=== ALL VERSIONS FAILED - Check logs above ==="
+    exit 1
   EOF
 }
 
