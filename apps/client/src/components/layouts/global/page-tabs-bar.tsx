@@ -30,19 +30,20 @@ export function PageTabsBar() {
     return null;
   }
 
-  const activePath = location.pathname;
+  const activeFullPath = location.pathname + location.search;
   const resolveFallback = () => {
-    const pageMatch = activePath.match(/^\/s\/([^/]+)\/p\//);
+    const pathname = location.pathname;
+    const pageMatch = pathname.match(/^\/s\/([^/]+)\/p\//);
     if (pageMatch) {
       return `/s/${pageMatch[1]}/home`;
     }
 
-    const spaceProjectsMatch = activePath.match(/^\/s\/([^/]+)\/projects/);
+    const spaceProjectsMatch = pathname.match(/^\/s\/([^/]+)\/projects/);
     if (spaceProjectsMatch) {
       return `/spaces/${spaceProjectsMatch[1]}/inbox`;
     }
 
-    const spaceIdMatch = activePath.match(/^\/spaces\/([^/]+)/);
+    const spaceIdMatch = pathname.match(/^\/spaces\/([^/]+)/);
     if (spaceIdMatch) {
       return `/spaces/${spaceIdMatch[1]}/inbox`;
     }
@@ -58,7 +59,7 @@ export function PageTabsBar() {
     <div className={classes.tabsBar} ref={barRef}>
       <div className={classes.tabsList}>
         {tabs.map((tab) => {
-          const isActive = activePath === tab.url;
+          const isActive = activeFullPath === tab.url;
           return (
             <div
               key={tab.id}

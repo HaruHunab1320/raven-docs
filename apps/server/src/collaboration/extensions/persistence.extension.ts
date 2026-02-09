@@ -46,10 +46,6 @@ export class PersistenceExtension implements Extension {
     const { documentName, document } = data;
     const pageId = getPageId(documentName);
 
-    if (!document.isEmpty('default')) {
-      return;
-    }
-
     const page = await this.pageRepo.findById(pageId, {
       includeContent: true,
       includeYdoc: true,
@@ -60,6 +56,8 @@ export class PersistenceExtension implements Extension {
       return;
     }
 
+    // If we have authoritative ydoc state in DB, always use it
+    // This prevents duplication when client IndexedDB cache merges with server state
     if (page.ydoc) {
       this.logger.debug(`ydoc loaded from db: ${pageId}`);
 
@@ -68,6 +66,14 @@ export class PersistenceExtension implements Extension {
 
       Y.applyUpdate(doc, dbState);
       return doc;
+    }
+
+    // If document already has content (from client IndexedDB) and we have no ydoc,
+    // don't convert from JSON - let the client's state be authoritative
+    // This prevents duplicate content when JSON->ydoc conversion creates new item IDs
+    if (!document.isEmpty('default')) {
+      this.logger.debug(`using client-provided ydoc state: ${pageId}`);
+      return;
     }
 
     // if no ydoc state in db convert json in page.content to Ydoc.

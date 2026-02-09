@@ -148,33 +148,36 @@ export function ProjectManagementPage() {
 
   useEffect(() => {
     if (!spaceId) return;
+
+    // Check URL for projectId to avoid timing issues with selectedProject state
+    const projectIdFromUrl = new URLSearchParams(location.search).get("projectId");
+
+    // When viewing a specific project, create a tab for that project only
+    // Don't create a dashboard tab - the user navigated directly to a project
     if (selectedProject) {
       upsertTab({
         id: `project:${selectedProject.id}`,
         title: selectedProject.name || t("Project"),
-        url: `/spaces/${spaceId}/projects?projectId=${selectedProject.id}`,
+        url: APP_ROUTE.SPACE.PROJECTS(spaceId) + `?projectId=${selectedProject.id}`,
         icon: selectedProject.icon || "📁",
       });
       return;
     }
 
-    if (showDashboard) {
-      upsertTab({
-        id: `projects:${spaceId}:dashboard`,
-        title: t("Projects"),
-        url: `/spaces/${spaceId}/projects`,
-        icon: "🗂️",
-      });
+    // If URL has projectId but project data hasn't loaded yet, don't create dashboard tab
+    // Wait for the project to be loaded and selectedProject to be set
+    if (projectIdFromUrl) {
       return;
     }
 
+    // For the projects dashboard/list (same page, different views), use one consistent tab ID
     upsertTab({
-      id: `projects:${spaceId}:list`,
+      id: `projects:${spaceId}`,
       title: t("Projects"),
-      url: `/spaces/${spaceId}/projects`,
+      url: APP_ROUTE.SPACE.PROJECTS(spaceId),
       icon: "🗂️",
     });
-  }, [selectedProject, showDashboard, spaceId, t, upsertTab]);
+  }, [selectedProject, spaceId, t, upsertTab, location.search]);
 
   // Debug logging
   logger.log("ProjectManagementPage - spaceId:", spaceId);
