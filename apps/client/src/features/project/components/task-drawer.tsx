@@ -1645,6 +1645,7 @@ export function TaskDrawer({
                   size="sm"
                   styles={propertyInputStyles}
                   style={propertyControlStyle}
+                  popoverProps={{ zIndex: 301 }}
                 />
               </Box>
 

@@ -894,6 +894,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
                             label={t("Start date")}
                             placeholder={t("Pick start date")}
                             clearable
+                            popoverProps={{ zIndex: 301 }}
                           />
                           <DateInput
                             value={endDate}
@@ -902,6 +903,7 @@ export function ProjectHeader({ project, onBack }: ProjectHeaderProps) {
                             placeholder={t("Pick due date")}
                             clearable
                             minDate={startDate || undefined}
+                            popoverProps={{ zIndex: 301 }}
                           />
                           <Button
                             onClick={handleDatesUpdate}

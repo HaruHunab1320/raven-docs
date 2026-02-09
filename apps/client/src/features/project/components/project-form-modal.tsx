@@ -224,11 +224,13 @@ const ProjectFormModal = memo(function ProjectFormModal({
             <DateInput
               label={t("Start Date")}
               placeholder={t("Pick a date")}
+              popoverProps={{ zIndex: 1001 }}
               {...form.getInputProps("startDate")}
             />
             <DateInput
               label={t("End Date")}
               placeholder={t("Pick a date")}
+              popoverProps={{ zIndex: 1001 }}
               {...form.getInputProps("endDate")}
             />
           </Group>
