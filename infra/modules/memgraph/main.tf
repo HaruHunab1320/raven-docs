@@ -11,28 +11,18 @@ resource "google_service_account" "memgraph" {
   display_name = "Memgraph VM Service Account"
 }
 
-# Startup script - test with completely bare container first
-# If bare container crashes, it's a Memgraph/kernel incompatibility
-# If bare container works, issue is with data/config/volumes
+# Startup script to run Memgraph 2.11.0
+# Note: Versions 2.14.x and later crash with "general protection fault" on GCP
+# Version 2.11.0 is confirmed working on GCP Debian 11 with Intel Skylake
 locals {
   memgraph_startup_script = <<-EOF
     #!/bin/bash
     set -e
 
-    echo "=== Starting Memgraph debug test ==="
+    echo "=== Starting Memgraph setup ==="
     date
 
-    # Log system info
-    echo "=== SYSTEM INFO ==="
-    uname -a
-    cat /etc/os-release | head -5
-    echo "=== CPU INFO ==="
-    cat /proc/cpuinfo | grep -E "model name|flags" | head -4
-    echo "=== GLIBC VERSION ==="
-    ldd --version | head -1
-    echo "=== END SYSTEM INFO ==="
-
-    # Set kernel parameters
+    # Set kernel parameters required by Memgraph
     sysctl -w vm.max_map_count=262144
     echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
@@ -48,58 +38,28 @@ locals {
       systemctl start docker
     fi
 
+    # Create data directory with correct permissions
+    mkdir -p /var/lib/memgraph
+    chown -R 101:103 /var/lib/memgraph
+    chmod 755 /var/lib/memgraph
+
     # Stop any existing container
     docker stop memgraph 2>/dev/null || true
     docker rm memgraph 2>/dev/null || true
 
-    echo "=== TESTING BARE CONTAINER (no volumes, no config) ==="
+    # Pull and run Memgraph 2.11.0 (confirmed working on GCP)
+    docker pull memgraph/memgraph:2.11.0
+    docker run -d \
+      --name memgraph \
+      --restart always \
+      -p 7687:7687 \
+      -p 7444:7444 \
+      -v /var/lib/memgraph:/var/lib/memgraph \
+      memgraph/memgraph:2.11.0 \
+      --log-level=INFO \
+      --also-log-to-stderr
 
-    # Try different versions to find one that works
-    for VERSION in "2.11.0" "2.10.1" "2.6.0"; do
-      echo "=== Testing memgraph/memgraph:$VERSION ==="
-
-      # Pull the image
-      docker pull memgraph/memgraph:$VERSION
-
-      # Run completely bare - no volumes, no user, no extra flags
-      # Just the minimal container to test if it starts at all
-      timeout 30 docker run --rm \
-        memgraph/memgraph:$VERSION \
-        --log-level=TRACE --also-log-to-stderr 2>&1 | head -50 || true
-
-      # Check if it stayed up (run in background and check)
-      docker run -d --name memgraph_test \
-        -p 7687:7687 \
-        memgraph/memgraph:$VERSION \
-        --log-level=INFO --also-log-to-stderr
-
-      sleep 10
-
-      if docker ps | grep -q memgraph_test; then
-        echo "=== SUCCESS: Version $VERSION works! ==="
-        docker stop memgraph_test
-        docker rm memgraph_test
-
-        # Use this working version for production
-        docker run -d \
-          --name memgraph \
-          --restart always \
-          -p 7687:7687 \
-          -p 7444:7444 \
-          memgraph/memgraph:$VERSION \
-          --log-level=INFO --also-log-to-stderr
-
-        echo "=== Memgraph $VERSION started successfully ==="
-        exit 0
-      else
-        echo "=== FAILED: Version $VERSION crashed ==="
-        docker logs memgraph_test 2>&1 | tail -20 || true
-        docker rm memgraph_test 2>/dev/null || true
-      fi
-    done
-
-    echo "=== ALL VERSIONS FAILED - Check logs above ==="
-    exit 1
+    echo "=== Memgraph 2.11.0 started successfully ==="
   EOF
 }
 
@@ -115,10 +75,9 @@ resource "google_compute_instance" "memgraph" {
 
   tags = ["memgraph", "allow-health-check"]
 
-  # TODO: Re-enable prevent_destroy after successful Debian migration
-  # lifecycle {
-  #   prevent_destroy = true
-  # }
+  lifecycle {
+    prevent_destroy = true
+  }
 
   boot_disk {
     initialize_params {
