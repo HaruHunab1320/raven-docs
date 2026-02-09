@@ -127,7 +127,9 @@ export class AIService {
       );
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${request.model}:embedContent?key=${apiKey}`;
+    // Use v1 API for text-embedding-004, v1beta for older models
+    const apiVersion = request.model.includes('text-embedding') ? 'v1' : 'v1beta';
+    const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${request.model}:embedContent?key=${apiKey}`;
     const body = {
       content: {
         parts: [{ text: request.content }],
