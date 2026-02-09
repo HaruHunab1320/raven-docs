@@ -160,7 +160,7 @@ export class AgentMemoryService {
     try {
       await session.run(
         `
-        MERGE (m:Memory {id: $id})
+        MERGE (m:MemoryNode {id: $id})
         SET m.workspaceId = $workspaceId,
             m.spaceId = $spaceId,
             m.creatorId = $creatorId,
@@ -196,7 +196,7 @@ export class AgentMemoryService {
             MERGE (e:Entity {id: $entityId})
             SET e.type = $entityType, e.name = $entityName
             WITH e
-            MATCH (m:Memory {id: $memoryId})
+            MATCH (m:MemoryNode {id: $memoryId})
             MERGE (m)-[:REFERS_TO]->(e)
             `,
             {
@@ -286,7 +286,7 @@ export class AgentMemoryService {
     try {
       await session.run(
         `
-        MATCH (m:Memory {id: $id})
+        MATCH (m:MemoryNode {id: $id})
         SET m.tags = $tags,
             m.summary = $summary
         `,
@@ -369,7 +369,7 @@ export class AgentMemoryService {
     try {
       await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         WHERE m.id IN $ids
         DETACH DELETE m
         `,
@@ -427,7 +427,7 @@ export class AgentMemoryService {
     try {
       const result = await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         ${whereClause}
         RETURN m
         ORDER BY m.timestampMs DESC
@@ -521,7 +521,7 @@ export class AgentMemoryService {
     try {
       const result = await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         ${whereClause}
         RETURN m.timestamp AS timestamp
         `,
@@ -593,7 +593,7 @@ export class AgentMemoryService {
     try {
       const nodesResult = await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         ${whereClause}
         MATCH (m)-[:REFERS_TO]->(e:Entity)
         RETURN e AS entity, count(DISTINCT m) AS memoryCount, max(m.timestampMs) AS lastSeen
@@ -623,7 +623,7 @@ export class AgentMemoryService {
       const entityIds = nodes.map((node) => node.id);
       const edgesResult = await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         ${whereClause}
         MATCH (m)-[:REFERS_TO]->(e:Entity)
         WHERE e.id IN $entityIds
@@ -681,7 +681,7 @@ export class AgentMemoryService {
     try {
       const result = await session.run(
         `
-        MATCH (m:Memory)-[:REFERS_TO]->(e:Entity {id: $entityId})
+        MATCH (m:MemoryNode)-[:REFERS_TO]->(e:Entity {id: $entityId})
         WHERE m.workspaceId = $workspaceId
         ${whereClause}
         RETURN m
@@ -748,7 +748,7 @@ export class AgentMemoryService {
     try {
       const entityResult = await session.run(
         `
-        MATCH (m:Memory)-[:REFERS_TO]->(e:Entity {id: $entityId})
+        MATCH (m:MemoryNode)-[:REFERS_TO]->(e:Entity {id: $entityId})
         WHERE m.workspaceId = $workspaceId
         ${whereClause}
         RETURN e AS entity, count(DISTINCT m) AS memoryCount, max(m.timestampMs) AS lastSeen
@@ -897,7 +897,7 @@ export class AgentMemoryService {
     try {
       const result = await session.run(
         `
-        MATCH (m:Memory)
+        MATCH (m:MemoryNode)
         ${whereClause}
         MATCH (m)-[:REFERS_TO]->(e:Entity)
         RETURN e AS entity, count(DISTINCT m) AS memoryCount
