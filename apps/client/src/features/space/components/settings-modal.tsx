@@ -1,4 +1,4 @@
-import {Modal, Tabs, rem, Group, ScrollArea, Text} from "@mantine/core";
+import {Modal, Tabs, rem, Group, ScrollArea, Text, Stack} from "@mantine/core";
 import SpaceMembersList from "@/features/space/components/space-members.tsx";
 import AddSpaceMembersModal from "@/features/space/components/add-space-members-modal.tsx";
 import React, { useEffect, useMemo, useState } from "react";
@@ -10,12 +10,15 @@ import {
   SpaceCaslSubject,
 } from "@/features/space/permissions/permissions.type.ts";
 import { useTranslation } from "react-i18next";
+import { useAtomValue } from "jotai";
+import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
+import { KnowledgeSourcesPanel } from "@/features/knowledge/components/knowledge-sources-panel";
 
 interface SpaceSettingsModalProps {
   spaceId: string;
   opened: boolean;
   onClose: () => void;
-  defaultTab?: "general" | "members";
+  defaultTab?: "general" | "members" | "knowledge";
 }
 
 export default function SpaceSettingsModal({
@@ -27,6 +30,7 @@ export default function SpaceSettingsModal({
   const { t } = useTranslation();
   const { data: space, isLoading } = useSpaceQuery(spaceId);
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const workspace = useAtomValue(workspaceAtom);
 
   const spaceRules = space?.membership?.permissions;
   const spaceAbility = useSpaceAbility(spaceRules);
@@ -66,6 +70,9 @@ export default function SpaceSettingsModal({
                   <Tabs.Tab fw={500} value="members">
                     {t("Members")}
                   </Tabs.Tab>
+                  <Tabs.Tab fw={500} value="knowledge">
+                    {t("Knowledge")}
+                  </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="general">
@@ -93,6 +100,22 @@ export default function SpaceSettingsModal({
                       SpaceCaslSubject.Member,
                     )}
                   />
+                </Tabs.Panel>
+
+                <Tabs.Panel value="knowledge">
+                  <Stack my="md">
+                    {workspace?.id && space?.id && (
+                      <KnowledgeSourcesPanel
+                        workspaceId={workspace.id}
+                        spaceId={space.id}
+                        scope="space"
+                        readOnly={spaceAbility.cannot(
+                          SpaceCaslAction.Manage,
+                          SpaceCaslSubject.Settings,
+                        )}
+                      />
+                    )}
+                  </Stack>
                 </Tabs.Panel>
               </Tabs>
             </div>
