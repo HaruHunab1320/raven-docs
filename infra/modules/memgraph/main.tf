@@ -48,6 +48,7 @@ locals {
     docker rm memgraph 2>/dev/null || true
 
     # Pull and run Memgraph 2.11.0 (confirmed working on GCP)
+    # Vector search is now handled by pgvector; Memgraph used only for graph operations
     docker pull memgraph/memgraph:2.11.0
     docker run -d \
       --name memgraph \

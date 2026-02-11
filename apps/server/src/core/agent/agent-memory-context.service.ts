@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 export type MemoryContextParams = {
   workspaceId: string;
@@ -17,11 +18,13 @@ export type MemoryContextParams = {
   topicLimit?: number;
   profileLimit?: number;
   profileTags?: string[];
+  knowledgeLimit?: number;
   includeRecent?: boolean;
   includeShortTerm?: boolean;
   includeProject?: boolean;
   includeTopic?: boolean;
   includeProfile?: boolean;
+  includeKnowledge?: boolean;
 };
 
 export type MemoryContextResult = {
@@ -40,11 +43,20 @@ export type MemoryContextResult = {
     topicMemories: any[];
     profileMemories: any[];
   };
+  knowledge: Array<{
+    content: string;
+    sourceName: string;
+    similarity: number;
+    metadata?: any;
+  }>;
 };
 
 @Injectable()
 export class AgentMemoryContextService {
-  constructor(private readonly memoryService: AgentMemoryService) {}
+  constructor(
+    private readonly memoryService: AgentMemoryService,
+    private readonly knowledgeService: KnowledgeService,
+  ) {}
 
   async buildContext(params: MemoryContextParams): Promise<MemoryContextResult> {
     const pageChatTag = params.pageId
@@ -130,6 +142,20 @@ export class AgentMemoryContextService {
             undefined,
           );
 
+    // Search knowledge base for relevant documentation
+    const knowledgeQuery = params.message || params.pageTitle || '';
+    const knowledge =
+      params.includeKnowledge === false || !knowledgeQuery
+        ? []
+        : await this.knowledgeService
+            .searchKnowledge({
+              query: knowledgeQuery,
+              workspaceId: params.workspaceId,
+              spaceId: params.spaceId,
+              limit: params.knowledgeLimit ?? 3,
+            })
+            .catch(() => []); // Gracefully handle if knowledge search fails
+
     return {
       tags: {
         pageChatTag,
@@ -146,6 +172,7 @@ export class AgentMemoryContextService {
         topicMemories,
         profileMemories,
       },
+      knowledge,
     };
   }
 }

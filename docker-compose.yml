@@ -20,9 +20,9 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # PostgreSQL database service
+  # PostgreSQL database service (with pgvector for vector similarity search)
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: raven-docs-postgres
     environment:
       POSTGRES_DB: raven-docs
@@ -42,13 +42,16 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # Memgraph service for agent memory (graph + vector)
+  # Memgraph service for agent memory graph relationships
+  # Note: Using base image for local dev; production uses memgraph-mage for MAGE algorithms
   memgraph:
-    image: memgraph/memgraph:latest
+    image: memgraph/memgraph:2.11.0
     container_name: raven-docs-memgraph
     ports:
       - "7687:7687"
       - "3005:3000"
+    volumes:
+      - memgraph_data:/var/lib/memgraph
     networks:
       - raven-docs-network
     restart: unless-stopped
@@ -61,4 +64,6 @@ volumes:
   redis_data:
     driver: local
   db_data:
+    driver: local
+  memgraph_data:
     driver: local

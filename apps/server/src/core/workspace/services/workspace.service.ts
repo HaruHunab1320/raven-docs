@@ -456,10 +456,6 @@ export class WorkspaceService {
         .deleteFrom('spaceMembers')
         .where('userId', '=', userId)
         .execute();
-      await trx
-        .deleteFrom('authAccounts')
-        .where('userId', '=', userId)
-        .execute();
     });
 
     try {

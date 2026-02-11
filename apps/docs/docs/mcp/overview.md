@@ -26,6 +26,7 @@ graph LR
     C --> E[Tasks]
     C --> F[Search]
     C --> G[Memory]
+    C --> H[Knowledge]
 ```
 
 ## Key Features
@@ -42,6 +43,7 @@ Access all Raven Docs functionality through standardized tools:
 | Users | List and manage users |
 | Search | Full-text search |
 | Memory | Store and query agent memory |
+| Knowledge | Search documentation and reference material |
 
 ### Tool Discovery
 
@@ -110,6 +112,24 @@ const results = await mcpClient.callTool('search_query', {
   workspaceId: 'ws_123',
   query: userQuestion,
 });
+```
+
+### RAG-Powered Assistants
+
+Use the knowledge system for retrieval-augmented generation:
+
+```typescript
+// Search uploaded documentation with semantic similarity
+const knowledge = await mcpClient.callTool('knowledge.search', {
+  workspaceId: 'ws_123',
+  query: 'how to configure authentication',
+  limit: 5,
+});
+
+// Use results as context for the AI response
+const relevantDocs = knowledge.results
+  .filter(r => r.similarity > 0.7)
+  .map(r => r.content);
 ```
 
 ### Research Agents

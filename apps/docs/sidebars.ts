@@ -95,6 +95,7 @@ const sidebars: SidebarsConfig = {
         'mcp/tools/tasks',
         'mcp/tools/goals',
         'mcp/tools/memory',
+        'mcp/tools/knowledge',
         'mcp/tools/profile',
         'mcp/tools/review',
         'mcp/tools/insights',

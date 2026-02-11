@@ -217,6 +217,19 @@ Generate or update a user's behavioral profile.
 
 The profile system evaluates users across seven behavioral traits based on activity signals. See [User Profiles](/guides/user-profiles) for full documentation.
 
+## Architecture
+
+Memory search uses **pgvector** with HNSW indexes for fast semantic similarity:
+
+- Memory content is embedded using Gemini's text-embedding-004 model (768 dimensions)
+- Queries are embedded and matched against stored memories using cosine similarity
+- HNSW index provides O(log n) query performance
+- Entity relationships are stored separately in Memgraph for graph traversals
+
+This architecture separates concerns:
+- **pgvector** handles semantic similarity (finding memories by meaning)
+- **Memgraph** handles graph queries (finding related entities and traversals)
+
 ## Best Practices
 
 1. **Use specific tags** - Makes querying more effective

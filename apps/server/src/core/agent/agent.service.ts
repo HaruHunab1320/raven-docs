@@ -158,6 +158,7 @@ export class AgentService {
       projectLimit: 6,
       topicLimit: 6,
       profileLimit: 1,
+      knowledgeLimit: 3,
     });
 
     return {
@@ -172,7 +173,16 @@ export class AgentService {
       projectMemories: context.memories.projectMemories,
       topicMemories: context.memories.topicMemories,
       profileMemories: context.memories.profileMemories,
+      knowledge: context.knowledge,
     };
+  }
+
+  private formatKnowledgeContext(knowledge: any[]) {
+    if (!knowledge.length) return '';
+    return knowledge
+      .filter((k) => k.similarity >= 0.6)
+      .map((k) => `[${k.sourceName}]: ${k.content.slice(0, 500)}`)
+      .join('\n\n');
   }
 
   async chat(dto: AgentChatDto, user: User, workspace: Workspace) {
@@ -231,6 +241,7 @@ export class AgentService {
       projectMemories,
       topicMemories,
       profileMemories,
+      knowledge,
     } = await this.fetchChatMemories({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
@@ -247,6 +258,7 @@ export class AgentService {
     const projectContext = this.formatMemorySummary(projectMemories);
     const shortTermContext = this.formatMemorySummary(shortTermMemories);
     const topicContext = this.formatMemorySummary(topicMemories);
+    const knowledgeContext = this.formatKnowledgeContext(knowledge);
 
     const goalFocusSummary = Array.isArray((triage as any).goalFocus)
       ? (triage as any).goalFocus
@@ -260,6 +272,7 @@ export class AgentService {
       `You are Raven Docs' agent. Respond conversationally and be helpful.`,
       `Space: ${space.name}`,
       page?.title ? `Page: ${page.title}` : null,
+      knowledgeContext ? `Relevant documentation:\n${knowledgeContext}` : null,
       `Recent chat memories:`,
       memoryContext,
       projectMemories.length ? `Project context:\n${projectContext}` : null,
@@ -509,6 +522,7 @@ export class AgentService {
       projectMemories,
       topicMemories,
       profileMemories,
+      knowledge,
     } = await this.fetchChatMemories({
       workspaceId: workspace.id,
       spaceId: dto.spaceId,
@@ -526,6 +540,19 @@ export class AgentService {
       this.buildContextSource('workspace', 'Recent activity', shortTermMemories),
       this.buildContextSource('topic', 'Topic', topicMemories),
       this.buildContextSource('profile', 'Profile', profileMemories),
+      {
+        key: 'knowledge',
+        label: 'Documentation',
+        count: knowledge.length,
+        items: knowledge.map((k) => ({
+          id: k.sourceName,
+          summary: k.content.slice(0, 200),
+          source: k.sourceName,
+          timestamp: null,
+          tags: [],
+          similarity: k.similarity,
+        })),
+      },
     ];
 
     return {

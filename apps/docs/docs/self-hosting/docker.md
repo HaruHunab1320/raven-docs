@@ -62,8 +62,6 @@ Open http://localhost:3000
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
-
 services:
   app:
     image: ghcr.io/raven-docs/raven-docs:latest
@@ -72,15 +70,18 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      - MEMGRAPH_URL=${MEMGRAPH_URL}
       - APP_SECRET=${APP_SECRET}
       - APP_URL=${APP_URL}
     depends_on:
       - postgres
       - redis
+      - memgraph
     restart: unless-stopped
 
+  # PostgreSQL with pgvector extension for semantic search
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: raven
       POSTGRES_PASSWORD: password
@@ -91,14 +92,26 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --save 900 1 --loglevel warning
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+
+  # Memgraph for graph relationships and entity tracking
+  memgraph:
+    image: memgraph/memgraph:2.11.0
+    ports:
+      - "7687:7687"
     restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
 ```
+
+:::info PostgreSQL with pgvector
+Raven Docs uses the `pgvector/pgvector` Docker image which includes the pgvector extension for vector similarity search. This powers the knowledge search and agent memory features with fast HNSW-indexed semantic queries.
+:::
 
 ## Production Configuration
 

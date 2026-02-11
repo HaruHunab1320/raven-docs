@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@raven-docs/db/types/kysely.types';
 import { MemgraphService } from '../../integrations/memgraph/memgraph.service';
-import { AIService } from '../../integrations/ai/ai.service';
+import { VectorSearchService } from '../../integrations/vector/vector-search.service';
 import { v7 as uuid7 } from 'uuid';
 import { int as neo4jInt } from 'neo4j-driver';
 import { sql } from 'kysely';
@@ -37,7 +37,7 @@ export class AgentMemoryService {
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     private readonly memgraph: MemgraphService,
-    private readonly aiService: AIService,
+    private readonly vectorSearch: VectorSearchService,
   ) {}
 
   private buildContentText(content: any): string {
@@ -90,27 +90,6 @@ export class AgentMemoryService {
     }
   }
 
-  private cosineSimilarity(a: number[], b: number[]): number {
-    let dot = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < a.length; i += 1) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    if (!normA || !normB) return 0;
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  }
-
-  private async embedText(text: string): Promise<number[]> {
-    const model = process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
-    const result = await this.aiService.embedContent({
-      model,
-      content: text,
-    });
-    return result.embedding;
-  }
 
   async ingestMemory(input: {
     workspaceId: string;
@@ -153,9 +132,24 @@ export class AgentMemoryService {
       })
       .execute();
 
+    // Store embedding in Postgres via pgvector (O(log n) queries with HNSW index)
     const embeddingInput = summary || contentText;
-    const embedding = embeddingInput ? await this.embedText(embeddingInput) : [];
+    if (embeddingInput) {
+      try {
+        const embedding = await this.vectorSearch.embedText(embeddingInput);
+        if (embedding.length > 0) {
+          await this.vectorSearch.storeMemoryEmbedding({
+            memoryId,
+            embedding,
+          });
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to generate embedding for memory ${memoryId}:`, error);
+        // Continue without embedding - memory is still stored
+      }
+    }
 
+    // Store graph data in Memgraph (for relationships and graph traversals only)
     const session = this.memgraph.getSession();
     try {
       await session.run(
@@ -168,10 +162,7 @@ export class AgentMemoryService {
             m.summary = $summary,
             m.tags = $tags,
             m.timestamp = $timestamp,
-            m.timestampMs = $timestampMs,
-            m.embedding = $embedding,
-            m.embeddingModel = $embeddingModel,
-            m.contentRef = $contentRef
+            m.timestampMs = $timestampMs
         `,
         {
           id: memoryId,
@@ -183,9 +174,6 @@ export class AgentMemoryService {
           tags: normalizedTags,
           timestamp: timestamp.toISOString(),
           timestampMs: timestamp.getTime(),
-          embedding,
-          embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
-          contentRef: memoryId,
         },
       );
 
@@ -397,81 +385,131 @@ export class AgentMemoryService {
     filters: MemoryQueryFilters,
     queryText?: string,
   ): Promise<any[]> {
-    const session = this.memgraph.getSession();
     const limit = filters.limit || 20;
-    const params: any = {
-      workspaceId: filters.workspaceId,
-      spaceId: filters.spaceId || null,
-      creatorId: filters.creatorId || null,
-      tags: filters.tags || [],
-      sources: filters.sources || [],
-      fromMs: filters.from ? filters.from.getTime() : null,
-      toMs: filters.to ? filters.to.getTime() : null,
-      fetchLimit: neo4jInt(Math.max(limit * 5, 50)),
-    };
 
-    const whereParts = [
-      'm.workspaceId = $workspaceId',
-      filters.spaceId ? 'm.spaceId = $spaceId' : null,
-      filters.creatorId ? 'm.creatorId = $creatorId' : null,
-      filters.tags?.length ? 'ANY(tag IN $tags WHERE tag IN m.tags)' : null,
-      filters.sources?.length ? 'm.source IN $sources' : null,
-      filters.from ? 'm.timestampMs >= $fromMs' : null,
-      filters.to ? 'm.timestampMs <= $toMs' : null,
-    ].filter(Boolean);
-
-    const whereClause = whereParts.length
-      ? `WHERE ${whereParts.join(' AND ')}`
-      : '';
-
-    try {
-      const result = await session.run(
-        `
-        MATCH (m:MemoryNode)
-        ${whereClause}
-        RETURN m
-        ORDER BY m.timestampMs DESC
-        LIMIT $fetchLimit
-        `,
-        params,
-      );
-
-      const records = result.records.map((record) => record.get('m').properties);
-      const ids = records.map((record) => record.id as string);
-      const contentMap = await this.fetchMemoryContent(ids);
-
-      let scored = records.map((record) => {
-        const stored = contentMap.get(record.id);
-        return {
-          id: record.id,
-          workspaceId: record.workspaceId,
-          spaceId: record.spaceId,
-          source: record.source,
-          summary: record.summary,
-          tags: record.tags || [],
-          timestamp: new Date(Number(record.timestampMs)),
-          embedding: record.embedding || [],
-          content: stored?.content,
-        };
+    // If semantic search is needed, use pgvector (O(log n) with HNSW index)
+    if (queryText) {
+      const embedding = await this.vectorSearch.embedText(queryText);
+      const similarIds = await this.vectorSearch.searchMemories({
+        queryEmbedding: embedding,
+        workspaceId: filters.workspaceId,
+        spaceId: filters.spaceId,
+        limit: limit * 2, // Fetch extra for post-filtering
+        minSimilarity: 0.4,
       });
 
-      if (queryText) {
-        const embedding = await this.embedText(queryText);
-        scored = scored
-          .map((item) => ({
-            ...item,
-            score: this.cosineSimilarity(embedding, item.embedding || []),
-          }))
-          .sort((a, b) => (b.score || 0) - (a.score || 0));
+      if (similarIds.length === 0) {
+        return [];
       }
 
-      return scored.slice(0, limit).map((item) => ({
-        ...item,
-        embedding: undefined,
-      }));
-    } finally {
-      await session.close();
+      // Fetch full memory records from Postgres
+      const ids = similarIds.map((s) => s.id);
+      const memories = await this.db
+        .selectFrom('agentMemories')
+        .select([
+          'id',
+          'workspaceId',
+          'spaceId',
+          'creatorId',
+          'source',
+          'summary',
+          'content',
+          'tags',
+          'createdAt',
+        ])
+        .where('id', 'in', ids)
+        .execute();
+
+      // Merge with similarity scores and apply additional filters
+      const scoreMap = new Map(similarIds.map((s) => [s.id, s.similarity]));
+      let results = memories
+        .map((m) => ({
+          id: m.id,
+          workspaceId: m.workspaceId,
+          spaceId: m.spaceId,
+          source: m.source,
+          summary: m.summary,
+          content: m.content,
+          tags: m.tags || [],
+          timestamp: m.createdAt,
+          score: scoreMap.get(m.id) || 0,
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      // Apply additional filters
+      if (filters.tags?.length) {
+        results = results.filter((m) =>
+          filters.tags!.some((tag) => (m.tags as string[])?.includes(tag)),
+        );
+      }
+      if (filters.sources?.length) {
+        results = results.filter((m) =>
+          filters.sources!.includes(m.source || ''),
+        );
+      }
+      if (filters.from) {
+        results = results.filter(
+          (m) => new Date(m.timestamp) >= filters.from!,
+        );
+      }
+      if (filters.to) {
+        results = results.filter((m) => new Date(m.timestamp) <= filters.to!);
+      }
+
+      return results.slice(0, limit);
     }
+
+    // Non-semantic query: use Postgres directly
+    let query = this.db
+      .selectFrom('agentMemories')
+      .select([
+        'id',
+        'workspaceId',
+        'spaceId',
+        'creatorId',
+        'source',
+        'summary',
+        'content',
+        'tags',
+        'createdAt',
+      ])
+      .where('workspaceId', '=', filters.workspaceId);
+
+    if (filters.spaceId) {
+      query = query.where('spaceId', '=', filters.spaceId);
+    }
+    if (filters.creatorId) {
+      query = query.where('creatorId', '=', filters.creatorId);
+    }
+    if (filters.sources?.length) {
+      query = query.where('source', 'in', filters.sources);
+    }
+    if (filters.tags?.length) {
+      const tagsJson = sql`${this.safeJsonStringify(filters.tags)}::jsonb` as unknown as any;
+      query = query.where(sql<boolean>`${sql.ref('tags')} @> ${tagsJson}`);
+    }
+    if (filters.from) {
+      query = query.where('createdAt', '>=', filters.from);
+    }
+    if (filters.to) {
+      query = query.where('createdAt', '<=', filters.to);
+    }
+
+    const rows = await query
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .execute();
+
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspaceId,
+      spaceId: row.spaceId,
+      source: row.source,
+      summary: row.summary,
+      content: row.content,
+      tags: row.tags || [],
+      timestamp: row.createdAt,
+    }));
   }
 
   async getDailyMemories(filters: MemoryQueryFilters, date?: Date) {

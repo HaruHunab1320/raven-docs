@@ -25,6 +25,7 @@ import { GoalHandler } from './handlers/goal.handler';
 import { ProfileHandler } from './handlers/profile.handler';
 import { ReviewHandler } from './handlers/review.handler';
 import { InsightsHandler } from './handlers/insights.handler';
+import { KnowledgeHandler } from './handlers/knowledge.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -63,6 +64,7 @@ import { GoalModule } from '../../core/goal/goal.module';
 import { AgentModule } from '../../core/agent/agent.module';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents.module';
+import { KnowledgeModule } from '../../core/knowledge/knowledge.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -95,6 +97,7 @@ import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents
     GoalModule,
     forwardRef(() => AgentModule),
     forwardRef(() => ParallaxAgentsModule),
+    KnowledgeModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -126,6 +129,7 @@ import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents
     ProfileHandler,
     ReviewHandler,
     InsightsHandler,
+    KnowledgeHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

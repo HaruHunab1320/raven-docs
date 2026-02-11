@@ -2458,6 +2458,80 @@
       ],
       "examples": [],
       "relatedMethods": ["insights.graph", "insights.entityDetails"]
+    },
+    {
+      "name": "knowledge.search",
+      "description": "Search knowledge sources (documentation, uploaded files, etc.) using semantic similarity. Returns relevant content chunks that match the query.",
+      "category": "Knowledge",
+      "parameters": {
+        "query": { "type": "string", "description": "Search query text", "required": true },
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space filter" },
+        "limit": { "type": "number", "description": "Maximum results (default: 5)" }
+      },
+      "returns": {
+        "results": { "type": "array", "description": "Matching knowledge chunks with content, source name, and similarity score" },
+        "count": { "type": "number", "description": "Number of results returned" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing query or workspaceId", "resolution": "Provide both query and workspaceId" }
+      ],
+      "examples": [
+        {
+          "description": "Search for documentation about creating pages",
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "knowledge.search",
+            "params": { "query": "How do I create a new page?", "workspaceId": "ws-123" },
+            "id": 1
+          },
+          "response": {
+            "jsonrpc": "2.0",
+            "result": {
+              "results": [
+                { "content": "To create a new page, click the + button...", "sourceName": "Raven Docs - Getting Started", "similarity": 0.89 }
+              ],
+              "count": 1
+            },
+            "id": 1
+          }
+        }
+      ],
+      "relatedMethods": ["knowledge.list", "knowledge.get"]
+    },
+    {
+      "name": "knowledge.list",
+      "description": "List available knowledge sources in the workspace. Shows documentation, uploaded files, and other knowledge that has been indexed.",
+      "category": "Knowledge",
+      "parameters": {
+        "workspaceId": { "type": "string", "description": "Workspace ID", "required": true },
+        "spaceId": { "type": "string", "description": "Optional space filter" }
+      },
+      "returns": {
+        "sources": { "type": "array", "description": "List of knowledge sources with id, name, type, scope, and status" },
+        "count": { "type": "number", "description": "Total number of sources" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing workspaceId", "resolution": "Provide workspaceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["knowledge.search", "knowledge.get"]
+    },
+    {
+      "name": "knowledge.get",
+      "description": "Get details of a specific knowledge source including its processing status.",
+      "category": "Knowledge",
+      "parameters": {
+        "sourceId": { "type": "string", "description": "Knowledge source ID", "required": true }
+      },
+      "returns": {
+        "source": { "type": "object", "description": "Knowledge source details including name, type, status, and chunk count" }
+      },
+      "errors": [
+        { "code": "INVALID_PARAMS", "message": "Missing sourceId", "resolution": "Provide sourceId" }
+      ],
+      "examples": [],
+      "relatedMethods": ["knowledge.search", "knowledge.list"]
     }
   ]
 }  

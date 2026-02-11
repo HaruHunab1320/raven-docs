@@ -127,8 +127,20 @@ The agent remembers context:
 - **Conversation memory** - Recalls past discussions
 - **Activity tracking** - Learns from your usage
 - **Memory graph** - Visualize connections
+- **Semantic search** - Find memories by meaning with pgvector
 
 [Learn more about Memory](/guides/memory)
+
+### Knowledge System
+
+RAG-powered access to documentation and reference material:
+
+- **Document ingestion** - Upload PDFs, markdown, and URLs
+- **Automatic chunking** - Content split into searchable segments
+- **Semantic search** - Find relevant information by meaning
+- **Scoped access** - System, workspace, and space-level knowledge
+
+[Learn more about Knowledge Tools](/mcp/tools/knowledge)
 
 ### Behavioral Insights
 

@@ -13,6 +13,7 @@ import { AgentMemoryModule } from '../agent-memory/agent-memory.module';
 import { ProjectModule } from '../project/project.module';
 import { PageModule } from '../page/page.module';
 import { CaslModule } from '../casl/casl.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { DatabaseModule } from '../../database/database.module';
 import { AIModule } from '../../integrations/ai/ai.module';
 import { MCPModule } from '../../integrations/mcp/mcp.module';
@@ -24,6 +25,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     ProjectModule,
     PageModule,
     CaslModule,
+    KnowledgeModule,
     AIModule,
     forwardRef(() => MCPModule),
   ],

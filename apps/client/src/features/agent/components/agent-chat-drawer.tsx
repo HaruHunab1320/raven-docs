@@ -36,7 +36,7 @@ export function AgentChatDrawer() {
       : space?.name
         ? `Space: ${space.name}`
         : "Agent Chat");
-  const chatContextId = chatContext?.pageId || page?.slugId || params.pageSlug;
+  const chatContextId = chatContext?.pageId || page?.id;
   const chatSessionId = chatContext?.sessionId;
   const chatProjectId = chatContext?.projectId;
 

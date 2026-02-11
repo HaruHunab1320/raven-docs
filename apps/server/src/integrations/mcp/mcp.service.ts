@@ -25,6 +25,7 @@ import { GoalHandler } from './handlers/goal.handler';
 import { ProfileHandler } from './handlers/profile.handler';
 import { ReviewHandler } from './handlers/review.handler';
 import { InsightsHandler } from './handlers/insights.handler';
+import { KnowledgeHandler } from './handlers/knowledge.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -82,6 +83,7 @@ export class MCPService {
     private readonly profileHandler: ProfileHandler,
     private readonly reviewHandler: ReviewHandler,
     private readonly insightsHandler: InsightsHandler,
+    private readonly knowledgeHandler: KnowledgeHandler,
   ) {}
 
   /**
@@ -378,6 +380,14 @@ export class MCPService {
           case 'insights':
             this.logger.debug(`MCPService: Delegating to insights handler`);
             result = await this.handleInsightsRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'knowledge':
+            this.logger.debug(`MCPService: Delegating to knowledge handler`);
+            result = await this.handleKnowledgeRequest(
               operation,
               request.params,
               user.id,
@@ -775,6 +785,26 @@ export class MCPService {
         return this.insightsHandler.topEntities(params, userId);
       default:
         throw createMethodNotFoundError(`insights.${operation}`);
+    }
+  }
+
+  /**
+   * Handle knowledge-related requests (search, list, get).
+   */
+  private async handleKnowledgeRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'search':
+        return this.knowledgeHandler.search(params, userId);
+      case 'list':
+        return this.knowledgeHandler.list(params, userId);
+      case 'get':
+        return this.knowledgeHandler.get(params, userId);
+      default:
+        throw createMethodNotFoundError(`knowledge.${operation}`);
     }
   }
 

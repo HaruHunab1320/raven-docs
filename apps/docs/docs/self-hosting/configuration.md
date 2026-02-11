@@ -39,6 +39,16 @@ Complete reference for Raven Docs configuration options.
 | `REDIS_PASSWORD` | - | Redis password |
 | `REDIS_TLS` | `false` | Enable TLS |
 
+### Memgraph (Graph Database)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEMGRAPH_URL` | - | Memgraph connection string |
+| `MEMGRAPH_HOST` | `localhost` | Memgraph host |
+| `MEMGRAPH_PORT` | `7687` | Memgraph Bolt port |
+
+Memgraph stores entity relationships and memory graphs. It's used for graph traversals like "what entities are related to X".
+
 ### Authentication
 
 | Variable | Default | Description |
@@ -85,6 +95,16 @@ Complete reference for Raven Docs configuration options.
 | `ENABLE_AI` | `true` | Enable AI features |
 | `AI_PROVIDER` | `openai` | AI provider |
 | `OPENAI_API_KEY` | - | OpenAI API key |
+
+### Embeddings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GEMINI_API_KEY` | - | Google Gemini API key for embeddings |
+| `EMBEDDING_MODEL` | `text-embedding-004` | Gemini embedding model |
+| `EMBEDDING_DIMENSIONS` | `768` | Embedding vector dimensions |
+
+Embeddings power semantic search for both the memory system and knowledge base. The default Gemini model provides high-quality 768-dimensional vectors.
 
 ### Performance
 
@@ -147,6 +167,9 @@ SMTP_FROM=noreply@example.com
 # AI
 ENABLE_AI=true
 OPENAI_API_KEY=sk-your-openai-key
+
+# Embeddings (for semantic search)
+GEMINI_API_KEY=your-gemini-api-key
 
 # Logging
 LOG_LEVEL=info

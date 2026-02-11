@@ -5,8 +5,6 @@
 
 import type { ColumnType } from "kysely";
 
-export type AuthProviderType = "google" | "oidc" | "saml";
-
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
@@ -101,65 +99,11 @@ export interface Attachments {
   workspaceId: string;
 }
 
-export interface AuthAccounts {
-  authProviderId: string | null;
-  createdAt: Generated<Timestamp>;
-  deletedAt: Timestamp | null;
-  id: Generated<string>;
-  providerUserId: string;
-  updatedAt: Generated<Timestamp>;
-  userId: string;
-  workspaceId: string;
-}
-
-export interface AuthProviders {
-  allowSignup: Generated<boolean>;
-  createdAt: Generated<Timestamp>;
-  creatorId: string | null;
-  deletedAt: Timestamp | null;
-  id: Generated<string>;
-  isEnabled: Generated<boolean>;
-  name: string;
-  oidcClientId: string | null;
-  oidcClientSecret: string | null;
-  oidcIssuer: string | null;
-  samlCertificate: string | null;
-  samlUrl: string | null;
-  type: AuthProviderType;
-  updatedAt: Generated<Timestamp>;
-  workspaceId: string;
-}
-
 export interface Backlinks {
   createdAt: Generated<Timestamp>;
   id: Generated<string>;
   sourcePageId: string;
   targetPageId: string;
-  updatedAt: Generated<Timestamp>;
-  workspaceId: string;
-}
-
-export interface Billing {
-  amount: Int8 | null;
-  cancelAt: Timestamp | null;
-  cancelAtPeriodEnd: boolean | null;
-  canceledAt: Timestamp | null;
-  createdAt: Generated<Timestamp>;
-  currency: string | null;
-  deletedAt: Timestamp | null;
-  endedAt: Timestamp | null;
-  id: Generated<string>;
-  interval: string | null;
-  metadata: Json | null;
-  periodEndAt: Timestamp | null;
-  periodStartAt: Timestamp;
-  quantity: Int8 | null;
-  status: string;
-  stripeCustomerId: string | null;
-  stripeItemId: string | null;
-  stripePriceId: string | null;
-  stripeProductId: string | null;
-  stripeSubscriptionId: string;
   updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
@@ -212,6 +156,40 @@ export interface GroupUsers {
   userId: string;
 }
 
+export interface KnowledgeChunks {
+  chunkIndex: number;
+  content: string;
+  createdAt: Generated<Timestamp>;
+  embedding: string | null;
+  id: Generated<string>;
+  metadata: Json | null;
+  scope: string;
+  sourceId: string;
+  spaceId: string | null;
+  tokenCount: number | null;
+  workspaceId: string | null;
+}
+
+export interface KnowledgeSources {
+  chunkCount: Generated<number | null>;
+  createdAt: Generated<Timestamp>;
+  createdById: string;
+  errorMessage: string | null;
+  fileId: string | null;
+  id: Generated<string>;
+  lastSyncedAt: Timestamp | null;
+  name: string;
+  pageId: string | null;
+  scope: string;
+  sourceUrl: string | null;
+  spaceId: string | null;
+  status: Generated<string>;
+  syncSchedule: string | null;
+  type: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string | null;
+}
+
 export interface McpApiKeys {
   createdAt: Generated<Timestamp>;
   hashedKey: string;
@@ -220,6 +198,14 @@ export interface McpApiKeys {
   name: string;
   userId: string;
   workspaceId: string;
+}
+
+export interface MemoryEmbeddings {
+  createdAt: Generated<Timestamp>;
+  embedding: string;
+  id: Generated<string>;
+  memoryId: string;
+  model: string;
 }
 
 export interface PageHistory {
@@ -458,6 +444,7 @@ export interface Tasks {
   isCompleted: Generated<boolean>;
   pageId: string | null;
   pageTaskId: string | null;
+  pageTaskId: string | null;
   parentTaskId: string | null;
   position: string | null;
   priority: Generated<TaskPriority>;
@@ -548,7 +535,6 @@ export interface WorkspaceInvitations {
 }
 
 export interface Workspaces {
-  billingEmail: string | null;
   createdAt: Generated<Timestamp>;
   customDomain: string | null;
   defaultRole: Generated<string>;
@@ -575,15 +561,15 @@ export interface DB {
   agentMemories: AgentMemories;
   agentReviewPrompts: AgentReviewPrompts;
   attachments: Attachments;
-  authAccounts: AuthAccounts;
-  authProviders: AuthProviders;
   backlinks: Backlinks;
-  billing: Billing;
   comments: Comments;
   goals: Goals;
   groups: Groups;
   groupUsers: GroupUsers;
+  knowledgeChunks: KnowledgeChunks;
+  knowledgeSources: KnowledgeSources;
   mcpApiKeys: McpApiKeys;
+  memoryEmbeddings: MemoryEmbeddings;
   pageHistory: PageHistory;
   pages: Pages;
   parallaxAgentActivity: ParallaxAgentActivity;
