@@ -9,6 +9,8 @@ import {
   Anchor,
   Button,
   Card,
+  Select,
+  Stack,
 } from "@mantine/core";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -131,9 +133,30 @@ export function TasksPage() {
 
         {!projectId ? (
           <Card p="xl" withBorder>
-            <Text ta="center" py="xl">
-              {t("Please select a project to view tasks")}
-            </Text>
+            <Stack align="center" gap="md" py="xl">
+              <Text>{t("Select a project to view tasks")}</Text>
+              <Select
+                placeholder={t("Choose a project")}
+                data={
+                  projectsData?.items?.map((p) => ({
+                    value: p.id,
+                    label: p.name || t("Untitled Project"),
+                  })) || []
+                }
+                onChange={(value) => {
+                  if (value) {
+                    const currentParams = new URLSearchParams(location.search);
+                    const queryString = currentParams.toString();
+                    navigate(
+                      `/spaces/${spaceId}/projects/${value}/tasks${queryString ? `?${queryString}` : ""}`
+                    );
+                  }
+                }}
+                searchable
+                clearable
+                w={300}
+              />
+            </Stack>
           </Card>
         ) : (
           <ProjectView projectId={projectId} spaceId={spaceId} />
