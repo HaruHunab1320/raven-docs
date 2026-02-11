@@ -25,11 +25,17 @@ import {
 } from "@/components/settings/settings-queries.tsx";
 import AppVersion from "@/components/settings/app-version.tsx";
 
+interface SubItem {
+  label: string;
+  hash: string;
+}
+
 interface DataItem {
   label: string;
   icon: React.ElementType;
   path: string;
   isAdmin?: boolean;
+  subItems?: SubItem[];
 }
 
 interface DataGroup {
@@ -52,7 +58,18 @@ const groupedData: DataGroup[] = [
   {
     heading: "Workspace",
     items: [
-      { label: "General", icon: IconSettings, path: "/settings/workspace" },
+      {
+        label: "General",
+        icon: IconSettings,
+        path: "/settings/workspace",
+        subItems: [
+          { label: "Name", hash: "name" },
+          { label: "Agent", hash: "agent" },
+          { label: "Knowledge", hash: "knowledge" },
+          { label: "Repository Tokens", hash: "repo-tokens" },
+          { label: "Chat Integrations", hash: "chat-integrations" },
+        ],
+      },
       {
         label: "Members",
         icon: IconUsers,
@@ -131,17 +148,39 @@ export default function SettingsSidebar() {
               break;
           }
 
+          const isActive = active.startsWith(item.path);
+          const activeHash = location.hash?.replace("#", "");
+
           return (
-            <Link
-              onMouseEnter={prefetchHandler}
-              className={classes.link}
-              data-active={active.startsWith(item.path) || undefined}
-              key={item.label}
-              to={item.path}
-            >
-              <item.icon className={classes.linkIcon} stroke={2} />
-              <span>{t(item.label)}</span>
-            </Link>
+            <React.Fragment key={item.label}>
+              <Link
+                onMouseEnter={prefetchHandler}
+                className={classes.link}
+                data-active={isActive || undefined}
+                to={item.path}
+              >
+                <item.icon className={classes.linkIcon} stroke={2} />
+                <span>{t(item.label)}</span>
+              </Link>
+              {isActive && item.subItems && (
+                <>
+                  {item.subItems.map((subItem) => (
+                    <Link
+                      key={subItem.hash}
+                      className={classes.subLink}
+                      data-active={activeHash === subItem.hash || undefined}
+                      to={`${item.path}#${subItem.hash}`}
+                      onClick={() => {
+                        const element = document.getElementById(subItem.hash);
+                        element?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    >
+                      <span>{t(subItem.label)}</span>
+                    </Link>
+                  ))}
+                </>
+              )}
+            </React.Fragment>
           );
         })}
       </div>

@@ -3,7 +3,7 @@ import WorkspaceNameForm from "@/features/workspace/components/settings/componen
 import { useTranslation } from "react-i18next";
 import { getAppName } from "@/lib/config.ts";
 import { Helmet } from "react-helmet-async";
-import { Divider } from "@mantine/core";
+import { Box, Divider } from "@mantine/core";
 import { useAtomValue } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
 import { AgentSettingsPanel } from "@/features/agent/components/agent-settings-panel";
@@ -20,28 +20,43 @@ export default function WorkspaceSettings() {
       <Helmet>
         <title>Workspace Settings - {getAppName()}</title>
       </Helmet>
-      <SettingsTitle title={t("General")} />
-      <WorkspaceNameForm />
+
+      <Box id="name">
+        <SettingsTitle title={t("General")} />
+        <WorkspaceNameForm />
+      </Box>
 
       <Divider my="md" />
-      <AgentSettingsPanel />
+
+      <Box id="agent">
+        <AgentSettingsPanel />
+      </Box>
 
       <Divider my="md" />
-      <SettingsTitle title={t("Knowledge")} />
-      {workspace?.id && (
-        <KnowledgeSourcesPanel
-          workspaceId={workspace.id}
-          scope="workspace"
-        />
-      )}
+
+      <Box id="knowledge">
+        <SettingsTitle title={t("Knowledge")} />
+        {workspace?.id && (
+          <KnowledgeSourcesPanel
+            workspaceId={workspace.id}
+            scope="workspace"
+          />
+        )}
+      </Box>
 
       <Divider my="md" />
-      <SettingsTitle title={t("Repository tokens")} />
-      <WorkspaceRepoTokensPanel />
+
+      <Box id="repo-tokens">
+        <SettingsTitle title={t("Repository tokens")} />
+        <WorkspaceRepoTokensPanel />
+      </Box>
 
       <Divider my="md" />
-      <SettingsTitle title={t("Chat integrations")} />
-      <WorkspaceChatIntegrationsPanel />
+
+      <Box id="chat-integrations">
+        <SettingsTitle title={t("Chat integrations")} />
+        <WorkspaceChatIntegrationsPanel />
+      </Box>
     </>
   );
 }
