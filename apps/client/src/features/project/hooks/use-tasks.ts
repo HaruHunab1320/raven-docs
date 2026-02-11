@@ -102,7 +102,7 @@ export function useCreateTaskMutation() {
 
       notifications.show({
         title: t("Task created"),
-        message: t('Task "{title}" has been created successfully', {
+        message: t('Task "{{title}}" has been created successfully', {
           title: variables.title,
         }),
         color: "green",

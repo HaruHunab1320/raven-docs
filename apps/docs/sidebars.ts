@@ -39,6 +39,7 @@ const sidebars: SidebarsConfig = {
         'guides/task-management',
         'guides/permissions',
         'guides/integrations',
+        'guides/knowledge',
         'guides/research',
         'guides/agent-runtime',
       ],
