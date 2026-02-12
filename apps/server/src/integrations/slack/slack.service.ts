@@ -383,6 +383,7 @@ export class SlackService {
   async handleEventRequest(rawBody: string, headers: Record<string, any>) {
     const payload = this.parseEvent(rawBody);
     if (!payload) {
+      this.logger.warn('Slack event: Invalid payload');
       return { status: 400, body: { text: 'Invalid payload.' } };
     }
 
@@ -392,45 +393,77 @@ export class SlackService {
       return { status: 200, body: { challenge: payload.challenge } };
     }
 
+    this.logger.log(`Slack event received: type=${payload.type}, team_id=${payload.team_id}`);
+
     const workspace = await this.getWorkspaceFromTeamId(payload.team_id);
+    if (!workspace) {
+      this.logger.warn(`Slack event: No workspace found for team_id=${payload.team_id}`);
+      return { status: 401, body: { text: 'Slack integration not authorized.' } };
+    }
+
     const settings = this.getSlackSettings(workspace);
+    this.logger.log(`Slack settings: enabled=${settings.enabled}, hasToken=${!!settings.botToken}, hasSecret=${!!settings.signingSecret}`);
+
     const verified = await this.verifyRequest(
       rawBody,
       headers['x-slack-request-timestamp'],
       headers['x-slack-signature'],
       settings.signingSecret,
     );
-    if (!verified || !workspace || settings.enabled !== true) {
+
+    if (!verified) {
+      this.logger.warn('Slack event: Signature verification failed');
+      return { status: 401, body: { text: 'Slack integration not authorized.' } };
+    }
+
+    if (settings.enabled !== true) {
+      this.logger.warn('Slack event: Integration not enabled');
       return { status: 401, body: { text: 'Slack integration not authorized.' } };
     }
 
     if (payload.type !== 'event_callback') {
+      this.logger.log(`Slack event: Ignoring type=${payload.type}`);
       return { status: 200, body: { text: 'Ignored' } };
     }
 
     const event = payload.event;
+    this.logger.log(`Slack event callback: event.type=${event?.type}`);
+
     if (event?.type !== 'app_mention') {
+      this.logger.log(`Slack event: Ignoring event.type=${event?.type}`);
       return { status: 200, body: { text: 'Ignored' } };
     }
 
     const user = await this.resolveDefaultUser(workspace, settings);
     if (!user) {
+      this.logger.warn('Slack event: No default user found');
       return { status: 403, body: { text: 'No default user configured.' } };
     }
 
     const channelId = event.channel || settings.defaultChannelId;
     const cleaned = (event.text || '').replace(/<@[^>]+>/g, '').trim();
+    this.logger.log(`Slack event: channel=${channelId}, cleaned="${cleaned}", hasToken=${!!settings.botToken}`);
+
     if (!cleaned || !channelId || !settings.botToken) {
+      this.logger.warn(`Slack event: Missing required data - cleaned=${!!cleaned}, channel=${!!channelId}, token=${!!settings.botToken}`);
       return { status: 200, body: { text: 'No action taken.' } };
     }
 
+    this.logger.log(`Slack event: Processing message for workspace=${workspace.id}, space=${workspace.defaultSpaceId}`);
+
     setImmediate(async () => {
-      const result = await this.agentService.chat(
-        { spaceId: workspace.defaultSpaceId, message: cleaned, autoApprove: false },
-        user,
-        workspace,
-      );
-      await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
+      try {
+        const result = await this.agentService.chat(
+          { spaceId: workspace.defaultSpaceId, message: cleaned, autoApprove: false },
+          user,
+          workspace,
+        );
+        this.logger.log(`Slack event: Agent replied, sending to channel`);
+        await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
+      } catch (error: any) {
+        this.logger.error(`Slack event: Agent chat failed - ${error?.message || error}`);
+        await this.sendMessage(settings.botToken, channelId, 'Sorry, something went wrong processing your request.');
+      }
     });
 
     return { status: 200, body: { text: 'OK' } };
