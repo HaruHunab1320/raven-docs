@@ -50,6 +50,7 @@ export class SlackService {
     signingSecret: string | undefined,
   ): Promise<boolean> {
     if (!rawBody || !timestamp || !signature || !signingSecret) {
+      this.logger.log(`Slack verify: missing params - body=${!!rawBody}, ts=${!!timestamp}, sig=${!!signature}, secret=${!!signingSecret}`);
       return false;
     }
 
@@ -57,6 +58,7 @@ export class SlackService {
     const now = Math.floor(Date.now() / 1000);
     const ts = Number(timestamp);
     if (!Number.isFinite(ts) || Math.abs(now - ts) > fiveMinutes) {
+      this.logger.log(`Slack verify: timestamp rejected - ts=${ts}, now=${now}, diff=${Math.abs(now - ts)}`);
       return false;
     }
 
@@ -67,10 +69,17 @@ export class SlackService {
     const expected = `v0=${digest}`;
     const expectedBuf = Buffer.from(expected, 'utf8');
     const signatureBuf = Buffer.from(signature, 'utf8');
+
     if (expectedBuf.length !== signatureBuf.length) {
+      this.logger.log(`Slack verify: signature length mismatch - expected=${expectedBuf.length}, got=${signatureBuf.length}`);
       return false;
     }
-    return timingSafeEqual(expectedBuf, signatureBuf);
+
+    const isValid = timingSafeEqual(expectedBuf, signatureBuf);
+    if (!isValid) {
+      this.logger.log(`Slack verify: signature mismatch - expected=${expected.slice(0, 20)}..., got=${signature.slice(0, 20)}...`);
+    }
+    return isValid;
   }
 
   private getSlackSettings(workspace?: Workspace | null): SlackIntegrationSettings {
@@ -383,7 +392,7 @@ export class SlackService {
   async handleEventRequest(rawBody: string, headers: Record<string, any>) {
     const payload = this.parseEvent(rawBody);
     if (!payload) {
-      this.logger.warn('Slack event: Invalid payload');
+      this.logger.log('Slack event: Invalid payload');
       return { status: 400, body: { text: 'Invalid payload.' } };
     }
 
@@ -412,12 +421,12 @@ export class SlackService {
     );
 
     if (!verified) {
-      this.logger.warn('Slack event: Signature verification failed');
+      this.logger.log('Slack event: Signature verification failed');
       return { status: 401, body: { text: 'Slack integration not authorized.' } };
     }
 
     if (settings.enabled !== true) {
-      this.logger.warn('Slack event: Integration not enabled');
+      this.logger.log('Slack event: Integration not enabled');
       return { status: 401, body: { text: 'Slack integration not authorized.' } };
     }
 
@@ -436,7 +445,7 @@ export class SlackService {
 
     const user = await this.resolveDefaultUser(workspace, settings);
     if (!user) {
-      this.logger.warn('Slack event: No default user found');
+      this.logger.log('Slack event: No default user found');
       return { status: 403, body: { text: 'No default user configured.' } };
     }
 
@@ -445,7 +454,7 @@ export class SlackService {
     this.logger.log(`Slack event: channel=${channelId}, cleaned="${cleaned}", hasToken=${!!settings.botToken}`);
 
     if (!cleaned || !channelId || !settings.botToken) {
-      this.logger.warn(`Slack event: Missing required data - cleaned=${!!cleaned}, channel=${!!channelId}, token=${!!settings.botToken}`);
+      this.logger.log(`Slack event: Missing required data - cleaned=${!!cleaned}, channel=${!!channelId}, token=${!!settings.botToken}`);
       return { status: 200, body: { text: 'No action taken.' } };
     }
 
@@ -461,7 +470,7 @@ export class SlackService {
         this.logger.log(`Slack event: Agent replied, sending to channel`);
         await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
       } catch (error: any) {
-        this.logger.error(`Slack event: Agent chat failed - ${error?.message || error}`);
+        this.logger.log(`Slack event: Agent chat failed - ${error?.message || error}`);
         await this.sendMessage(settings.botToken, channelId, 'Sorry, something went wrong processing your request.');
       }
     });
