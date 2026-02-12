@@ -386,6 +386,12 @@ export class SlackService {
       return { status: 400, body: { text: 'Invalid payload.' } };
     }
 
+    // Handle URL verification challenge before any auth checks
+    // This allows Slack to verify the endpoint during initial setup
+    if (payload.type === 'url_verification') {
+      return { status: 200, body: { challenge: payload.challenge } };
+    }
+
     const workspace = await this.getWorkspaceFromTeamId(payload.team_id);
     const settings = this.getSlackSettings(workspace);
     const verified = await this.verifyRequest(
@@ -396,10 +402,6 @@ export class SlackService {
     );
     if (!verified || !workspace || settings.enabled !== true) {
       return { status: 401, body: { text: 'Slack integration not authorized.' } };
-    }
-
-    if (payload.type === 'url_verification') {
-      return { status: 200, body: { challenge: payload.challenge } };
     }
 
     if (payload.type !== 'event_callback') {
