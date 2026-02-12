@@ -470,7 +470,11 @@ export class SlackService {
         this.logger.log(`Slack event: Agent replied, sending to channel`);
         await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
       } catch (error: any) {
-        this.logger.log(`Slack event: Agent chat failed - ${error?.message || error}`);
+        const errorMessage = error?.message || String(error);
+        const errorName = error?.name || 'UnknownError';
+        const errorStack = error?.stack?.split('\n').slice(0, 3).join(' | ') || '';
+        this.logger.log(`Slack event: Agent chat failed - ${errorName}: ${errorMessage}`);
+        this.logger.log(`Slack event: Error stack: ${errorStack}`);
         await this.sendMessage(settings.botToken, channelId, 'Sorry, something went wrong processing your request.');
       }
     });
