@@ -9,6 +9,7 @@ import {
   IInvitationLink,
   IVersion,
   IWorkspaceIntegrations,
+  IChannelMapping,
 } from "../types/workspace.types";
 import { IPagination, QueryParams } from "@/lib/types.ts";
 import { ISetupWorkspace } from "@/features/auth/types/auth.types.ts";
@@ -157,5 +158,51 @@ export async function uploadLogo(file: File) {
       "Content-Type": "multipart/form-data",
     },
   });
+  return req.data;
+}
+
+export async function getSlackChannelMappings(): Promise<{ mappings: IChannelMapping[] }> {
+  const req = await api.get("/integrations/slack/channel-mappings");
+  return req.data;
+}
+
+export async function addSlackChannelMapping(data: {
+  slackChannelId: string;
+  spaceId: string;
+}): Promise<{ success: boolean }> {
+  const req = await api.post("/integrations/slack/channel-mappings", data);
+  return req.data;
+}
+
+export async function removeSlackChannelMapping(data: {
+  slackChannelId: string;
+}): Promise<{ success: boolean }> {
+  const req = await api.post("/integrations/slack/channel-mappings/remove", data);
+  return req.data;
+}
+
+export interface IDiscordChannelMapping {
+  discordChannelId: string;
+  spaceId: string;
+  spaceName?: string;
+}
+
+export async function getDiscordChannelMappings(): Promise<{ mappings: IDiscordChannelMapping[] }> {
+  const req = await api.get("/integrations/discord/channel-mappings");
+  return req.data;
+}
+
+export async function addDiscordChannelMapping(data: {
+  discordChannelId: string;
+  spaceId: string;
+}): Promise<{ success: boolean }> {
+  const req = await api.post("/integrations/discord/channel-mappings", data);
+  return req.data;
+}
+
+export async function removeDiscordChannelMapping(data: {
+  discordChannelId: string;
+}): Promise<{ success: boolean }> {
+  const req = await api.post("/integrations/discord/channel-mappings/remove", data);
   return req.data;
 }

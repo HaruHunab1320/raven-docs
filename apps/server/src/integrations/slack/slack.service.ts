@@ -659,7 +659,7 @@ export class SlackService {
           user,
           workspace,
         );
-        this.logger.log(`Slack event: Agent returned reply="${result?.reply?.slice(0, 50)}...", actions=${result?.actions?.length || 0}`);
+        this.logger.log(`Slack event: Agent returned reply="${result?.reply?.slice(0, 50)}...", approvalsRequired=${result?.approvalsRequired || false}`);
         await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
       } catch (error: any) {
         const errorMessage = error?.message || String(error);

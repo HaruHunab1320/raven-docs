@@ -6,7 +6,9 @@ import { AgentService } from '../../core/agent/agent.service';
 import { ResearchJobService } from '../../core/research/research-job.service';
 import { MCPApprovalService } from '../mcp/services/mcp-approval.service';
 import { MCPService } from '../mcp/mcp.service';
+import { DiscordLinkingService } from './discord-linking.service';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
+import { EnvironmentService } from '../../integrations/environment/environment.service';
 
 type DiscordIntegrationSettings = {
   enabled?: boolean;
@@ -33,6 +35,9 @@ export class DiscordService {
     private readonly approvalService: MCPApprovalService,
     @Inject(forwardRef(() => MCPService))
     private readonly mcpService: MCPService,
+    @Inject(forwardRef(() => DiscordLinkingService))
+    private readonly linkingService: DiscordLinkingService,
+    private readonly environmentService: EnvironmentService,
   ) {}
 
   private getDiscordSettings(workspace?: Workspace | null): DiscordIntegrationSettings {
@@ -108,10 +113,70 @@ export class DiscordService {
     const [first, ...rest] = trimmed.split(' ');
     const action = first.toLowerCase();
     const payload = rest.join(' ').trim();
-    if (['ask', 'research', 'approve', 'reject'].includes(action)) {
+    if (['ask', 'research', 'approve', 'reject', 'link', 'status'].includes(action)) {
       return { action, payload };
     }
     return { action: 'ask', payload: trimmed };
+  }
+
+  /**
+   * Resolve user from Discord ID, falling back to default user.
+   */
+  private async resolveUser(
+    discordUserId: string,
+    workspace: Workspace,
+    settings: DiscordIntegrationSettings,
+  ): Promise<User | null> {
+    // Try to find a linked user first
+    const linkedUser = await this.linkingService.findUserByDiscordId(
+      discordUserId,
+      workspace.id,
+    );
+    if (linkedUser) {
+      this.logger.log(`Discord: Resolved linked user ${linkedUser.email} for Discord user ${discordUserId}`);
+      return linkedUser;
+    }
+
+    // Fall back to default user
+    this.logger.log(`Discord: No linked user found for ${discordUserId}, using default user`);
+    return this.resolveDefaultUser(workspace, settings);
+  }
+
+  /**
+   * Handle the /raven link command.
+   */
+  private async handleLinkCommand(
+    discordUserId: string,
+    guildId: string,
+    workspace: Workspace,
+  ): Promise<string> {
+    const appUrl = this.environmentService.getAppUrl();
+    const linkToken = await this.linkingService.generateLinkingToken(
+      discordUserId,
+      guildId,
+      workspace.id,
+    );
+
+    return `To link your Discord account to Raven Docs, click here:\n${appUrl}/auth/discord-link?token=${linkToken.token}\n\nThis link will expire in 24 hours.`;
+  }
+
+  /**
+   * Handle the /raven status command.
+   */
+  private async handleStatusCommand(
+    discordUserId: string,
+    workspace: Workspace,
+  ): Promise<string> {
+    const linkedUser = await this.linkingService.findUserByDiscordId(
+      discordUserId,
+      workspace.id,
+    );
+
+    if (linkedUser) {
+      return `Your Discord account is linked to Raven Docs user: ${linkedUser.email}\nCommands will run with your permissions.`;
+    }
+
+    return 'Your Discord account is not linked to a Raven Docs account.\nUse `/raven link` to connect your account.';
   }
 
   private async handleApproval(token: string, user: User): Promise<string> {
@@ -145,6 +210,8 @@ export class DiscordService {
     }
 
     const guildId = payload.guild_id || payload.guildId;
+    const discordUserId = payload.member?.user?.id || payload.user?.id;
+    const channelId = payload.channel_id;
     const workspace = await this.getWorkspaceFromGuildId(guildId);
     const settings = this.getDiscordSettings(workspace);
     if (!workspace || settings.enabled !== true) {
@@ -155,9 +222,10 @@ export class DiscordService {
       return { status: 200, body: { type: 1 } };
     }
 
-    const user = await this.resolveDefaultUser(workspace, settings);
+    // Resolve user - try linked user first, then default
+    const user = await this.resolveUser(discordUserId, workspace, settings);
     if (!user) {
-      return { status: 403, body: { type: 4, data: { content: 'No default user configured.' } } };
+      return { status: 403, body: { type: 4, data: { content: 'No user configured. Use `/raven link` to link your account.' } } };
     }
 
     if (payload.type === 3) {
@@ -181,7 +249,12 @@ export class DiscordService {
       return { status: 200, body: { type: 4, data: { content: 'Unsupported command.' } } };
     }
 
-    const spaceId = workspace.defaultSpaceId;
+    // Get space from channel mapping or use default
+    const mappedSpaceId = channelId
+      ? await this.linkingService.getSpaceForChannel(workspace.id, channelId)
+      : null;
+    const spaceId = mappedSpaceId || workspace.defaultSpaceId;
+
     const option = payload.data?.options?.[0];
     const rawText = option?.value || payload.data?.options?.[0]?.options?.[0]?.value || '';
     const { action, payload: text } = this.parseActionFromText(rawText);
@@ -191,6 +264,20 @@ export class DiscordService {
 
     setImmediate(async () => {
       try {
+        // Handle link command
+        if (action === 'link') {
+          const linkMessage = await this.handleLinkCommand(discordUserId, guildId, workspace);
+          await this.sendFollowUp(settings, interactionToken, linkMessage);
+          return;
+        }
+
+        // Handle status command
+        if (action === 'status') {
+          const statusMessage = await this.handleStatusCommand(discordUserId, workspace);
+          await this.sendFollowUp(settings, interactionToken, statusMessage);
+          return;
+        }
+
         if (action === 'approve' && text) {
           const result = await this.handleApproval(text, user);
           await this.sendFollowUp(settings, interactionToken, result);

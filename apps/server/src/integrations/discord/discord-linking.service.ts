@@ -1,43 +1,40 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { UserTokenRepo } from '../../database/repos/user-token/user-token.repo';
 import { UserRepo } from '../../database/repos/user/user.repo';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { SpaceRepo } from '@raven-docs/db/repos/space/space.repo';
-import { UserTokenType } from '../../core/auth/auth.constants';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 
-export interface SlackLinkingToken {
+export interface DiscordLinkingToken {
   token: string;
-  slackUserId: string;
-  slackTeamId: string;
+  discordUserId: string;
+  discordGuildId: string;
   expiresAt: Date;
 }
 
 export interface ChannelSpaceMapping {
-  slackChannelId: string;
+  discordChannelId: string;
   spaceId: string;
   spaceName?: string;
 }
 
 @Injectable()
-export class SlackLinkingService {
-  private readonly logger = new Logger(SlackLinkingService.name);
+export class DiscordLinkingService {
+  private readonly logger = new Logger(DiscordLinkingService.name);
 
-  // In-memory store for pending link tokens (maps token -> slack info)
+  // In-memory store for pending link tokens (maps token -> discord info)
   // In production, consider using Redis for this
   private pendingLinks = new Map<
     string,
     {
-      slackUserId: string;
-      slackTeamId: string;
+      discordUserId: string;
+      discordGuildId: string;
       workspaceId: string;
       expiresAt: Date;
     }
   >();
 
   constructor(
-    private readonly userTokenRepo: UserTokenRepo,
     private readonly userRepo: UserRepo,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly spaceRepo: SpaceRepo,
@@ -47,39 +44,39 @@ export class SlackLinkingService {
   }
 
   /**
-   * Generate a unique linking token for a Slack user.
+   * Generate a unique linking token for a Discord user.
    * The user will click a link with this token to authenticate.
    */
   async generateLinkingToken(
-    slackUserId: string,
-    slackTeamId: string,
+    discordUserId: string,
+    discordGuildId: string,
     workspaceId: string,
-  ): Promise<SlackLinkingToken> {
+  ): Promise<DiscordLinkingToken> {
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Store in memory (could also store in database)
     this.pendingLinks.set(token, {
-      slackUserId,
-      slackTeamId,
+      discordUserId,
+      discordGuildId,
       workspaceId,
       expiresAt,
     });
 
     this.logger.log(
-      `Generated linking token for Slack user ${slackUserId} in team ${slackTeamId}`,
+      `Generated linking token for Discord user ${discordUserId} in guild ${discordGuildId}`,
     );
 
     return {
       token,
-      slackUserId,
-      slackTeamId,
+      discordUserId,
+      discordGuildId,
       expiresAt,
     };
   }
 
   /**
-   * Verify a linking token and associate the Slack user with a Raven user.
+   * Verify a linking token and associate the Discord user with a Raven user.
    */
   async verifyAndLink(
     token: string,
@@ -96,16 +93,16 @@ export class SlackLinkingService {
       return { success: false, message: 'Linking token has expired' };
     }
 
-    // Check if this Slack user is already linked to another Raven user
-    const existingUser = await this.userRepo.findBySlackUserId(
-      pending.slackUserId,
+    // Check if this Discord user is already linked to another Raven user
+    const existingUser = await this.userRepo.findByDiscordUserId(
+      pending.discordUserId,
       pending.workspaceId,
     );
 
     if (existingUser && existingUser.id !== ravenUserId) {
       return {
         success: false,
-        message: 'This Slack account is already linked to another Raven user',
+        message: 'This Discord account is already linked to another Raven user',
       };
     }
 
@@ -120,17 +117,17 @@ export class SlackLinkingService {
     }
 
     // Link the accounts
-    const linkedUser = await this.userRepo.linkSlackUser(
+    const linkedUser = await this.userRepo.linkDiscordUser(
       ravenUserId,
       pending.workspaceId,
-      pending.slackUserId,
+      pending.discordUserId,
     );
 
     // Clean up the token
     this.pendingLinks.delete(token);
 
     this.logger.log(
-      `Linked Slack user ${pending.slackUserId} to Raven user ${ravenUserId}`,
+      `Linked Discord user ${pending.discordUserId} to Raven user ${ravenUserId}`,
     );
 
     return {
@@ -144,7 +141,7 @@ export class SlackLinkingService {
    * Get the pending link info for a token (without consuming it).
    */
   getPendingLinkInfo(token: string): {
-    slackUserId: string;
+    discordUserId: string;
     workspaceId: string;
   } | null {
     const pending = this.pendingLinks.get(token);
@@ -152,29 +149,29 @@ export class SlackLinkingService {
       return null;
     }
     return {
-      slackUserId: pending.slackUserId,
+      discordUserId: pending.discordUserId,
       workspaceId: pending.workspaceId,
     };
   }
 
   /**
-   * Find a Raven user by their linked Slack user ID.
+   * Find a Raven user by their linked Discord user ID.
    */
-  async findUserBySlackId(
-    slackUserId: string,
+  async findUserByDiscordId(
+    discordUserId: string,
     workspaceId: string,
   ): Promise<User | undefined> {
-    return this.userRepo.findBySlackUserId(slackUserId, workspaceId);
+    return this.userRepo.findByDiscordUserId(discordUserId, workspaceId);
   }
 
   /**
-   * Unlink a Slack account from a Raven user.
+   * Unlink a Discord account from a Raven user.
    */
-  async unlinkSlackAccount(
+  async unlinkDiscordAccount(
     ravenUserId: string,
     workspaceId: string,
   ): Promise<boolean> {
-    const result = await this.userRepo.unlinkSlackUser(
+    const result = await this.userRepo.unlinkDiscordUser(
       ravenUserId,
       workspaceId,
     );
@@ -188,7 +185,7 @@ export class SlackLinkingService {
     const workspace = await this.workspaceRepo.findById(workspaceId);
     if (!workspace) return [];
 
-    const settings = (workspace.settings as any)?.integrations?.slack || {};
+    const settings = (workspace.settings as any)?.integrations?.discord || {};
     const channelMappings = settings.channelMappings || {};
 
     const mappings: ChannelSpaceMapping[] = [];
@@ -196,7 +193,7 @@ export class SlackLinkingService {
       if (typeof spaceId === 'string') {
         const space = await this.spaceRepo.findById(spaceId, workspaceId);
         mappings.push({
-          slackChannelId: channelId,
+          discordChannelId: channelId,
           spaceId: spaceId,
           spaceName: space?.name,
         });
@@ -207,11 +204,11 @@ export class SlackLinkingService {
   }
 
   /**
-   * Map a Slack channel to a Raven space.
+   * Map a Discord channel to a Raven space.
    */
   async mapChannelToSpace(
     workspaceId: string,
-    slackChannelId: string,
+    discordChannelId: string,
     spaceId: string,
   ): Promise<boolean> {
     // Verify the space exists
@@ -227,20 +224,20 @@ export class SlackLinkingService {
 
     const settings = (workspace.settings as any) || {};
     const integrations = settings.integrations || {};
-    const slack = integrations.slack || {};
-    const channelMappings = slack.channelMappings || {};
+    const discord = integrations.discord || {};
+    const channelMappings = discord.channelMappings || {};
 
-    channelMappings[slackChannelId] = spaceId;
+    channelMappings[discordChannelId] = spaceId;
 
     await this.workspaceRepo.updateIntegrationSettings(workspaceId, {
-      slack: {
-        ...slack,
+      discord: {
+        ...discord,
         channelMappings,
       },
     });
 
     this.logger.log(
-      `Mapped Slack channel ${slackChannelId} to space ${spaceId} (${space.name})`,
+      `Mapped Discord channel ${discordChannelId} to space ${spaceId} (${space.name})`,
     );
 
     return true;
@@ -251,7 +248,7 @@ export class SlackLinkingService {
    */
   async unmapChannel(
     workspaceId: string,
-    slackChannelId: string,
+    discordChannelId: string,
   ): Promise<boolean> {
     const workspace = await this.workspaceRepo.findById(workspaceId);
     if (!workspace) {
@@ -260,14 +257,14 @@ export class SlackLinkingService {
 
     const settings = (workspace.settings as any) || {};
     const integrations = settings.integrations || {};
-    const slack = integrations.slack || {};
-    const channelMappings = { ...(slack.channelMappings || {}) };
+    const discord = integrations.discord || {};
+    const channelMappings = { ...(discord.channelMappings || {}) };
 
-    delete channelMappings[slackChannelId];
+    delete channelMappings[discordChannelId];
 
     await this.workspaceRepo.updateIntegrationSettings(workspaceId, {
-      slack: {
-        ...slack,
+      discord: {
+        ...discord,
         channelMappings,
       },
     });
@@ -276,19 +273,19 @@ export class SlackLinkingService {
   }
 
   /**
-   * Get the space ID for a given Slack channel.
+   * Get the space ID for a given Discord channel.
    */
   async getSpaceForChannel(
     workspaceId: string,
-    slackChannelId: string,
+    discordChannelId: string,
   ): Promise<string | null> {
     const workspace = await this.workspaceRepo.findById(workspaceId);
     if (!workspace) return null;
 
-    const settings = (workspace.settings as any)?.integrations?.slack || {};
+    const settings = (workspace.settings as any)?.integrations?.discord || {};
     const channelMappings = settings.channelMappings || {};
 
-    return channelMappings[slackChannelId] || null;
+    return channelMappings[discordChannelId] || null;
   }
 
   /**

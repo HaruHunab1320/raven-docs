@@ -89,3 +89,9 @@ export interface IWorkspaceIntegrations {
     defaultUserId?: string | null;
   };
 }
+
+export interface IChannelMapping {
+  slackChannelId: string;
+  spaceId: string;
+  spaceName?: string;
+}

@@ -17,7 +17,7 @@ import { SlackLinkingService } from './slack-linking.service';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
-import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 
 @Controller('integrations/slack')

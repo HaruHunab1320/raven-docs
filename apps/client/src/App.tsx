@@ -19,6 +19,8 @@ import { ErrorBoundary } from "react-error-boundary";
 import InviteSignup from "@/pages/auth/invite-signup.tsx";
 import ForgotPassword from "@/pages/auth/forgot-password.tsx";
 import PasswordReset from "./pages/auth/password-reset";
+import SlackLinkPage from "./pages/auth/slack-link";
+import DiscordLinkPage from "./pages/auth/discord-link";
 import { useTranslation } from "react-i18next";
 import AttachmentsPage from "@/features/attachment/pages/attachments-page.tsx";
 import { useMCPEvents } from "@/features/websocket/hooks/use-mcp-events";
@@ -448,6 +450,8 @@ export default function App() {
         <Route path={"/invites/:invitationId"} element={<InviteSignup />} />
         <Route path={"/forgot-password"} element={<ForgotPassword />} />
         <Route path={"/password-reset"} element={<PasswordReset />} />
+        <Route path={"/auth/slack-link"} element={<SlackLinkPage />} />
+        <Route path={"/auth/discord-link"} element={<DiscordLinkPage />} />
 
         <Route path={"/setup/register"} element={<SetupWorkspace />} />
 

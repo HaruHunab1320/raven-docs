@@ -302,4 +302,70 @@ export class UserRepo {
       .returning(this.baseFields)
       .executeTakeFirst();
   }
+
+  /**
+   * Find a user by their linked Discord user ID.
+   */
+  async findByDiscordUserId(
+    discordUserId: string,
+    workspaceId: string,
+  ): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .select(this.baseFields)
+      .where(
+        sql`settings->'integrations'->'discord'->>'discordUserId'`,
+        '=',
+        discordUserId,
+      )
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Link a Discord user ID to this Raven user.
+   */
+  async linkDiscordUser(
+    userId: string,
+    workspaceId: string,
+    discordUserId: string,
+  ): Promise<User | undefined> {
+    const discordData = {
+      discordUserId,
+      linkedAt: new Date().toISOString(),
+    };
+
+    return await this.db
+      .updateTable('users')
+      .set({
+        settings: sql`COALESCE(settings, '{}'::jsonb)
+                || jsonb_build_object('integrations', COALESCE(settings->'integrations', '{}'::jsonb)
+                || jsonb_build_object('discord', ${JSON.stringify(discordData)}::jsonb))`,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', userId)
+      .where('workspaceId', '=', workspaceId)
+      .returning(this.baseFields)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Unlink a Discord user ID from this Raven user.
+   */
+  async unlinkDiscordUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<User | undefined> {
+    return await this.db
+      .updateTable('users')
+      .set({
+        settings: sql`settings #- '{integrations,discord}'`,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', userId)
+      .where('workspaceId', '=', workspaceId)
+      .returning(this.baseFields)
+      .executeTakeFirst();
+  }
 }
