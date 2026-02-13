@@ -61,6 +61,7 @@ Go to **OAuth & Permissions** → **Bot Token Scopes** and add:
 | `/raven status` | Check your account linking status |
 | `/raven ask [question]` | Ask the AI agent a question |
 | `/raven research [topic]` | Start a research task |
+| `/raven task [title]` | Add an item to your inbox |
 | `/raven approve [token]` | Approve a pending action |
 | `/raven reject [token]` | Reject a pending action |
 
@@ -155,6 +156,7 @@ curl -X POST \
 | `/raven status` | Check your account linking status |
 | `/raven ask [question]` | Ask the AI agent a question |
 | `/raven research [topic]` | Start a research task |
+| `/raven task [title]` | Add an item to your inbox |
 | `/raven approve [token]` | Approve a pending action |
 | `/raven reject [token]` | Reject a pending action |
 

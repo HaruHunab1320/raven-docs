@@ -7,6 +7,8 @@ import { ResearchJobService } from '../../core/research/research-job.service';
 import { MCPApprovalService } from '../mcp/services/mcp-approval.service';
 import { MCPService } from '../mcp/mcp.service';
 import { DiscordLinkingService } from './discord-linking.service';
+import { TaskService } from '../../core/project/services/task.service';
+import { TaskBucket } from '../../core/project/constants/task-enums';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 
@@ -37,6 +39,8 @@ export class DiscordService {
     private readonly mcpService: MCPService,
     @Inject(forwardRef(() => DiscordLinkingService))
     private readonly linkingService: DiscordLinkingService,
+    @Inject(forwardRef(() => TaskService))
+    private readonly taskService: TaskService,
     private readonly environmentService: EnvironmentService,
   ) {}
 
@@ -113,7 +117,7 @@ export class DiscordService {
     const [first, ...rest] = trimmed.split(' ');
     const action = first.toLowerCase();
     const payload = rest.join(' ').trim();
-    if (['ask', 'research', 'approve', 'reject', 'link', 'status'].includes(action)) {
+    if (['ask', 'research', 'approve', 'reject', 'link', 'status', 'task'].includes(action)) {
       return { action, payload };
     }
     return { action: 'ask', payload: trimmed };
@@ -298,6 +302,28 @@ export class DiscordService {
             settings,
             interactionToken,
             `Research queued: ${job.topic}`,
+          );
+          return;
+        }
+
+        if (action === 'task') {
+          if (!text) {
+            await this.sendFollowUp(
+              settings,
+              interactionToken,
+              'Please provide a task title. Usage: `/raven task <title>`',
+            );
+            return;
+          }
+          const task = await this.taskService.create(user.id, workspace.id, {
+            title: text,
+            spaceId,
+            bucket: TaskBucket.INBOX,
+          });
+          await this.sendFollowUp(
+            settings,
+            interactionToken,
+            `Added to inbox: "${task.title}"`,
           );
           return;
         }

@@ -7,6 +7,8 @@ import { ResearchJobService } from '../../core/research/research-job.service';
 import { MCPApprovalService } from '../mcp/services/mcp-approval.service';
 import { MCPService } from '../mcp/mcp.service';
 import { SlackLinkingService } from './slack-linking.service';
+import { TaskService } from '../../core/project/services/task.service';
+import { TaskBucket } from '../../core/project/constants/task-enums';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 
 type SlackIntegrationSettings = {
@@ -44,6 +46,8 @@ export class SlackService {
     @Inject(forwardRef(() => MCPService))
     private readonly mcpService: MCPService,
     private readonly linkingService: SlackLinkingService,
+    @Inject(forwardRef(() => TaskService))
+    private readonly taskService: TaskService,
   ) {}
 
   async verifyRequest(
@@ -175,7 +179,7 @@ export class SlackService {
     const [first, ...rest] = trimmed.split(' ');
     const action = first.toLowerCase();
     const payload = rest.join(' ').trim();
-    if (['ask', 'research', 'approve', 'reject', 'link', 'unlink', 'setup', 'status'].includes(action)) {
+    if (['ask', 'research', 'approve', 'reject', 'link', 'unlink', 'setup', 'status', 'task'].includes(action)) {
       return { action, payload };
     }
     return { action: 'ask', payload: trimmed };
@@ -460,6 +464,28 @@ export class SlackService {
               `Research queued: ${job.topic}`,
             );
           }
+          return;
+        }
+
+        if (action === 'task') {
+          if (!text) {
+            await this.sendResponse(payload.response_url, {
+              response_type: 'ephemeral',
+              text: 'Please provide a task title. Usage: `/raven task <title>`',
+            });
+            return;
+          }
+
+          const task = await this.taskService.create(user.id, workspace.id, {
+            title: text,
+            spaceId,
+            bucket: TaskBucket.INBOX,
+          });
+
+          await this.sendResponse(payload.response_url, {
+            response_type: 'ephemeral',
+            text: `Added to inbox: "${task.title}"`,
+          });
           return;
         }
 

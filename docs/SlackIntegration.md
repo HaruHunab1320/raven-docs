@@ -53,6 +53,8 @@ Status: Implemented with account linking and channel mapping.
   - Show project summary + open tasks.
 - `/raven research <query>`
   - Create a research task and post updates.
+- `/raven task <title>`
+  - Add an item to your inbox.
 - `/raven approve <id>` / `/raven reject <id>`
   - Approve/deny pending agent actions.
 
@@ -156,7 +158,7 @@ Go to **Slash Commands** → **Create New Command**:
 - Command: `/raven`
 - Request URL: `https://your-domain.com/api/integrations/slack/commands`
 - Short Description: "Interact with Raven Docs"
-- Usage Hint: `[ask|research|link|status|approve|reject] [text]`
+- Usage Hint: `[ask|research|task|link|status|approve|reject] [text]`
 
 ### 5. Enable Interactivity
 Go to **Interactivity & Shortcuts**:

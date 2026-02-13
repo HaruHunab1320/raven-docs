@@ -7,12 +7,14 @@
     display: flex;
     flex-direction: column;
     user-select: none;
+    overflow: hidden;
 }
 
 .section {
     margin-left: calc(var(--mantine-spacing-md) * -1);
     margin-right: calc(var(--mantine-spacing-md) * -1);
     margin-bottom: var(--mantine-spacing-md);
+    flex: 0 0 auto;
 
     &:not(:last-of-type) {
         border-bottom: rem(1px) solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
@@ -21,11 +23,15 @@
 
 .sectionPages {
     margin-bottom: 0;
-    min-height: 0;
+    min-height: 100px;
     flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     .pages {
-        height: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
         padding-bottom: 26px;
         overflow-y: auto;
     }
@@ -167,16 +173,16 @@
 
 .sectionProjects {
     flex: 0 1 auto;
-    max-height: 40vh;
+    max-height: 30vh;
+    min-height: 60px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
 .sectionProjects .pages {
-    max-height: 40vh;
-    height: auto;
-    overflow-y: auto;
     flex: 1 1 auto;
     min-height: 0;
+    height: auto;
+    overflow-y: auto;
 }

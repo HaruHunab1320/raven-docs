@@ -47,6 +47,8 @@ Status: Implemented with account linking and channel mapping.
   - Read-only summary/answer.
 - `/raven research <query>`
   - Create a research task and post updates.
+- `/raven task <title>`
+  - Add an item to your inbox.
 - `/raven approve <token>`
   - Approve a pending agent action.
 - `/raven reject <token>`
