@@ -228,11 +228,77 @@ export class UserRepo {
       .updateTable('users')
       .set({
         settings: sql`COALESCE(settings, '{}'::jsonb)
-                || jsonb_build_object('preferences', COALESCE(settings->'preferences', '{}'::jsonb) 
+                || jsonb_build_object('preferences', COALESCE(settings->'preferences', '{}'::jsonb)
                 || jsonb_build_object('${sql.raw(prefKey)}', ${sql.lit(prefValue)}))`,
         updatedAt: new Date(),
       })
       .where('id', '=', userId)
+      .returning(this.baseFields)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Find a user by their linked Slack user ID.
+   */
+  async findBySlackUserId(
+    slackUserId: string,
+    workspaceId: string,
+  ): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .select(this.baseFields)
+      .where(
+        sql`settings->'integrations'->'slack'->>'slackUserId'`,
+        '=',
+        slackUserId,
+      )
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Link a Slack user ID to this Raven user.
+   */
+  async linkSlackUser(
+    userId: string,
+    workspaceId: string,
+    slackUserId: string,
+  ): Promise<User | undefined> {
+    const slackData = {
+      slackUserId,
+      linkedAt: new Date().toISOString(),
+    };
+
+    return await this.db
+      .updateTable('users')
+      .set({
+        settings: sql`COALESCE(settings, '{}'::jsonb)
+                || jsonb_build_object('integrations', COALESCE(settings->'integrations', '{}'::jsonb)
+                || jsonb_build_object('slack', ${JSON.stringify(slackData)}::jsonb))`,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', userId)
+      .where('workspaceId', '=', workspaceId)
+      .returning(this.baseFields)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Unlink a Slack user ID from this Raven user.
+   */
+  async unlinkSlackUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<User | undefined> {
+    return await this.db
+      .updateTable('users')
+      .set({
+        settings: sql`settings #- '{integrations,slack}'`,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', userId)
+      .where('workspaceId', '=', workspaceId)
       .returning(this.baseFields)
       .executeTakeFirst();
   }

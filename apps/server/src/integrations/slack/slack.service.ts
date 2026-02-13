@@ -6,6 +6,7 @@ import { AgentService } from '../../core/agent/agent.service';
 import { ResearchJobService } from '../../core/research/research-job.service';
 import { MCPApprovalService } from '../mcp/services/mcp-approval.service';
 import { MCPService } from '../mcp/mcp.service';
+import { SlackLinkingService } from './slack-linking.service';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 
 type SlackIntegrationSettings = {
@@ -15,6 +16,7 @@ type SlackIntegrationSettings = {
   signingSecret?: string;
   defaultChannelId?: string;
   defaultUserId?: string;
+  channelMappings?: Record<string, string>; // channelId -> spaceId
 };
 
 type SlackCommandPayload = {
@@ -41,6 +43,7 @@ export class SlackService {
     private readonly approvalService: MCPApprovalService,
     @Inject(forwardRef(() => MCPService))
     private readonly mcpService: MCPService,
+    private readonly linkingService: SlackLinkingService,
   ) {}
 
   async verifyRequest(
@@ -172,7 +175,7 @@ export class SlackService {
     const [first, ...rest] = trimmed.split(' ');
     const action = first.toLowerCase();
     const payload = rest.join(' ').trim();
-    if (['ask', 'research', 'approve', 'reject'].includes(action)) {
+    if (['ask', 'research', 'approve', 'reject', 'link', 'unlink', 'setup', 'status'].includes(action)) {
       return { action, payload };
     }
     return { action: 'ask', payload: trimmed };
@@ -239,6 +242,117 @@ export class SlackService {
     ];
   }
 
+  /**
+   * Handle the /raven link command to generate a linking URL.
+   */
+  private async handleLinkCommand(
+    workspace: Workspace,
+    slackUserId: string,
+    responseUrl: string,
+  ) {
+    // Check if already linked
+    const existingUser = await this.linkingService.findUserBySlackId(
+      slackUserId,
+      workspace.id,
+    );
+
+    if (existingUser) {
+      setImmediate(async () => {
+        await this.sendResponse(responseUrl, {
+          response_type: 'ephemeral',
+          text: `Your Slack account is already linked to ${existingUser.email}. Use \`/raven unlink\` to disconnect.`,
+        });
+      });
+      return { status: 200, body: { response_type: 'ephemeral', text: 'Checking link status...' } };
+    }
+
+    // Generate a linking token
+    const settings = this.getSlackSettings(workspace);
+    const linkToken = await this.linkingService.generateLinkingToken(
+      slackUserId,
+      settings.teamId || '',
+      workspace.id,
+    );
+
+    // Build the linking URL (user will be redirected to Raven Docs login)
+    const baseUrl = process.env.APP_URL || 'https://app.ravendocs.com';
+    const linkUrl = `${baseUrl}/auth/slack-link?token=${linkToken.token}`;
+
+    setImmediate(async () => {
+      await this.sendResponse(responseUrl, {
+        response_type: 'ephemeral',
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*Link your Slack account to Raven Docs*\n\nClick the button below to connect your accounts. You\'ll be asked to sign in to Raven Docs.',
+            },
+          },
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: 'Link Account' },
+                style: 'primary',
+                url: linkUrl,
+              },
+            ],
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: `This link expires in 24 hours.`,
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    return { status: 200, body: { response_type: 'ephemeral', text: 'Generating link...' } };
+  }
+
+  /**
+   * Handle the /raven status command to show account linking status.
+   */
+  private async handleStatusCommand(
+    workspace: Workspace,
+    slackUserId: string,
+    channelId: string,
+    responseUrl: string,
+  ) {
+    const linkedUser = await this.linkingService.findUserBySlackId(
+      slackUserId,
+      workspace.id,
+    );
+
+    const channelSpaceId = await this.linkingService.getSpaceForChannel(
+      workspace.id,
+      channelId,
+    );
+
+    setImmediate(async () => {
+      const statusLines = [
+        `*Raven Docs Status*`,
+        ``,
+        `*Account:* ${linkedUser ? `Linked to ${linkedUser.email}` : 'Not linked - use `/raven link`'}`,
+        `*Channel Space:* ${channelSpaceId ? `Configured` : 'Using workspace default'}`,
+        `*Workspace:* ${workspace.name || workspace.id}`,
+      ];
+
+      await this.sendResponse(responseUrl, {
+        response_type: 'ephemeral',
+        text: statusLines.join('\n'),
+      });
+    });
+
+    return { status: 200, body: { response_type: 'ephemeral', text: 'Checking status...' } };
+  }
+
   async handleCommandRequest(rawBody: string, headers: Record<string, any>) {
     const payload = this.parseCommand(rawBody);
     const workspace = await this.getWorkspaceFromTeamId(payload.team_id);
@@ -255,17 +369,62 @@ export class SlackService {
       return { status: 401, body: { text: 'Slack integration not authorized.' } };
     }
 
-    const user = await this.resolveDefaultUser(workspace, settings);
-    if (!user) {
-      return { status: 403, body: { text: 'No default user configured.' } };
-    }
-
-    const spaceId = workspace.defaultSpaceId;
     const { action, payload: text } = this.parseTextCommand(payload.text);
     const channelId = payload.channel_id || settings.defaultChannelId || '';
+    const slackUserId = payload.user_id;
+
+    // Handle account linking commands (don't require linked account)
+    if (action === 'link') {
+      return this.handleLinkCommand(workspace, slackUserId, payload.response_url);
+    }
+
+    if (action === 'status') {
+      return this.handleStatusCommand(workspace, slackUserId, channelId, payload.response_url);
+    }
+
+    // For other commands, try to find the linked Raven user
+    let user = await this.linkingService.findUserBySlackId(slackUserId, workspace.id);
+
+    // Fall back to default user if not linked
+    if (!user) {
+      user = await this.resolveDefaultUser(workspace, settings);
+    }
+
+    if (!user) {
+      return {
+        status: 200,
+        body: {
+          response_type: 'ephemeral',
+          text: 'Your Slack account is not linked to Raven Docs. Use `/raven link` to connect your accounts.',
+        },
+      };
+    }
+
+    // Resolve the space for this channel (or use workspace default)
+    const spaceId = await this.linkingService.getSpaceForChannel(workspace.id, channelId)
+      || workspace.defaultSpaceId;
+
+    if (!spaceId) {
+      return {
+        status: 200,
+        body: {
+          response_type: 'ephemeral',
+          text: 'No space configured for this channel. Ask an admin to set up channel mapping.',
+        },
+      };
+    }
 
     setImmediate(async () => {
       try {
+        if (action === 'unlink') {
+          await this.linkingService.unlinkSlackAccount(user.id, workspace.id);
+          await this.sendResponse(payload.response_url, {
+            response_type: 'ephemeral',
+            text: 'Your Slack account has been unlinked from Raven Docs.',
+          });
+          return;
+        }
+
         if (action === 'approve' && text) {
           const result = await this.handleApproval(text, user);
           await this.sendResponse(payload.response_url, {
@@ -443,13 +602,30 @@ export class SlackService {
       return { status: 200, body: { text: 'Ignored' } };
     }
 
-    const user = await this.resolveDefaultUser(workspace, settings);
-    if (!user) {
-      this.logger.log('Slack event: No default user found');
-      return { status: 403, body: { text: 'No default user configured.' } };
-    }
-    this.logger.log(`Slack event: Resolved user=${user.id}, email=${user.email}`);
+    // Try to find the linked Raven user for this Slack user
+    const slackUserId = event.user;
+    let user = slackUserId
+      ? await this.linkingService.findUserBySlackId(slackUserId, workspace.id)
+      : null;
 
+    // Fall back to default user if not linked
+    if (!user) {
+      user = await this.resolveDefaultUser(workspace, settings);
+    }
+
+    if (!user) {
+      this.logger.log('Slack event: No linked or default user found');
+      // Send a message asking the user to link their account
+      const channelId = event.channel;
+      if (channelId && settings.botToken) {
+        await this.sendMessage(
+          settings.botToken,
+          channelId,
+          'Your Slack account is not linked to Raven Docs. Use `/raven link` to connect your accounts.',
+        );
+      }
+      return { status: 200, body: { text: 'User not linked' } };
+    }
     const channelId = event.channel || settings.defaultChannelId;
     const cleaned = (event.text || '').replace(/<@[^>]+>/g, '').trim();
     this.logger.log(`Slack event: channel=${channelId}, cleaned="${cleaned}", hasToken=${!!settings.botToken}`);
@@ -459,18 +635,31 @@ export class SlackService {
       return { status: 200, body: { text: 'No action taken.' } };
     }
 
-    this.logger.log(`Slack event: Processing message for workspace=${workspace.id}, space=${workspace.defaultSpaceId}, defaultSpaceId is ${workspace.defaultSpaceId ? 'set' : 'NULL/UNDEFINED'}`);
+    // Resolve the space for this channel (or use workspace default)
+    const channelSpaceId = await this.linkingService.getSpaceForChannel(workspace.id, channelId);
+    const spaceId = channelSpaceId || workspace.defaultSpaceId;
+
+    if (!spaceId) {
+      this.logger.log('Slack event: No space configured for channel and no workspace default');
+      await this.sendMessage(
+        settings.botToken,
+        channelId,
+        'No space configured for this channel. Ask an admin to set up channel mapping in Raven Docs settings.',
+      );
+      return { status: 200, body: { text: 'No space configured' } };
+    }
+
+    this.logger.log(`Slack event: Processing message for workspace=${workspace.id}, space=${spaceId}, channelMapped=${!!channelSpaceId}`);
 
     setImmediate(async () => {
       try {
-        this.logger.log(`Slack event: Calling agent.chat with spaceId=${workspace.defaultSpaceId}`);
+        this.logger.log(`Slack event: Calling agent.chat with spaceId=${spaceId}, user=${user.email}`);
         const result = await this.agentService.chat(
-          { spaceId: workspace.defaultSpaceId, message: cleaned, autoApprove: false },
+          { spaceId, message: cleaned, autoApprove: false },
           user,
           workspace,
         );
         this.logger.log(`Slack event: Agent returned reply="${result?.reply?.slice(0, 50)}...", actions=${result?.actions?.length || 0}`);
-        this.logger.log(`Slack event: Agent replied, sending to channel`);
         await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
       } catch (error: any) {
         const errorMessage = error?.message || String(error);
