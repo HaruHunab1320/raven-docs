@@ -9,78 +9,176 @@ Connect Raven Docs with your existing tools for a seamless workflow.
 
 ## Slack
 
-Get notifications and interact with Raven Docs directly from Slack.
+Interact with Raven Docs directly from Slack using slash commands and @mentions.
 
-### Setup
+### Creating a Slack App
 
-1. Go to **Settings** → **Integrations** → **Slack**
-2. Click **Connect to Slack**
-3. Authorize the Raven Docs app
-4. Select channels for notifications
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click **Create New App** → **From scratch**
+3. Name your app (e.g., "Raven Docs") and select your workspace
 
-### Features
+### Configure Bot Permissions
 
-#### Notifications
+Go to **OAuth & Permissions** → **Bot Token Scopes** and add:
+- `app_mentions:read`
+- `chat:write`
+- `commands`
+- `im:history`
+- `im:write`
+- `users:read`
 
-Receive notifications in Slack for:
-- New comments on pages you're watching
-- Task assignments
-- @mentions
-- Page updates
+### Set Up Webhooks
 
-Configure which events trigger notifications in integration settings.
+1. **Event Subscriptions**: Enable and set Request URL to:
+   ```
+   https://your-domain.com/api/integrations/slack/events
+   ```
+   Subscribe to: `app_mention`, `message.im`
 
-#### Commands
+2. **Slash Commands**: Create `/raven` command with Request URL:
+   ```
+   https://your-domain.com/api/integrations/slack/commands
+   ```
+
+3. **Interactivity**: Enable and set Request URL to:
+   ```
+   https://your-domain.com/api/integrations/slack/interactions
+   ```
+
+### Install and Configure
+
+1. Install the app to your workspace
+2. Copy the **Bot Token** (xoxb-...) and **Signing Secret**
+3. In Raven Docs, go to **Settings** → **Integrations**
+4. Enable Slack and enter your credentials
+5. Save settings
+
+### Commands
 
 | Command | Description |
 |---------|-------------|
-| `/raven search [query]` | Search your workspace |
-| `/raven task [title]` | Create a new task |
-| `/raven page [title]` | Create a new page |
+| `/raven link` | Link your Slack account to Raven Docs |
+| `/raven status` | Check your account linking status |
+| `/raven ask [question]` | Ask the AI agent a question |
+| `/raven research [topic]` | Start a research task |
+| `/raven approve [token]` | Approve a pending action |
+| `/raven reject [token]` | Reject a pending action |
 
-#### Unfurling
+### Account Linking
 
-When you paste a Raven Docs link in Slack, it automatically shows:
-- Page title and excerpt
-- Last updated time
-- Quick actions
+Link your Slack account to use your Raven Docs permissions:
+
+1. Run `/raven link` in Slack
+2. Click the secure link provided
+3. Sign in to your Raven Docs account
+4. Your accounts are now connected
+
+Once linked, all commands run with your permissions.
 
 ### Channel Mapping
 
-Map Raven Docs spaces to Slack channels:
+Map Slack channels to Raven spaces:
 
-1. Go to Slack integration settings
-2. Click **Add Channel Mapping**
-3. Select a space and a channel
-4. All updates in that space post to the channel
+1. Go to **Settings** → **Integrations** → Slack section
+2. Find "Channel → Space Mappings"
+3. Enter a Slack channel ID and select a space
+4. Click **Add Mapping**
+
+Content created from that channel will be saved to the mapped space.
 
 ## Discord
 
-Team notifications for Discord communities.
+Interact with Raven Docs from Discord using slash commands.
 
-### Setup
+### Creating a Discord App
 
-1. Go to **Settings** → **Integrations** → **Discord**
-2. Click **Connect to Discord**
-3. Select your server and channel
-4. Configure notification types
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Click **New Application**
+3. Name your app and create it
 
-### Features
+### Get Your Credentials
 
-- Page update notifications
-- Task activity alerts
-- @mention forwarding
-- Webhook-based (no bot required)
+From **General Information**, copy:
+- Application ID
+- Public Key
 
-### Webhook Configuration
+From **Bot**, copy:
+- Bot Token (click Reset Token if needed)
 
-```json
-{
-  "events": ["page.updated", "task.created", "comment.created"],
-  "channel_id": "123456789",
-  "include_preview": true
-}
+### Invite the Bot
+
+Go to **OAuth2** → **URL Generator**:
+1. Select scopes: `bot`, `applications.commands`
+2. Select permissions: Send Messages, Use Slash Commands, Embed Links
+3. Open the generated URL to invite the bot
+
+### Set Up Interactions
+
+In **General Information**, set **Interactions Endpoint URL** to:
 ```
+https://your-domain.com/api/integrations/discord/interactions
+```
+
+### Register Commands
+
+Register the `/raven` slash command using the Discord API:
+
+```bash
+curl -X POST \
+  "https://discord.com/api/v10/applications/YOUR_APP_ID/guilds/YOUR_GUILD_ID/commands" \
+  -H "Authorization: Bot YOUR_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "raven",
+    "description": "Interact with Raven Docs",
+    "options": [{
+      "name": "command",
+      "description": "Command to run",
+      "type": 3,
+      "required": true
+    }]
+  }'
+```
+
+### Configure in Raven Docs
+
+1. Go to **Settings** → **Integrations**
+2. Enable Discord
+3. Enter: Guild ID, Bot Token, Public Key, Application ID
+4. Save settings
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `/raven link` | Link your Discord account to Raven Docs |
+| `/raven status` | Check your account linking status |
+| `/raven ask [question]` | Ask the AI agent a question |
+| `/raven research [topic]` | Start a research task |
+| `/raven approve [token]` | Approve a pending action |
+| `/raven reject [token]` | Reject a pending action |
+
+### Account Linking
+
+Link your Discord account to use your Raven Docs permissions:
+
+1. Run `/raven link` in Discord
+2. Click the secure link provided
+3. Sign in to your Raven Docs account
+4. Your accounts are now connected
+
+### Channel Mapping
+
+Map Discord channels to Raven spaces:
+
+1. Go to **Settings** → **Integrations** → Discord section
+2. Find "Channel → Space Mappings"
+3. Enter a Discord channel ID and select a space
+4. Click **Add Mapping**
+
+:::tip Getting Channel IDs
+Enable Developer Mode in Discord (Settings → Advanced → Developer Mode), then right-click any channel and select "Copy ID".
+:::
 
 ## GitHub
 
