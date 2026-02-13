@@ -448,6 +448,7 @@ export class SlackService {
       this.logger.log('Slack event: No default user found');
       return { status: 403, body: { text: 'No default user configured.' } };
     }
+    this.logger.log(`Slack event: Resolved user=${user.id}, email=${user.email}`);
 
     const channelId = event.channel || settings.defaultChannelId;
     const cleaned = (event.text || '').replace(/<@[^>]+>/g, '').trim();
@@ -458,23 +459,29 @@ export class SlackService {
       return { status: 200, body: { text: 'No action taken.' } };
     }
 
-    this.logger.log(`Slack event: Processing message for workspace=${workspace.id}, space=${workspace.defaultSpaceId}`);
+    this.logger.log(`Slack event: Processing message for workspace=${workspace.id}, space=${workspace.defaultSpaceId}, defaultSpaceId is ${workspace.defaultSpaceId ? 'set' : 'NULL/UNDEFINED'}`);
 
     setImmediate(async () => {
       try {
+        this.logger.log(`Slack event: Calling agent.chat with spaceId=${workspace.defaultSpaceId}`);
         const result = await this.agentService.chat(
           { spaceId: workspace.defaultSpaceId, message: cleaned, autoApprove: false },
           user,
           workspace,
         );
+        this.logger.log(`Slack event: Agent returned reply="${result?.reply?.slice(0, 50)}...", actions=${result?.actions?.length || 0}`);
         this.logger.log(`Slack event: Agent replied, sending to channel`);
         await this.sendMessage(settings.botToken, channelId, result.reply || 'Agent response unavailable.');
       } catch (error: any) {
         const errorMessage = error?.message || String(error);
         const errorName = error?.name || 'UnknownError';
         const errorStack = error?.stack?.split('\n').slice(0, 3).join(' | ') || '';
+        const errorJson = JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 500);
         this.logger.log(`Slack event: Agent chat failed - ${errorName}: ${errorMessage}`);
-        this.logger.log(`Slack event: Error stack: ${errorStack}`);
+        this.logger.log(`Slack event: Error details: ${errorJson}`);
+        if (errorStack) {
+          this.logger.log(`Slack event: Error stack: ${errorStack}`);
+        }
         await this.sendMessage(settings.botToken, channelId, 'Sorry, something went wrong processing your request.');
       }
     });
