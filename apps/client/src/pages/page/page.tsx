@@ -48,17 +48,17 @@ export default function Page() {
   const spaceRules = space?.membership?.permissions;
   const spaceAbility = useSpaceAbility(spaceRules);
 
-  // Handle immediate refetch when this page is updated
+  // Handle immediate refetch when this page is updated by external sources
+  // Skip refetch for minor updates (title changes) as those are handled by WebSocket cache updates
   const handlePageEvent = useCallback(
     (event) => {
       if (
         event.resource === MCPResourceType.PAGE &&
         event.resourceId === pageId &&
-        (event.type === MCPEventType.UPDATED ||
-          event.type === MCPEventType.MOVED)
+        event.type === MCPEventType.MOVED // Only refetch for moves, not updates
       ) {
         logger.log(
-          "🔄 PageView: Page update event detected, refreshing page...",
+          "🔄 PageView: Page move event detected, refreshing page...",
           event
         );
         setRefreshing(true);

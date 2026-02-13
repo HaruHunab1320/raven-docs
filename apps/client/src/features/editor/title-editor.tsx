@@ -14,6 +14,7 @@ import { useUpdatePageMutation } from "@/features/page/queries/page-query";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { useAtom } from "jotai";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
+import { markEventAsSent } from "@/features/websocket/use-query-subscription";
 import { History } from "@tiptap/extension-history";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { useNavigate } from "react-router-dom";
@@ -119,6 +120,9 @@ export function TitleEditor({
         id: page.id,
         payload: { title: page.title, slugId: page.slugId },
       };
+
+      // Mark this event as sent so we don't process it when it comes back via WebSocket
+      markEventAsSent(`${page.id}-${JSON.stringify(event.payload)}`);
 
       localEmitter.emit("message", event);
       emit(event);

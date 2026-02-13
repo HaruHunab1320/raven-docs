@@ -63,8 +63,9 @@ interface PageEditorProps {
 }
 
 export default function PageEditor(props: PageEditorProps) {
-  const [showEditor, setShowEditor] = useState(false);
-  const isMountedRef = useRef(false);
+  const [showEditor, setShowEditor] = useState(true);
+  const prevPageIdRef = useRef(props.pageId);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -74,12 +75,16 @@ export default function PageEditor(props: PageEditorProps) {
   }, []);
 
   useEffect(() => {
-    setShowEditor(false);
-    const rafId = window.requestAnimationFrame(() => {
-      if (!isMountedRef.current) return;
-      setShowEditor(true);
-    });
-    return () => window.cancelAnimationFrame(rafId);
+    // Only reset editor when page ID actually changes
+    if (prevPageIdRef.current !== props.pageId) {
+      prevPageIdRef.current = props.pageId;
+      setShowEditor(false);
+      const rafId = window.requestAnimationFrame(() => {
+        if (!isMountedRef.current) return;
+        setShowEditor(true);
+      });
+      return () => window.cancelAnimationFrame(rafId);
+    }
   }, [props.pageId]);
 
   if (!showEditor) {

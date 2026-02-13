@@ -36,9 +36,12 @@ export function usePageQuery(
     queryKey: ["pages", pageInput.pageId],
     queryFn: () => getPageById(pageInput),
     enabled: !!pageInput.pageId,
-    staleTime: 30 * 1000, // 30 seconds - prevents aggressive refetching while editing
+    staleTime: 5 * 60 * 1000, // 5 minutes - prevents aggressive refetching while editing
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false, // Disable auto-refetch on focus to prevent disrupting edits
-    refetchOnReconnect: true,
+    refetchOnReconnect: false, // Don't refetch on reconnect either
+    refetchOnMount: false, // Don't refetch if data exists
+    placeholderData: (previousData) => previousData, // Keep showing previous data during refetch
   });
 
   useEffect(() => {
