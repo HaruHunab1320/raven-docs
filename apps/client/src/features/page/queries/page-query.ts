@@ -38,8 +38,8 @@ export function usePageQuery(
     enabled: !!pageInput.pageId,
     staleTime: 5 * 60 * 1000, // 5 minutes - prevents aggressive refetching while editing
     gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
-    refetchOnWindowFocus: false, // Disable auto-refetch on focus to prevent disrupting edits
-    refetchOnReconnect: false, // Don't refetch on reconnect either
+    refetchOnWindowFocus: true, // Sync when returning to tab
+    refetchOnReconnect: true, // Sync after network issues
     refetchOnMount: false, // Don't refetch if data exists
     placeholderData: (previousData) => previousData, // Keep showing previous data during refetch
   });
