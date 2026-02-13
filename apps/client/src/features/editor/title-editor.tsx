@@ -17,7 +17,6 @@ import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
 import { markEventAsSent } from "@/features/websocket/use-query-subscription";
 import { History } from "@tiptap/extension-history";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import EmojiCommand from "@/features/editor/extensions/emoji-command.ts";
 import { UpdateEvent } from "@/features/websocket/types";
@@ -43,7 +42,6 @@ export function TitleEditor({
   const pageEditor = useAtomValue(pageEditorAtom);
   const [, setTitleEditor] = useAtom(titleEditorAtom);
   const emit = useQueryEmit();
-  const navigate = useNavigate();
   const [activePageId, setActivePageId] = useState(pageId);
   const isEditingRef = useRef(false);
   const lastSavedTitleRef = useRef(title);
@@ -89,10 +87,11 @@ export function TitleEditor({
     shouldRerenderOnTransaction: false,
   });
 
-  useEffect(() => {
-    const pageSlug = buildPageUrl(spaceSlug, slugId, title);
-    navigate(pageSlug, { replace: true });
-  }, [title]);
+  // Update URL to reflect new title (cosmetic only - no navigation/refetch)
+  const updateUrlWithTitle = useCallback((newTitle: string) => {
+    const newPageSlug = buildPageUrl(spaceSlug, slugId, newTitle);
+    window.history.replaceState(null, "", newPageSlug);
+  }, [spaceSlug, slugId]);
 
   const saveTitle = useCallback(() => {
     if (!titleEditor || activePageId !== pageId) return;
@@ -113,6 +112,9 @@ export function TitleEditor({
       pageId: pageId,
       title: currentTitle,
     }).then((page) => {
+      // Update URL to reflect new title
+      updateUrlWithTitle(page.title);
+
       const event: UpdateEvent = {
         operation: "updateOne",
         spaceId: page.spaceId,
@@ -132,7 +134,7 @@ export function TitleEditor({
         isEditingRef.current = false;
       }, 500);
     });
-  }, [pageId, title, titleEditor]);
+  }, [pageId, title, titleEditor, updateUrlWithTitle]);
 
   const debounceUpdate = useDebouncedCallback(saveTitle, 500);
 
