@@ -78,6 +78,8 @@ export interface IWorkspaceIntegrations {
     enabled?: boolean;
     configured?: boolean;
     teamId?: string | null;
+    botTokenHint?: string | null;
+    signingSecretHint?: string | null;
     defaultChannelId?: string | null;
     defaultUserId?: string | null;
   };
@@ -85,6 +87,8 @@ export interface IWorkspaceIntegrations {
     enabled?: boolean;
     configured?: boolean;
     guildId?: string | null;
+    botTokenHint?: string | null;
+    publicKeyHint?: string | null;
     defaultChannelId?: string | null;
     defaultUserId?: string | null;
   };

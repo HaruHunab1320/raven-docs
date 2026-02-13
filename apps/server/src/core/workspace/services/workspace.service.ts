@@ -271,6 +271,12 @@ export class WorkspaceService {
     return this.buildIntegrationResponse(integrations);
   }
 
+  private maskSecret(value: string | undefined | null): string | null {
+    if (!value || value.length < 4) return null;
+    const lastFour = value.slice(-4);
+    return `••••••••${lastFour}`;
+  }
+
   private buildIntegrationResponse(integrations: any) {
     const repoTokens = integrations?.repoTokens || {};
     const slack = integrations?.slack || {};
@@ -285,6 +291,8 @@ export class WorkspaceService {
         enabled: slack.enabled === true,
         configured: Boolean(slack.botToken && slack.signingSecret && slack.teamId),
         teamId: slack.teamId || null,
+        botTokenHint: this.maskSecret(slack.botToken),
+        signingSecretHint: this.maskSecret(slack.signingSecret),
         defaultChannelId: slack.defaultChannelId || null,
         defaultUserId: slack.defaultUserId || null,
       },
@@ -294,6 +302,8 @@ export class WorkspaceService {
           discord.botToken && discord.publicKey && discord.applicationId,
         ),
         guildId: discord.guildId || null,
+        botTokenHint: this.maskSecret(discord.botToken),
+        publicKeyHint: this.maskSecret(discord.publicKey),
         defaultChannelId: discord.defaultChannelId || null,
         defaultUserId: discord.defaultUserId || null,
       },

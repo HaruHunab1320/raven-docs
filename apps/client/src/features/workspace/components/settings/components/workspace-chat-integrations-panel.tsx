@@ -274,21 +274,18 @@ export function WorkspaceChatIntegrationsPanel() {
       ) : null}
       <TextInput
         label={t("Slack bot token")}
-        placeholder="xoxb-..."
+        placeholder={slack?.botTokenHint || "xoxb-..."}
         type="password"
+        description={slack?.botTokenHint ? t("Currently set - enter new value to replace") : undefined}
         {...form.getInputProps("slackBotToken")}
       />
       <TextInput
         label={t("Slack signing secret")}
-        placeholder="..."
+        placeholder={slack?.signingSecretHint || "..."}
         type="password"
+        description={slack?.signingSecretHint ? t("Currently set - enter new value to replace") : undefined}
         {...form.getInputProps("slackSigningSecret")}
       />
-      {slack?.configured ? (
-        <Text size="xs" c="dimmed">
-          {t("Slack credentials saved")}
-        </Text>
-      ) : null}
       <TextInput
         label={t("Default channel ID")}
         placeholder="C0123456"
@@ -408,14 +405,16 @@ export function WorkspaceChatIntegrationsPanel() {
       ) : null}
       <TextInput
         label={t("Discord bot token")}
-        placeholder="..."
+        placeholder={discord?.botTokenHint || "..."}
         type="password"
+        description={discord?.botTokenHint ? t("Currently set - enter new value to replace") : undefined}
         {...form.getInputProps("discordBotToken")}
       />
       <TextInput
         label={t("Discord public key")}
-        placeholder="..."
+        placeholder={discord?.publicKeyHint || "..."}
         type="password"
+        description={discord?.publicKeyHint ? t("Currently set - enter new value to replace") : undefined}
         {...form.getInputProps("discordPublicKey")}
       />
       <TextInput
@@ -423,11 +422,6 @@ export function WorkspaceChatIntegrationsPanel() {
         placeholder="1234567890"
         {...form.getInputProps("discordApplicationId")}
       />
-      {discord?.configured ? (
-        <Text size="xs" c="dimmed">
-          {t("Discord credentials saved")}
-        </Text>
-      ) : null}
       <TextInput
         label={t("Default channel ID")}
         placeholder="1234567890"
