@@ -7,7 +7,7 @@ import {
   usePageQuery,
   useUpdatePageMutation,
 } from "@/features/page/queries/page-query.ts";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import classes from "@/features/page/tree/styles/tree.module.css";
 import { ActionIcon, Menu, TextInput, rem } from "@mantine/core";
@@ -85,8 +85,9 @@ export default function SpaceTree({
   } = useGetRootSidebarPagesQuery({
     spaceId,
   });
-  const [, setTreeApi] = useAtom<TreeApi<SpaceTreeNode>>(treeApiAtom);
-  const treeApiRef = useRef<TreeApi<SpaceTreeNode>>();
+  const [, setTreeApi] = useAtom(treeApiAtom);
+  const treeApiRef = useRef<TreeApi<SpaceTreeNode> | null>(null);
+  const [treeMounted, setTreeMounted] = useState(false);
   const [openTreeNodes, setOpenTreeNodes] = useAtom<OpenMap>(openTreeNodesAtom);
   const rootElement = useRef<HTMLDivElement>();
   const { ref: sizeRef, width, height } = useElementSize();
@@ -225,12 +226,20 @@ export default function SpaceTree({
     }
   }, [currentPage?.id]);
 
+  // Use callback to set tree API when Tree component mounts
+  const handleTreeRef = useCallback((api: TreeApi<SpaceTreeNode> | null) => {
+    treeApiRef.current = api;
+    if (api) {
+      setTreeMounted(true);
+    }
+  }, []);
+
   useEffect(() => {
-    if (treeApiRef.current) {
-      // @ts-ignore
+    if (treeMounted && treeApiRef.current) {
+      // @ts-ignore - jotai type issue with primitive atoms
       setTreeApi(treeApiRef.current);
     }
-  }, [treeApiRef.current]);
+  }, [treeMounted, setTreeApi]);
 
   return (
     <div ref={mergedRef} className={classes.treeContainer}>
@@ -243,7 +252,7 @@ export default function SpaceTree({
           {...controllers}
           width={width}
           height={rootElement.current.clientHeight}
-          ref={treeApiRef}
+          ref={handleTreeRef}
           openByDefault={false}
           disableMultiSelection={true}
           className={classes.tree}

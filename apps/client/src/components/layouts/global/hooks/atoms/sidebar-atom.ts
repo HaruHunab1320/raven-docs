@@ -22,6 +22,17 @@ export const asideStateAtom = atom<AsideStateType>({
 
 export const sidebarWidthAtom = atomWithWebStorage<number>('sidebarWidth', 300);
 
+// Section heights for resizable sidebar sections (in pixels, null means auto/flex)
+export type SidebarSectionHeights = {
+  personal: number | null;
+  projects: number | null;
+};
+
+export const sidebarSectionHeightsAtom = atomWithWebStorage<SidebarSectionHeights>(
+  'sidebarSectionHeights',
+  { personal: null, projects: 150 }
+);
+
 export const agentChatDrawerAtom = atom<boolean>(false);
 
 export interface AgentChatContext {

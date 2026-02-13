@@ -38,7 +38,7 @@ export function SwitchSpace({ spaceName, spaceSlug }: SwitchSpaceProps) {
           justify="space-between"
           rightSection={<IconChevronDown size={18} />}
           color="gray"
-          onClick={open}
+          onClick={toggle}
           className={classes.spaceButton}
         >
           <Avatar

@@ -21,6 +21,7 @@ import {
   IconDots,
   IconFileExport,
   IconFolder,
+  IconGripHorizontal,
   IconHome,
   IconPaperclip,
   IconPlus,
@@ -33,10 +34,11 @@ import {
 } from "@tabler/icons-react";
 
 import classes from "./space-sidebar.module.css";
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import { SearchSpotlight } from "@/features/search/search-spotlight.tsx";
 import { treeApiAtom } from "@/features/page/tree/atoms/tree-api-atom.ts";
+import { sidebarSectionHeightsAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { useDisclosure } from "@mantine/hooks";
@@ -74,6 +76,43 @@ export function SpaceSidebar() {
   const [opened, { open: openSettings, close: closeSettings }] =
     useDisclosure(false);
   const { spaceSlug, spaceId } = useParams();
+
+  // Resizable section heights
+  const [sectionHeights, setSectionHeights] = useAtom(sidebarSectionHeightsAtom);
+  const [resizing, setResizing] = useState<'personal' | 'projects' | null>(null);
+  const personalSectionRef = useRef<HTMLDivElement>(null);
+  const projectsSectionRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef(0);
+  const startHeightRef = useRef(0);
+
+  const handleResizeStart = useCallback((section: 'personal' | 'projects', e: React.MouseEvent) => {
+    e.preventDefault();
+    setResizing(section);
+    startYRef.current = e.clientY;
+    const ref = section === 'personal' ? personalSectionRef : projectsSectionRef;
+    startHeightRef.current = ref.current?.offsetHeight || 150;
+  }, []);
+
+  useEffect(() => {
+    if (!resizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientY - startYRef.current;
+      const newHeight = Math.max(60, Math.min(400, startHeightRef.current + delta));
+      setSectionHeights({ ...sectionHeights, [resizing]: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setResizing(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizing, sectionHeights, setSectionHeights]);
   const spaceIdFromQuery = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get("spaceId") || undefined;
@@ -324,11 +363,15 @@ export function SpaceSidebar() {
           </div>
         </div>
 
-        <div className={classes.section}>
+        <div
+          ref={personalSectionRef}
+          className={clsx(classes.section, classes.sectionResizable)}
+          style={sectionHeights.personal ? { height: sectionHeights.personal } : undefined}
+        >
           <Text size="xs" fw={500} c="dimmed" mb={8} ml={12}>
             {t("Personal")}
           </Text>
-          <div className={classes.menuItems}>
+          <div className={clsx(classes.menuItems, classes.menuItemsScrollable)}>
             <UnstyledButton
               component={Link}
               to={APP_ROUTE.SPACE.TODAY(space.id)}
@@ -509,14 +552,23 @@ export function SpaceSidebar() {
               </div>
             ) : null}
           </div>
+          <div
+            className={classes.resizeHandle}
+            onMouseDown={(e) => handleResizeStart('personal', e)}
+          >
+            <IconGripHorizontal size={12} />
+          </div>
         </div>
 
         <div
+          ref={projectsSectionRef}
           className={clsx(
             classes.section,
             classes.sectionPages,
-            classes.sectionProjects
+            classes.sectionProjects,
+            classes.sectionResizable
           )}
+          style={sectionHeights.projects ? { height: sectionHeights.projects } : undefined}
         >
           <Group className={classes.pagesHeader} justify="space-between">
             <Text size="xs" fw={500} c="dimmed">
@@ -587,6 +639,12 @@ export function SpaceSidebar() {
                 );
               })
             )}
+          </div>
+          <div
+            className={classes.resizeHandle}
+            onMouseDown={(e) => handleResizeStart('projects', e)}
+          >
+            <IconGripHorizontal size={12} />
           </div>
         </div>
 
