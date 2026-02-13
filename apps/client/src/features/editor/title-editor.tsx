@@ -1,5 +1,5 @@
 import "@/features/editor/styles/index.css";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Document } from "@tiptap/extension-document";
 import { Heading } from "@tiptap/extension-heading";
@@ -44,6 +44,8 @@ export function TitleEditor({
   const emit = useQueryEmit();
   const navigate = useNavigate();
   const [activePageId, setActivePageId] = useState(pageId);
+  const isEditingRef = useRef(false);
+  const lastSavedTitleRef = useRef(title);
 
   const titleEditor = useEditor({
     extensions: [
@@ -71,7 +73,14 @@ export function TitleEditor({
       }
     },
     onUpdate({ editor }) {
+      isEditingRef.current = true;
       debounceUpdate();
+    },
+    onBlur() {
+      // Mark as no longer editing after a delay to allow save to complete
+      setTimeout(() => {
+        isEditingRef.current = false;
+      }, 1000);
     },
     editable: editable,
     content: title,
@@ -87,16 +96,21 @@ export function TitleEditor({
   const saveTitle = useCallback(() => {
     if (!titleEditor || activePageId !== pageId) return;
 
+    const currentTitle = titleEditor.getText();
     if (
-      titleEditor.getText() === title ||
-      (titleEditor.getText() === "" && title === null)
+      currentTitle === title ||
+      currentTitle === lastSavedTitleRef.current ||
+      (currentTitle === "" && title === null)
     ) {
+      isEditingRef.current = false;
       return;
     }
 
+    lastSavedTitleRef.current = currentTitle;
+
     updatePageMutationAsync({
       pageId: pageId,
-      title: titleEditor.getText(),
+      title: currentTitle,
     }).then((page) => {
       const event: UpdateEvent = {
         operation: "updateOne",
@@ -108,14 +122,26 @@ export function TitleEditor({
 
       localEmitter.emit("message", event);
       emit(event);
+
+      // Mark editing as done after save completes
+      setTimeout(() => {
+        isEditingRef.current = false;
+      }, 500);
     });
   }, [pageId, title, titleEditor]);
 
   const debounceUpdate = useDebouncedCallback(saveTitle, 500);
 
   useEffect(() => {
+    // Don't overwrite user's edits while they're actively typing
+    if (isEditingRef.current) return;
+
+    // Don't reset to a title we just saved
+    if (title === lastSavedTitleRef.current) return;
+
     if (titleEditor && title !== titleEditor.getText()) {
       titleEditor.commands.setContent(title);
+      lastSavedTitleRef.current = title;
     }
   }, [pageId, title, titleEditor]);
 

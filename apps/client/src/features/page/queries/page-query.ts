@@ -36,8 +36,8 @@ export function usePageQuery(
     queryKey: ["pages", pageInput.pageId],
     queryFn: () => getPageById(pageInput),
     enabled: !!pageInput.pageId,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000, // 30 seconds - prevents aggressive refetching while editing
+    refetchOnWindowFocus: false, // Disable auto-refetch on focus to prevent disrupting edits
     refetchOnReconnect: true,
   });
 
