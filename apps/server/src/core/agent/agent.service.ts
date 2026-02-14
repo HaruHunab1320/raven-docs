@@ -379,6 +379,7 @@ export class AgentService {
       if (!action?.method) continue;
       const params = {
         ...(action.params || {}),
+        workspaceId: workspace.id,
         spaceId: action.params?.spaceId || dto.spaceId,
         pageId: action.params?.pageId || dto.pageId,
       };
