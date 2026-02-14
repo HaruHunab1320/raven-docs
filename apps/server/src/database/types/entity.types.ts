@@ -171,3 +171,15 @@ export type {
   InsertableAgentActivity,
   ParallaxAgentActivityDaily,
 } from '../repos/parallax-agent/parallax-agent-activity.repo';
+
+// BugReport
+export type {
+  BugReport,
+  InsertableBugReport,
+  UpdatableBugReport,
+  ExtendedBugReport,
+  BugReportSource,
+  BugReportSeverity,
+  BugReportStatus,
+  BugReportListFilters,
+} from '../repos/bug-report/bug-report.repo';

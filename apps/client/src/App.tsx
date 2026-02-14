@@ -15,7 +15,7 @@ import AccountPreferences from "@/pages/settings/account/account-preferences.tsx
 import SpaceHome from "@/pages/space/space-home.tsx";
 import PageRedirect from "@/pages/page/page-redirect.tsx";
 import Layout from "@/components/layouts/global/layout.tsx";
-import { ErrorBoundary } from "react-error-boundary";
+import { BugReportErrorBoundary } from "@/features/bug-report/components/BugReportErrorBoundary";
 import InviteSignup from "@/pages/auth/invite-signup.tsx";
 import ForgotPassword from "@/pages/auth/forgot-password.tsx";
 import PasswordReset from "./pages/auth/password-reset";
@@ -39,6 +39,7 @@ import ResearchPage from "@/features/research/pages/research-page";
 import { TrashPage } from "@/features/space/pages/trash-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
 import ParallaxAgentsSettings from "@/pages/settings/workspace/parallax-agents.tsx";
+import BugReportsPage from "@/features/bug-report/pages/bug-reports-page";
 import { useEffect } from "react";
 
 // CSS for Project 89 themes
@@ -443,7 +444,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <BugReportErrorBoundary>
       <Routes>
         <Route index element={<Navigate to="/home" />} />
         <Route path={"/login"} element={<LoginPage />} />
@@ -511,10 +512,11 @@ export default function App() {
           <Route path={"/settings/spaces"} element={<Spaces />} />
           <Route path={"/settings/api-keys"} element={<ApiKeys />} />
           <Route path={"/settings/agents"} element={<ParallaxAgentsSettings />} />
+          <Route path={"/settings/bug-reports"} element={<BugReportsPage />} />
           <Route path={"/navigation-test"} element={<NavigationTestPage />} />
           <Route path={"*"} element={<Error404 />} />
         </Route>
       </Routes>
-    </>
+    </BugReportErrorBoundary>
   );
 }

@@ -25,6 +25,7 @@ import { ResearchModule } from './research/research.module';
 import { ParallaxAgentsModule } from './parallax-agents/parallax-agents.module';
 import { TerminalModule } from './terminal/terminal.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { BugReportModule } from './bug-report/bug-report.module';
 
 const modules = [
   UserModule,
@@ -45,6 +46,7 @@ const modules = [
   ParallaxAgentsModule,
   TerminalModule,
   KnowledgeModule,
+  BugReportModule,
 ];
 
 @Module({

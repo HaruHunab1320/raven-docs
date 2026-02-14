@@ -18,6 +18,7 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { DatabaseModule } from '../../database/database.module';
 import { AIModule } from '../../integrations/ai/ai.module';
 import { MCPModule } from '../../integrations/mcp/mcp.module';
+import { BugReportModule } from '../bug-report/bug-report.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     KnowledgeModule,
     AIModule,
     forwardRef(() => MCPModule),
+    BugReportModule,
   ],
   controllers: [AgentController],
   providers: [

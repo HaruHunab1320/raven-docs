@@ -42,4 +42,11 @@ Detailed walkthroughs for getting the most out of Raven Docs.
       Connect Raven Docs to Slack, Discord, and other tools.
     </p>
   </a>
+
+  <a href="/guides/bug-reporting" className="feature-card" style={{textDecoration: 'none', color: 'inherit'}}>
+    <div className="feature-card__title">Bug Reporting</div>
+    <p className="feature-card__description">
+      Report bugs via /bug command and view auto-captured errors.
+    </p>
+  </a>
 </div>

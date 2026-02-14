@@ -41,6 +41,8 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
 import { resolveAgentSettings } from '../../core/agent/agent-settings';
 import { ToolExecutedEventData } from './interfaces/mcp-event.interface';
+import { BugReportService } from '../../core/bug-report/bug-report.service';
+import { BugReportSourceDto, BugReportSeverityDto } from '../../core/bug-report/dto/create-bug-report.dto';
 
 /**
  * Machine Control Protocol (MCP) Service
@@ -84,6 +86,7 @@ export class MCPService {
     private readonly reviewHandler: ReviewHandler,
     private readonly insightsHandler: InsightsHandler,
     private readonly knowledgeHandler: KnowledgeHandler,
+    private readonly bugReportService: BugReportService,
   ) {}
 
   /**
@@ -439,6 +442,19 @@ export class MCPService {
         error?.message || 'Unknown error',
         options,
       );
+
+      // Auto-capture tool errors as bug reports (fire and forget)
+      this.captureToolError(
+        error,
+        request.method,
+        request.params,
+        user,
+        options,
+      ).catch((captureError) => {
+        this.logger.warn(
+          `MCPService: Failed to capture bug report - ${captureError.message}`,
+        );
+      });
 
       // Return a properly formatted JSON-RPC error response
       return this.handleError(error, request.id);
@@ -1166,6 +1182,74 @@ export class MCPService {
     if (request.id === undefined || request.id === null) {
       throw createInvalidRequestError('Id is required');
     }
+  }
+
+  /**
+   * Capture tool errors as bug reports for auto-tracking
+   *
+   * @param error The error that occurred
+   * @param method The MCP method being called
+   * @param params The method parameters
+   * @param user The authenticated user
+   * @param options Additional options
+   */
+  private async captureToolError(
+    error: any,
+    method: string,
+    params: any,
+    user: User,
+    options?: { isApiKeyAuth?: boolean; agentId?: string },
+  ): Promise<void> {
+    const errorMessage = error?.message || String(error);
+    const errorStack = error?.stack;
+    const errorCode = error?.code ? String(error.code) : undefined;
+
+    // Extract workspaceId from params or user
+    const workspaceId =
+      params?.workspaceId || user.workspaceId || undefined;
+    const spaceId = params?.spaceId || undefined;
+
+    // Determine severity based on error type
+    let severity: BugReportSeverityDto = BugReportSeverityDto.MEDIUM;
+    const lowerMessage = errorMessage.toLowerCase();
+
+    if (
+      lowerMessage.includes('database') ||
+      lowerMessage.includes('connection') ||
+      lowerMessage.includes('timeout')
+    ) {
+      severity = BugReportSeverityDto.HIGH;
+    } else if (
+      lowerMessage.includes('not found') ||
+      lowerMessage.includes('invalid')
+    ) {
+      severity = BugReportSeverityDto.LOW;
+    }
+
+    await this.bugReportService.createAutoReport(
+      {
+        source: BugReportSourceDto.AUTO_AGENT,
+        errorMessage,
+        errorStack,
+        errorCode,
+        severity,
+        workspaceId,
+        spaceId,
+        context: {
+          method,
+          isApiKeyAuth: options?.isApiKeyAuth,
+        },
+        metadata: {
+          agentId: options?.agentId,
+          toolName: method.split('.')[0],
+          operation: method.split('.')[1],
+        },
+        occurredAt: new Date().toISOString(),
+      },
+      user.id,
+    );
+
+    this.logger.debug(`MCPService: Bug report captured for ${method} error`);
   }
 
   /**

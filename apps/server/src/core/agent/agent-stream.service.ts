@@ -10,6 +10,9 @@ import { resolveAgentSettings } from './agent-settings';
 import { SpaceRepo } from '@raven-docs/db/repos/space/space.repo';
 import { PageRepo } from '@raven-docs/db/repos/page/page.repo';
 import { AgentMemoryContextService } from './agent-memory-context.service';
+import { BugReportService } from '../bug-report/bug-report.service';
+import { BugContextService } from '../bug-report/bug-context.service';
+import { BugReportSourceDto, BugReportSeverityDto } from '../bug-report/dto/create-bug-report.dto';
 
 @Injectable()
 export class AgentStreamService {
@@ -21,6 +24,8 @@ export class AgentStreamService {
     private readonly spaceRepo: SpaceRepo,
     private readonly pageRepo: PageRepo,
     private readonly memoryContextService: AgentMemoryContextService,
+    private readonly bugReportService: BugReportService,
+    private readonly bugContextService: BugContextService,
   ) {}
 
   private getModelId() {
@@ -93,6 +98,7 @@ export class AgentStreamService {
       `- knowledge_search: Search documentation and knowledge base. USE THIS for any questions about Raven Docs features, capabilities, or how to do things.`,
       `- search_pages: Search user-created pages in the workspace.`,
       `- create_task: Create a new task.`,
+      `- report_bug: Report a bug or issue. Users can type "/bug" followed by a description.`,
       ``,
       `Guidelines:`,
       `- ALWAYS use knowledge_search when asked about Raven Docs`,
@@ -217,6 +223,47 @@ export class AgentStreamService {
           }
 
           return { success: true, task: response.result };
+        },
+      }),
+
+      report_bug: tool({
+        description: 'Report a bug or issue. Use when user says /bug or wants to report a problem.',
+        inputSchema: z.object({
+          title: z.string().describe('Brief title of the bug'),
+          description: z.string().describe('Detailed description of the issue'),
+          severity: z.enum(['low', 'medium', 'high', 'critical']).optional().describe('Severity level'),
+        }),
+        execute: async ({ title, description, severity }) => {
+          this.logger.log(`[Tool] report_bug called: "${title}"`);
+
+          try {
+            const report = await this.bugReportService.create(
+              user.id,
+              workspace.id,
+              {
+                title,
+                description,
+                source: BugReportSourceDto.USER_COMMAND,
+                severity: severity as BugReportSeverityDto || BugReportSeverityDto.MEDIUM,
+                spaceId: dto.spaceId,
+                context: {
+                  pageId: dto.pageId,
+                  projectId: dto.projectId,
+                  sessionId: dto.sessionId,
+                },
+              },
+            );
+
+            this.logger.log(`[Tool] report_bug created: ${report.id}`);
+            return {
+              success: true,
+              bugId: report.id.slice(0, 8),
+              message: `Bug report "${title}" has been submitted. Reference: ${report.id.slice(0, 8)}`,
+            };
+          } catch (error: any) {
+            this.logger.error(`[Tool] report_bug error: ${error?.message || error}`);
+            return { error: `Failed to create bug report: ${error?.message || 'Unknown error'}` };
+          }
         },
       }),
     };

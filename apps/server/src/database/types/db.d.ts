@@ -108,6 +108,30 @@ export interface Backlinks {
   workspaceId: string;
 }
 
+export interface BugReports {
+  context: Json | null;
+  createdAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+  description: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  errorStack: string | null;
+  id: Generated<string>;
+  metadata: Json | null;
+  occurredAt: Generated<Timestamp>;
+  occurrenceCount: Generated<number>;
+  reporterId: string | null;
+  resolvedAt: Timestamp | null;
+  severity: Generated<string>;
+  source: string;
+  spaceId: string | null;
+  status: Generated<string>;
+  title: string;
+  updatedAt: Generated<Timestamp>;
+  userJourney: Json | null;
+  workspaceId: string | null;
+}
+
 export interface Comments {
   content: Json | null;
   createdAt: Generated<Timestamp>;
@@ -562,6 +586,7 @@ export interface DB {
   agentReviewPrompts: AgentReviewPrompts;
   attachments: Attachments;
   backlinks: Backlinks;
+  bugReports: BugReports;
   comments: Comments;
   goals: Goals;
   groups: Groups;

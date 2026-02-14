@@ -65,6 +65,7 @@ import { AgentModule } from '../../core/agent/agent.module';
 import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents.module';
 import { KnowledgeModule } from '../../core/knowledge/knowledge.module';
+import { BugReportModule } from '../../core/bug-report/bug-report.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -98,6 +99,7 @@ import { KnowledgeModule } from '../../core/knowledge/knowledge.module';
     forwardRef(() => AgentModule),
     forwardRef(() => ParallaxAgentsModule),
     KnowledgeModule,
+    BugReportModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],

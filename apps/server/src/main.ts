@@ -15,6 +15,7 @@ import { WsRedisIoAdapter } from './ws/adapter/ws-redis.adapter';
 import { InternalLogFilter } from './common/logger/internal-log-filter';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyCookie from '@fastify/cookie';
+import { BugReportExceptionFilter } from './common/filters/bug-report-exception.filter';
 
 async function bootstrap() {
   // Define log levels to include debug logs
@@ -103,6 +104,11 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type,Accept,Authorization',
   });
   app.useGlobalInterceptors(new TransformHttpResponseInterceptor(reflector));
+
+  // Register bug report exception filter for auto-capturing server errors
+  const bugReportFilter = app.get(BugReportExceptionFilter);
+  app.useGlobalFilters(bugReportFilter);
+
   app.enableShutdownHooks();
 
   const logger = new Logger('NestApplication');

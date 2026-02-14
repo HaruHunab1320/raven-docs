@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'guides/knowledge',
         'guides/research',
         'guides/agent-runtime',
+        'guides/bug-reporting',
       ],
     },
     {
@@ -76,6 +77,7 @@ const sidebars: SidebarsConfig = {
         'api/endpoints/attachments',
         'api/endpoints/search',
         'api/endpoints/research',
+        'api/endpoints/bug-reports',
       ],
     },
     'api/errors',
