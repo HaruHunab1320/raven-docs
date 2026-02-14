@@ -281,6 +281,23 @@ resource "google_cloud_run_v2_service" "main" {
         }
       }
 
+      # Gemini model configuration
+      dynamic "env" {
+        for_each = var.gemini_api_key_id != "" ? [1] : []
+        content {
+          name  = "GEMINI_EMBEDDING_MODEL"
+          value = "gemini-embedding-001"
+        }
+      }
+
+      dynamic "env" {
+        for_each = var.gemini_api_key_id != "" ? [1] : []
+        content {
+          name  = "GEMINI_AGENT_MODEL"
+          value = "gemini-3-pro-preview"
+        }
+      }
+
       ports {
         container_port = 3000
       }

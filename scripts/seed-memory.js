@@ -80,7 +80,7 @@ const seed = async () => {
       timestamp: timestamp.toISOString(),
       timestampMs: timestamp.getTime(),
       embedding: [],
-      embeddingModel: "text-embedding-004",
+      embeddingModel: "gemini-embedding-001",
       contentRef: id,
     },
   );

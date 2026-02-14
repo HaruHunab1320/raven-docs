@@ -32,7 +32,9 @@ export class KnowledgeHandler {
   async search(params: any, userId: string): Promise<any> {
     this.logger.debug(`Processing knowledge.search for user ${userId}`);
 
-    if (!params.query) {
+    // Accept 'query' or 'content' as the search term
+    const query = params.query || params.content;
+    if (!query) {
       throw createInvalidParamsError('query is required');
     }
 
@@ -56,7 +58,7 @@ export class KnowledgeHandler {
       }
 
       const results = await this.knowledgeService.searchKnowledge({
-        query: params.query,
+        query,
         workspaceId: params.workspaceId,
         spaceId: params.spaceId,
         limit: params.limit || 5,

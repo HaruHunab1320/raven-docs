@@ -42,7 +42,7 @@ export class VectorSearchService {
     model?: string;
   }): Promise<void> {
     const embeddingStr = this.formatEmbedding(params.embedding);
-    const model = params.model || process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
+    const model = params.model || process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
 
     await sql`
       INSERT INTO memory_embeddings (memory_id, embedding, model)

@@ -481,8 +481,8 @@ export function AgentChatPanel({
           Context used:
         </Text>
         {contextChips.length ? (
-          contextChips.map((chip) => (
-            <Badge key={chip.key} size="xs" variant="light">
+          contextChips.map((chip, index) => (
+            <Badge key={chip.key || `chip-${index}`} size="xs" variant="light">
               {chip.label} {chip.count}
             </Badge>
           ))
@@ -500,8 +500,8 @@ export function AgentChatPanel({
           <Popover.Dropdown>
             <Stack gap="xs" className={classes.contextDropdown}>
               {contextChips.length ? (
-                contextChips.map((source) => (
-                  <Stack key={source.key} gap={4}>
+                contextChips.map((source, sourceIndex) => (
+                  <Stack key={source.key || `source-${sourceIndex}`} gap={4}>
                     <Group justify="space-between" align="center">
                       <Text size="xs" fw={600}>
                         {source.label}
@@ -512,8 +512,8 @@ export function AgentChatPanel({
                     </Group>
                     <ScrollArea h={120} offsetScrollbars>
                       <Stack gap={4}>
-                        {source.items.map((item) => (
-                          <Text key={item.id} size="xs" c="dimmed">
+                        {source.items.map((item, itemIndex) => (
+                          <Text key={item.id || `item-${sourceIndex}-${itemIndex}`} size="xs" c="dimmed">
                             {item.summary || "memory"}
                           </Text>
                         ))}
@@ -709,7 +709,7 @@ export function AgentChatPanel({
             value={message}
             onChange={(event) => setMessage(event.currentTarget.value)}
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 void handleSend();
               }

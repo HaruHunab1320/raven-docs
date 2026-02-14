@@ -60,6 +60,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/apps/server/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/apps/client/dist /client/dist
 COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/mcp-method-schemas.json /mcp-method-schemas.json
+# Copy docs for knowledge seeding (used by seed-knowledge job)
+COPY --from=builder --chown=nodejs:nodejs /app/apps/docs/docs ./docs
 
 # Create data directory
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data

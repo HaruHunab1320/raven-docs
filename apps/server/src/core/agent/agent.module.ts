@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AgentController } from './agent.controller';
 import { AgentService } from './agent.service';
+import { AgentStreamService } from './agent-stream.service';
 import { AgentPlannerService } from './agent-planner.service';
 import { AgentLoopService } from './agent-loop.service';
 import { AgentLoopSchedulerService } from './agent-loop-scheduler.service';
@@ -32,6 +33,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
   controllers: [AgentController],
   providers: [
     AgentService,
+    AgentStreamService,
     AgentPlannerService,
     AgentLoopService,
     AgentLoopSchedulerService,

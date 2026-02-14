@@ -6,14 +6,17 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 import { AgentChatDto } from './agent-chat.dto';
 import { AgentService } from './agent.service';
+import { AgentStreamService } from './agent-stream.service';
 import { AgentPlannerService } from './agent-planner.service';
 import { AgentPlanDto } from './agent-plan.dto';
 import { AgentPlanDecisionDto } from './agent-plan-decision.dto';
@@ -52,6 +55,7 @@ const getWeekKey = (date = new Date()) => {
 export class AgentController {
   constructor(
     private readonly agentService: AgentService,
+    private readonly agentStreamService: AgentStreamService,
     private readonly agentPlannerService: AgentPlannerService,
     private readonly agentLoopService: AgentLoopService,
     private readonly agentLoopScheduler: AgentLoopSchedulerService,
@@ -82,10 +86,10 @@ export class AgentController {
 
   @HttpCode(HttpStatus.OK)
   @Post('chat-ui')
-  @Header('Content-Type', 'text/plain; charset=utf-8')
   @SkipTransform()
   async chatUi(
     @Body() dto: AgentChatUiDto,
+    @Res({ passthrough: false }) res: FastifyReply,
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
@@ -115,23 +119,64 @@ export class AgentController {
     const messageText = extractText(lastUserMessage);
 
     if (!messageText) {
-      return '';
+      return res
+        .header('Content-Type', 'text/plain; charset=utf-8')
+        .send('');
     }
 
-    const response = await this.agentService.chat(
-      {
-        spaceId: dto.spaceId,
-        message: messageText,
-        pageId: dto.pageId,
-        projectId: dto.projectId,
-        sessionId: dto.sessionId,
-        autoApprove: dto.autoApprove,
-      },
-      user,
-      workspace,
-    );
+    try {
+      const result = await this.agentStreamService.streamChat(
+        {
+          spaceId: dto.spaceId,
+          message: messageText,
+          pageId: dto.pageId,
+          projectId: dto.projectId,
+          sessionId: dto.sessionId,
+          autoApprove: dto.autoApprove,
+        },
+        user,
+        workspace,
+      );
 
-    return response.reply || '';
+      // Set headers for streaming
+      res.raw.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      // Stream using textStream for compatibility with TextStreamChatTransport
+      let totalChars = 0;
+      try {
+        for await (const chunk of result.textStream) {
+          totalChars += chunk.length;
+          const written = res.raw.write(chunk);
+          // If buffer is full, wait for drain
+          if (!written) {
+            await new Promise(resolve => res.raw.once('drain', resolve));
+          }
+        }
+        console.log(`[chat-ui] Streamed ${totalChars} characters successfully`);
+      } catch (streamError: any) {
+        console.error(`[chat-ui] Error during streaming:`, streamError);
+        res.raw.write(`\n\nStreaming error: ${streamError.message}`);
+      }
+
+      res.raw.end();
+      return;
+    } catch (error: any) {
+      console.error(`[chat-ui] Streaming error:`, error);
+      // Only send error if headers haven't been sent
+      if (!res.raw.headersSent) {
+        return res
+          .status(500)
+          .header('Content-Type', 'text/plain; charset=utf-8')
+          .send(`Error: ${error.message}`);
+      }
+      // If streaming already started, write error and end
+      res.raw.write(`\n\nError: ${error.message}`);
+      res.raw.end();
+    }
   }
 
   @HttpCode(HttpStatus.OK)

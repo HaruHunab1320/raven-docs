@@ -1,0 +1,57 @@
+name: Seed Knowledge Base (Manual)
+
+# Manual trigger only - automatic seeding is handled by deploy.yml when docs change
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: gcr.io
+  IMAGE_NAME: raven-docs
+
+jobs:
+  seed-knowledge:
+    name: Seed Knowledge Base
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Update seed-knowledge job image
+        id: update-job
+        env:
+          # Use latest image since docs changes don't trigger a new build
+          IMAGE_URL: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
+        run: |
+          echo "Updating seed-knowledge job with image: $IMAGE_URL"
+          if gcloud run jobs describe raven-docs-production-seed-knowledge --region=${{ env.REGION }} 2>/dev/null; then
+            gcloud run jobs update raven-docs-production-seed-knowledge \
+              --image=$IMAGE_URL \
+              --region=${{ env.REGION }}
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::warning::Seed knowledge job doesn't exist yet. Run 'terraform apply' to create it."
+          fi
+
+      - name: Run seed-knowledge job
+        if: steps.update-job.outputs.exists == 'true'
+        run: |
+          echo "Triggering knowledge base seeding..."
+          gcloud run jobs execute raven-docs-production-seed-knowledge \
+            --region ${{ env.REGION }} \
+            --wait
+          echo "Knowledge base seeding complete!"

@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsUUID, IsUrl } from 'class-validator';
 
-export type KnowledgeSourceType = 'url' | 'file' | 'page';
+export type KnowledgeSourceType = 'url' | 'file' | 'page' | 'markdown';
 export type KnowledgeScope = 'system' | 'workspace' | 'space';
 export type KnowledgeSourceStatus = 'pending' | 'processing' | 'ready' | 'error';
 
@@ -8,8 +8,12 @@ export class CreateKnowledgeSourceDto {
   @IsString()
   name: string;
 
-  @IsEnum(['url', 'file', 'page'])
+  @IsEnum(['url', 'file', 'page', 'markdown'])
   type: KnowledgeSourceType;
+
+  @IsOptional()
+  @IsString()
+  content?: string; // For 'markdown' type - direct content
 
   @IsOptional()
   @IsUrl()

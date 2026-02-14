@@ -18,6 +18,7 @@
     "email:dev": "nx run server:email:dev",
     "dev": "pnpm concurrently -n \"frontend,backend\" -c \"cyan,green\" \"pnpm run client:dev\" \"pnpm run server:dev\"",
     "seed:memory": "node scripts/seed-memory.js",
+    "seed:knowledge": "node scripts/seed-knowledge.js",
     "docs:dev": "pnpm --filter @raven-docs/docs run dev",
     "docs:build": "pnpm --filter @raven-docs/docs run build",
     "docs:serve": "pnpm --filter @raven-docs/docs run serve",
@@ -86,7 +87,7 @@
     "y-prosemirror": "^1.2.11",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.20",
-    "zod": "^3.23.8"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nx/js": "20.4.5",

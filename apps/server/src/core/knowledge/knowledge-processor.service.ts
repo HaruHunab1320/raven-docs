@@ -25,7 +25,15 @@ export class KnowledgeProcessorService {
     private readonly vectorSearch: VectorSearchService,
   ) {}
 
-  async processSource(sourceId: string): Promise<void> {
+  // Cache for markdown content (for sources created via API with direct content)
+  private markdownContentCache = new Map<string, string>();
+
+  async processSource(sourceId: string, directContent?: string): Promise<void> {
+    // Store direct content in cache if provided
+    if (directContent) {
+      this.markdownContentCache.set(sourceId, directContent);
+    }
+
     const source = await sql<{
       id: string;
       name: string;
@@ -66,6 +74,16 @@ export class KnowledgeProcessorService {
           break;
         case 'page':
           content = await this.getPageContent(sourceRecord.page_id!);
+          break;
+        case 'markdown':
+          content = this.markdownContentCache.get(sourceId) || '';
+          this.markdownContentCache.delete(sourceId); // Clean up after use
+          if (!content) {
+            // Markdown sources without cached content cannot be refreshed
+            // (they were seeded directly to the database)
+            this.logger.warn(`Cannot refresh markdown source ${sourceId} - no content available`);
+            throw new Error('Markdown source content not available for refresh');
+          }
           break;
         default:
           throw new Error(`Unknown source type: ${sourceRecord.type}`);

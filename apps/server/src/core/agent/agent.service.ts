@@ -41,6 +41,7 @@ export class AgentService {
   ) {}
 
   private getAgentModel() {
+    // Use the latest Gemini 3 Pro for best reasoning and tool calling
     return process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview';
   }
 
@@ -287,6 +288,9 @@ export class AgentService {
       `User message: ${dto.message}`,
       `Available tools (use these when needed):`,
       ...toolList,
+      `Tool guidance:`,
+      `- Use knowledge.search to search documentation and knowledge base (requires: query, workspaceId)`,
+      `- Use search.query to search user-created pages (requires: query)`,
       `Ask concise clarifying questions when needed instead of listing boilerplate fields.`,
       `When you need a tool, include it in "actions" with method + params.`,
       `Always include spaceId and pageId when relevant to the tool.`,
@@ -334,8 +338,12 @@ export class AgentService {
                     properties: {
                       spaceId: { type: 'string' },
                       pageId: { type: 'string' },
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      content: { type: 'string' },
+                      projectId: { type: 'string' },
+                      query: { type: 'string' },
                     },
-                    additionalProperties: true,
                   },
                 },
                 required: ['method'],
@@ -395,7 +403,33 @@ export class AgentService {
       );
 
       if (!response.error) {
-        actionSummaries.push(`- ${action.method}: applied`);
+        // For knowledge search, include the results
+        if (action.method === 'knowledge.search' && response.result?.results) {
+          const results = response.result.results as Array<{ content: string; sourceName: string }>;
+          if (results.length > 0) {
+            const resultText = results
+              .slice(0, 3)
+              .map((r) => `[${r.sourceName}]: ${r.content.slice(0, 500)}`)
+              .join('\n\n');
+            actionSummaries.push(`- ${action.method}: found ${results.length} results\n${resultText}`);
+          } else {
+            actionSummaries.push(`- ${action.method}: no results found`);
+          }
+        // For page search, include page results (returns array directly)
+        } else if (action.method === 'search.query' && Array.isArray(response.result)) {
+          const items = response.result as Array<{ title: string; slugId: string; highlight?: string }>;
+          if (items.length > 0) {
+            const resultText = items
+              .slice(0, 5)
+              .map((p) => `- ${p.title}${p.highlight ? `: ${p.highlight}` : ''}`)
+              .join('\n');
+            actionSummaries.push(`- ${action.method}: found ${items.length} pages\n${resultText}`);
+          } else {
+            actionSummaries.push(`- ${action.method}: no pages found`);
+          }
+        } else {
+          actionSummaries.push(`- ${action.method}: applied`);
+        }
         continue;
       }
 

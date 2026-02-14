@@ -52,15 +52,15 @@ export class KnowledgeService {
 
     const source = result.rows[0];
 
-    // Queue processing asynchronously
-    this.processSourceAsync(source.id);
+    // Queue processing asynchronously (pass content for markdown type)
+    this.processSourceAsync(source.id, input.content);
 
     return source;
   }
 
-  private async processSourceAsync(sourceId: string): Promise<void> {
+  private async processSourceAsync(sourceId: string, content?: string): Promise<void> {
     // Process in background - don't await
-    this.processor.processSource(sourceId).catch((error) => {
+    this.processor.processSource(sourceId, content).catch((error) => {
       this.logger.error(`Background processing failed for source ${sourceId}:`, error);
     });
   }
@@ -123,6 +123,23 @@ export class KnowledgeService {
     `.execute(this.db);
 
     this.processSourceAsync(sourceId);
+  }
+
+  /**
+   * Refresh all knowledge sources (re-embed with current model)
+   */
+  async refreshAllSources(): Promise<{ refreshed: number }> {
+    const sources = await sql<{ id: string }>`
+      SELECT id FROM knowledge_sources WHERE status != 'processing'
+    `.execute(this.db);
+
+    this.logger.log(`Refreshing ${sources.rows.length} knowledge sources`);
+
+    for (const source of sources.rows) {
+      await this.refreshSource(source.id);
+    }
+
+    return { refreshed: sources.rows.length };
   }
 
   async searchKnowledge(params: {

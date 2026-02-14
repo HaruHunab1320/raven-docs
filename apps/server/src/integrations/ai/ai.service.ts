@@ -127,7 +127,7 @@ export class AIService {
       );
     }
 
-    // Use v1beta for embeddings - more reliable model availability
+    // Use v1beta for gemini-embedding models
     const apiVersion = 'v1beta';
     const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${request.model}:embedContent?key=${apiKey}`;
     const body = {

@@ -61,6 +61,11 @@ export class KnowledgeController {
     return { success: true };
   }
 
+  @Post('sources/refresh-all')
+  async refreshAllSources() {
+    return this.knowledgeService.refreshAllSources();
+  }
+
   @Post('sources/:id/refresh')
   async refreshSource(@Param('id') id: string) {
     await this.knowledgeService.refreshSource(id);

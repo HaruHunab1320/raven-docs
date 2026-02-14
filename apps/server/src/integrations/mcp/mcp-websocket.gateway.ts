@@ -343,6 +343,12 @@ export class MCPWebSocketGateway
    * This method is called by other parts of the application to broadcast events.
    */
   public publishEvent(event: MCPEvent): void {
+    // Guard: ensure server is initialized
+    if (!this.server) {
+      this.logger.debug('[MCP-WebSocket] Server not initialized, skipping event');
+      return;
+    }
+
     // Add debug logs to track event publishing
     this.logger.debug(
       `[MCP-WebSocket] Publishing event: ${event.type}.${event.resource}.${event.operation} for ID: ${event.resourceId}`,
@@ -397,7 +403,7 @@ export class MCPWebSocketGateway
       }
 
       // For debugging, let's see if we have any connected clients at all
-      const totalClients = this.server.sockets.sockets.size;
+      const totalClients = this.server?.sockets?.sockets?.size ?? 0;
       this.logger.debug(
         `[MCP-WebSocket] Total connected clients: ${totalClients}`,
       );
@@ -433,6 +439,7 @@ export class MCPWebSocketGateway
   // Helper method to safely get room size
   private getRoomSize(roomName: string): number {
     try {
+      if (!this.server) return 0;
       // The adapter might be using a Map to store rooms
       if (this.server.adapter && typeof this.server.adapter === 'object') {
         // Try to access rooms safely
