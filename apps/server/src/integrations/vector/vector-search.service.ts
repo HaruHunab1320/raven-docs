@@ -27,7 +27,7 @@ export class VectorSearchService {
   ) {}
 
   async embedText(text: string): Promise<number[]> {
-    const model = process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
+    const model = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
     const result = await this.aiService.embedContent({ model, content: text });
     return result.embedding;
   }

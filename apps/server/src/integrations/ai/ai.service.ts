@@ -127,8 +127,8 @@ export class AIService {
       );
     }
 
-    // Use v1 API for text-embedding-004, v1beta for older models
-    const apiVersion = request.model.includes('text-embedding') ? 'v1' : 'v1beta';
+    // Use v1beta for embeddings - more reliable model availability
+    const apiVersion = 'v1beta';
     const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${request.model}:embedContent?key=${apiKey}`;
     const body = {
       content: {
@@ -137,6 +137,7 @@ export class AIService {
     };
 
     try {
+      this.logger.log(`Gemini embed request: model=${request.model}, apiVersion=${apiVersion}`);
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,10 +146,11 @@ export class AIService {
       const json = await response.json();
       if (!response.ok) {
         this.logger.warn(
-          `Gemini embed error: ${response.status} ${JSON.stringify(json)}`,
+          `Gemini embed error: ${response.status} model=${request.model} ${JSON.stringify(json)}`,
         );
         throw createInternalError(json?.error?.message || 'Gemini embed error');
       }
+      this.logger.log(`Gemini embed success: model=${request.model}, dimensions=${json?.embedding?.values?.length || 0}`);
       return { embedding: json?.embedding?.values || [] };
     } catch (error: any) {
       if (error?.code && typeof error.code === 'number') {

@@ -1,23 +1,30 @@
 import { ActionIcon, Group, Text, Tooltip } from "@mantine/core";
 import { spotlight } from "@mantine/spotlight";
 import { IconPlus, IconX } from "@tabler/icons-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { usePageTabs } from "@/features/page/hooks/use-page-tabs";
 import classes from "./page-tabs-bar.module.css";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { extractPageSlugId } from "@/lib";
 
+// Extract the page slug portion from a path/URL
+const getPageSlugFromPath = (path: string): string | null => {
+  const match = path.match(/\/p\/([^/?#]+)/);
+  return match?.[1] || null;
+};
+
 export function PageTabsBar() {
   const { t } = useTranslation();
   const { tabs, closeTab, clearTabs } = usePageTabs();
   const location = useLocation();
   const navigate = useNavigate();
-  const { pageSlug } = useParams();
   const barRef = useRef<HTMLDivElement | null>(null);
 
-  // Extract current page ID for active tab comparison (more stable than URL)
-  const currentPageId = pageSlug ? extractPageSlugId(pageSlug) : null;
+  // Extract slugId from current URL - this is what we compare against tab URLs
+  // Tab stores page.id (UUID), but URL contains slugId, so we compare slugIds from both URLs
+  const currentPageSlug = getPageSlugFromPath(location.pathname);
+  const currentSlugId = currentPageSlug ? extractPageSlugId(currentPageSlug) : null;
 
   useEffect(() => {
     const height = barRef.current?.offsetHeight || 0;
@@ -63,7 +70,9 @@ export function PageTabsBar() {
     <div className={classes.tabsBar} ref={barRef}>
       <div className={classes.tabsList}>
         {tabs.map((tab) => {
-          const isActive = currentPageId === tab.id;
+          const tabPageSlug = getPageSlugFromPath(tab.url);
+          const tabSlugId = tabPageSlug ? extractPageSlugId(tabPageSlug) : null;
+          const isActive = currentSlugId && currentSlugId === tabSlugId;
           return (
             <div
               key={tab.id}
