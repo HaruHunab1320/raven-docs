@@ -40,10 +40,13 @@ export class DiscordController {
     const signature = headers['x-signature-ed25519'];
     const timestamp = headers['x-signature-timestamp'];
 
+    this.logger.log(`Discord request: rawBodyLen=${rawBody?.length || 0}, hasSig=${!!signature}, hasTs=${!!timestamp}`);
+
     let payload: any = null;
     try {
       payload = rawBody ? JSON.parse(rawBody) : null;
     } catch {
+      this.logger.warn(`Discord: Failed to parse payload`);
       reply.code(400).send({ type: 4, data: { content: 'Invalid payload.' } });
       return;
     }

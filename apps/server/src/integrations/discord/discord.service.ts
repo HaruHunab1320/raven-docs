@@ -84,13 +84,18 @@ export class DiscordService {
       return false;
     }
     try {
+      // Trim any whitespace from inputs
+      const cleanPublicKey = publicKey.trim();
+      const cleanSignature = signature.trim();
+      const cleanTimestamp = timestamp.trim();
+
       const message = Buffer.concat([
-        Buffer.from(timestamp),
+        Buffer.from(cleanTimestamp),
         Buffer.from(rawBody),
       ]);
-      const sig = Buffer.from(signature, 'hex');
-      const key = Buffer.from(publicKey, 'hex');
-      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}`);
+      const sig = Buffer.from(cleanSignature, 'hex');
+      const key = Buffer.from(cleanPublicKey, 'hex');
+      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}, keyHex=${cleanPublicKey.substring(0, 16)}...`);
       const result = nacl.sign.detached.verify(message, sig, key);
       this.logger.log(`Discord verify result: ${result}`);
       return result;
