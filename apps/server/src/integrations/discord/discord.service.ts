@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
-import nacl from 'tweetnacl';
+import * as nacl from 'tweetnacl';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { UserRepo } from '../../database/repos/user/user.repo';
 import { AgentService } from '../../core/agent/agent.service';
