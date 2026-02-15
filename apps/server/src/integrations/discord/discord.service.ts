@@ -98,8 +98,15 @@ export class DiscordService {
       this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}`);
       this.logger.log(`Discord verify: ts="${cleanTimestamp}", bodyStart="${rawBody.substring(0, 50)}", bodyEnd="${rawBody.substring(rawBody.length - 30)}"`);
       this.logger.log(`Discord verify: fullKey=${cleanPublicKey}`);
-      const result = nacl.sign.detached.verify(message, sig, key);
-      this.logger.log(`Discord verify result: ${result}`);
+
+      let result = false;
+      try {
+        result = nacl.sign.detached.verify(message, sig, key);
+        this.logger.log(`Discord verify nacl returned: ${result}`);
+      } catch (naclError: any) {
+        this.logger.error(`Discord verify nacl threw: ${naclError?.message || naclError}`);
+      }
+
       return result;
     } catch (error: any) {
       this.logger.warn(`Discord signature verify failed: ${error?.message || error}`);
