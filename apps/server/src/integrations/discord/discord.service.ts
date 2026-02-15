@@ -95,7 +95,9 @@ export class DiscordService {
       ]);
       const sig = Buffer.from(cleanSignature, 'hex');
       const key = Buffer.from(cleanPublicKey, 'hex');
-      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}, keyHex=${cleanPublicKey.substring(0, 16)}...`);
+      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}`);
+      this.logger.log(`Discord verify: ts="${cleanTimestamp}", bodyStart="${rawBody.substring(0, 50)}", bodyEnd="${rawBody.substring(rawBody.length - 30)}"`);
+      this.logger.log(`Discord verify: fullKey=${cleanPublicKey}`);
       const result = nacl.sign.detached.verify(message, sig, key);
       this.logger.log(`Discord verify result: ${result}`);
       return result;
