@@ -80,36 +80,16 @@ export class DiscordService {
     publicKey: string | undefined,
   ): boolean {
     if (!rawBody || !signature || !timestamp || !publicKey) {
-      this.logger.warn(`Discord verify missing params: rawBody=${!!rawBody} (${rawBody?.length}), sig=${!!signature}, ts=${!!timestamp}, key=${!!publicKey}`);
       return false;
     }
     try {
-      // Trim any whitespace from inputs
-      const cleanPublicKey = publicKey.trim();
-      const cleanSignature = signature.trim();
-      const cleanTimestamp = timestamp.trim();
-
       const message = Buffer.concat([
-        Buffer.from(cleanTimestamp),
+        Buffer.from(timestamp),
         Buffer.from(rawBody),
       ]);
-      const sig = Buffer.from(cleanSignature, 'hex');
-      const key = Buffer.from(cleanPublicKey, 'hex');
-      // Create a simple hash of the body for comparison
-      const bodyHash = Buffer.from(rawBody).reduce((a, b) => ((a << 5) - a + b) | 0, 0).toString(16);
-      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}, bodyHash=${bodyHash}`);
-      this.logger.log(`Discord verify: ts="${cleanTimestamp}", sig="${cleanSignature.substring(0, 16)}..."`);
-      this.logger.log(`Discord verify: fullKey=${cleanPublicKey}`);
-
-      let result = false;
-      try {
-        result = nacl.sign.detached.verify(message, sig, key);
-        this.logger.log(`Discord verify nacl returned: ${result}`);
-      } catch (naclError: any) {
-        this.logger.error(`Discord verify nacl threw: ${naclError?.message || naclError}`);
-      }
-
-      return result;
+      const sig = Buffer.from(signature, 'hex');
+      const key = Buffer.from(publicKey, 'hex');
+      return nacl.sign.detached.verify(message, sig, key);
     } catch (error: any) {
       this.logger.warn(`Discord signature verify failed: ${error?.message || error}`);
       return false;
