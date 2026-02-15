@@ -4,5 +4,7 @@ node_modules
 dist
 data
 
-# Docs site is deployed separately
-apps/docs
+# Docs site is deployed separately (exclude build artifacts but keep source docs for knowledge seeding)
+apps/docs/.docusaurus
+apps/docs/build
+apps/docs/node_modules
