@@ -95,8 +95,10 @@ export class DiscordService {
       ]);
       const sig = Buffer.from(cleanSignature, 'hex');
       const key = Buffer.from(cleanPublicKey, 'hex');
-      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}`);
-      this.logger.log(`Discord verify: ts="${cleanTimestamp}", bodyStart="${rawBody.substring(0, 50)}", bodyEnd="${rawBody.substring(rawBody.length - 30)}"`);
+      // Create a simple hash of the body for comparison
+      const bodyHash = Buffer.from(rawBody).reduce((a, b) => ((a << 5) - a + b) | 0, 0).toString(16);
+      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}, bodyHash=${bodyHash}`);
+      this.logger.log(`Discord verify: ts="${cleanTimestamp}", sig="${cleanSignature.substring(0, 16)}..."`);
       this.logger.log(`Discord verify: fullKey=${cleanPublicKey}`);
 
       let result = false;
