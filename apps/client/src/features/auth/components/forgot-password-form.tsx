@@ -16,20 +16,22 @@ const formSchema = z.object({
     .email({ message: "Invalid email address" }),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 export function ForgotPasswordForm() {
   const { t } = useTranslation();
   const { forgotPassword, isLoading } = useAuth();
   const [isTokenSent, setIsTokenSent] = useState<boolean>(false);
   useRedirectIfAuthenticated();
 
-  const form = useForm<IForgotPassword>({
+  const form = useForm<FormValues>({
     validate: zodResolver(formSchema),
     initialValues: {
       email: "",
     },
   });
 
-  async function onSubmit(data: IForgotPassword) {
+  async function onSubmit(data: FormValues) {
     if (await forgotPassword(data)) {
       setIsTokenSent(true);
     }

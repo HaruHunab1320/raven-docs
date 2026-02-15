@@ -14,6 +14,8 @@ const formSchema = z.object({
     .min(8, { message: "Password must contain at least 8 characters" }),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 interface PasswordResetFormProps {
   resetToken?: string;
 }
@@ -23,14 +25,14 @@ export function PasswordResetForm({ resetToken }: PasswordResetFormProps) {
   const { passwordReset, isLoading } = useAuth();
   useRedirectIfAuthenticated();
 
-  const form = useForm<IPasswordReset>({
+  const form = useForm<FormValues>({
     validate: zodResolver(formSchema),
     initialValues: {
       newPassword: "",
     },
   });
 
-  async function onSubmit(data: IPasswordReset) {
+  async function onSubmit(data: FormValues) {
     await passwordReset({
       token: resetToken,
       newPassword: data.newPassword,

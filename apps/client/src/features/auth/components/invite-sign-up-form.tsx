@@ -46,7 +46,7 @@ export function InviteSignUpForm() {
     },
   });
 
-  async function onSubmit(data: IRegister) {
+  async function onSubmit(data: FormValues) {
     const invitationToken = searchParams.get("token");
 
     await invitationSignup({

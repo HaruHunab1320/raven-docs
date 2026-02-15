@@ -25,12 +25,14 @@ const formSchema = z.object({
   password: z.string().min(8),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 export function SetupWorkspaceForm() {
   const { t } = useTranslation();
   const { setupWorkspace, isLoading } = useAuth();
   // useRedirectIfAuthenticated();
 
-  const form = useForm<ISetupWorkspace>({
+  const form = useForm<FormValues>({
     validate: zodResolver(formSchema),
     initialValues: {
       workspaceName: "",
@@ -40,7 +42,7 @@ export function SetupWorkspaceForm() {
     },
   });
 
-  async function onSubmit(data: ISetupWorkspace) {
+  async function onSubmit(data: FormValues) {
     await setupWorkspace(data);
   }
 

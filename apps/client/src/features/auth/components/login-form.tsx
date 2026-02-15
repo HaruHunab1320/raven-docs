@@ -30,6 +30,8 @@ const formSchema = z.object({
   password: z.string().min(1, { message: "Password is required" }),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 export function LoginForm() {
   const { t } = useTranslation();
   const { signIn, isLoading } = useAuth();
@@ -37,7 +39,7 @@ export function LoginForm() {
   const { isLoading: isDataLoading, isError, error } =
     useWorkspacePublicDataQuery();
 
-  const form = useForm<ILogin>({
+  const form = useForm<FormValues>({
     validate: zodResolver(formSchema),
     initialValues: {
       email: "",
@@ -45,7 +47,7 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(data: ILogin) {
+  async function onSubmit(data: FormValues) {
     await signIn(data);
   }
 
