@@ -80,6 +80,7 @@ export class DiscordService {
     publicKey: string | undefined,
   ): boolean {
     if (!rawBody || !signature || !timestamp || !publicKey) {
+      this.logger.warn(`Discord verify missing params: rawBody=${!!rawBody} (${rawBody?.length}), sig=${!!signature}, ts=${!!timestamp}, key=${!!publicKey}`);
       return false;
     }
     try {
@@ -89,7 +90,10 @@ export class DiscordService {
       ]);
       const sig = Buffer.from(signature, 'hex');
       const key = Buffer.from(publicKey, 'hex');
-      return nacl.sign.detached.verify(message, sig, key);
+      this.logger.log(`Discord verify: msgLen=${message.length}, sigLen=${sig.length}, keyLen=${key.length}`);
+      const result = nacl.sign.detached.verify(message, sig, key);
+      this.logger.log(`Discord verify result: ${result}`);
+      return result;
     } catch (error: any) {
       this.logger.warn(`Discord signature verify failed: ${error?.message || error}`);
       return false;
