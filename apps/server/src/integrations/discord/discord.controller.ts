@@ -9,6 +9,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { SkipTransform } from '../../common/decorators/skip-transform.decorator';
 import { DiscordService } from './discord.service';
@@ -21,6 +22,8 @@ import { User, Workspace } from '@raven-docs/db/types/entity.types';
 
 @Controller('integrations/discord')
 export class DiscordController {
+  private readonly logger = new Logger(DiscordController.name);
+
   constructor(
     private readonly discordService: DiscordService,
     private readonly linkingService: DiscordLinkingService,
@@ -50,13 +53,18 @@ export class DiscordController {
       ? await this.discordService.getWorkspaceFromGuildId(payload.guild_id)
       : null;
 
+    this.logger.log(`Discord interaction: guild_id=${payload?.guild_id}, application_id=${payload?.application_id}, type=${payload?.type}`);
+
     if (!workspace && payload?.application_id) {
       workspace = await this.discordService.getWorkspaceFromApplicationId(payload.application_id);
+      this.logger.log(`Looked up by application_id: found=${!!workspace}`);
     }
 
     const settings = workspace
       ? (workspace.settings as any)?.integrations?.discord
       : null;
+
+    this.logger.log(`Workspace found: ${!!workspace}, has publicKey: ${!!settings?.publicKey}, publicKey prefix: ${settings?.publicKey?.substring(0, 8) || 'none'}`);
 
     const verified = this.discordService.verifyRequest(
       rawBody,
@@ -65,6 +73,7 @@ export class DiscordController {
       settings?.publicKey,
     );
     if (!verified) {
+      this.logger.warn(`Discord signature verification failed. Has signature: ${!!signature}, has timestamp: ${!!timestamp}`);
       reply.code(401).send({ type: 4, data: { content: 'Invalid signature.' } });
       return;
     }
