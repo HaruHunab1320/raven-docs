@@ -44,9 +44,16 @@ export class DiscordController {
       reply.code(400).send({ type: 4, data: { content: 'Invalid payload.' } });
       return;
     }
-    const workspace = payload?.guild_id
+
+    // Try to find workspace by guild_id first, then by application_id (for verification pings)
+    let workspace = payload?.guild_id
       ? await this.discordService.getWorkspaceFromGuildId(payload.guild_id)
       : null;
+
+    if (!workspace && payload?.application_id) {
+      workspace = await this.discordService.getWorkspaceFromApplicationId(payload.application_id);
+    }
+
     const settings = workspace
       ? (workspace.settings as any)?.integrations?.discord
       : null;

@@ -54,6 +54,11 @@ export class DiscordService {
     return this.workspaceRepo.findByDiscordGuildId(guildId);
   }
 
+  async getWorkspaceFromApplicationId(applicationId: string): Promise<Workspace | null> {
+    if (!applicationId) return null;
+    return this.workspaceRepo.findByDiscordApplicationId(applicationId);
+  }
+
   async resolveDefaultUser(
     workspace: Workspace,
     settings: DiscordIntegrationSettings,

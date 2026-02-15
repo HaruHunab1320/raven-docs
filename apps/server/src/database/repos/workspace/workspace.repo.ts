@@ -97,6 +97,18 @@ export class WorkspaceRepo {
       .executeTakeFirst();
   }
 
+  async findByDiscordApplicationId(applicationId: string): Promise<Workspace> {
+    return await this.db
+      .selectFrom('workspaces')
+      .selectAll()
+      .where(
+        sql`COALESCE(settings->'integrations'->'discord'->>'applicationId', '')`,
+        '=',
+        applicationId,
+      )
+      .executeTakeFirst();
+  }
+
   async hostnameExists(
     hostname: string,
     trx?: KyselyTransaction,
