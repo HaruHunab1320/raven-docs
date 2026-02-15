@@ -14,7 +14,8 @@ import {
 } from "@mantine/core";
 import { IconEdit } from "@tabler/icons-react";
 import { z } from "zod";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
 import {
   getEmbedProviderById,
   getEmbedUrlAndProvider,

@@ -1,6 +1,7 @@
 import { Group, Box, Button, TextInput, Stack, Textarea } from "@mantine/core";
 import React, { useEffect } from "react";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { useCreateSpaceMutation } from "@/features/space/queries/space-query.ts";

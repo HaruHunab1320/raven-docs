@@ -4,7 +4,8 @@ import {
   useGroupQuery,
   useUpdateGroupMutation,
 } from "@/features/group/queries/group-query.ts";
-import { useForm, zodResolver } from "@mantine/form";
+import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
 import * as z from "zod";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
