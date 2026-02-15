@@ -236,6 +236,11 @@ export class DiscordService {
       return { status: 400, body: { type: 4, data: { content: 'Invalid payload.' } } };
     }
 
+    // Handle PING first - before workspace check (verification pings have no guild_id)
+    if (payload.type === 1) {
+      return { status: 200, body: { type: 1 } };
+    }
+
     const guildId = payload.guild_id || payload.guildId;
     const discordUserId = payload.member?.user?.id || payload.user?.id;
     const channelId = payload.channel_id;
@@ -243,10 +248,6 @@ export class DiscordService {
     const settings = this.getDiscordSettings(workspace);
     if (!workspace || settings.enabled !== true) {
       return { status: 401, body: { type: 4, data: { content: 'Discord integration not authorized.' } } };
-    }
-
-    if (payload.type === 1) {
-      return { status: 200, body: { type: 1 } };
     }
 
     // Resolve user - try linked user first, then default
