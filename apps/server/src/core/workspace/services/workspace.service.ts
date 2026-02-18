@@ -30,6 +30,8 @@ import { v4 } from 'uuid';
 import { AgentSettingsDto } from '../dto/agent-settings.dto';
 import { WorkspaceIntegrationSettingsDto } from '../dto/workspace-integration-settings.dto';
 import { resolveAgentSettings } from '../../agent/agent-settings';
+import { resolveIntelligenceSettings } from '../intelligence-defaults';
+import { IntelligenceSettingsDto } from '../dto/intelligence-settings.dto';
 import { QueueJob, QueueName } from '../../../integrations/queue/constants';
 
 @Injectable()
@@ -269,6 +271,25 @@ export class WorkspaceService {
     );
     const integrations = (updated.settings as any)?.integrations;
     return this.buildIntegrationResponse(integrations);
+  }
+
+  async getIntelligenceSettings(workspaceId: string) {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    return resolveIntelligenceSettings(workspace.settings);
+  }
+
+  async updateIntelligenceSettings(
+    workspaceId: string,
+    intelligenceSettingsDto: IntelligenceSettingsDto,
+  ) {
+    const updated = await this.workspaceRepo.updateIntelligenceSettings(
+      workspaceId,
+      intelligenceSettingsDto,
+    );
+    return resolveIntelligenceSettings(updated.settings);
   }
 
   private maskSecret(value: string | undefined | null): string | null {

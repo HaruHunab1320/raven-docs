@@ -262,6 +262,8 @@ export interface Pages {
   id: Generated<string>;
   isLocked: Generated<boolean>;
   lastUpdatedById: string | null;
+  metadata: Json | null;
+  pageType: string | null;
   parentPageId: string | null;
   position: string | null;
   slugId: string;

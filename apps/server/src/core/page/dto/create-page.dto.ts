@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreatePageDto {
   @IsOptional()
@@ -16,6 +16,14 @@ export class CreatePageDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsString()
+  pageType?: string;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, any>;
 
   @IsUUID()
   spaceId: string;

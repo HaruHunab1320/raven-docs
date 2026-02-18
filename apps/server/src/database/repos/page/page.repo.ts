@@ -39,6 +39,8 @@ export class PageRepo {
     'updatedAt',
     'deletedAt',
     'contributorIds',
+    'pageType',
+    'metadata',
   ];
 
   async findById(
@@ -268,6 +270,48 @@ export class PageRepo {
         .select(['users.id', 'users.name', 'users.avatarUrl'])
         .whereRef('users.id', '=', sql`ANY(${eb.ref('pages.contributorIds')})`),
     ).as('contributors');
+  }
+
+  async findByType(
+    workspaceId: string,
+    pageType: string,
+    opts?: {
+      spaceId?: string;
+      metadataFilter?: Record<string, any>;
+      pagination?: PaginationOptions;
+      includeContent?: boolean;
+    },
+  ) {
+    let query = this.db
+      .selectFrom('pages')
+      .select(this.baseFields)
+      .$if(!!opts?.includeContent, (qb) => qb.select('content'))
+      .where('workspaceId', '=', workspaceId)
+      .where('pageType', '=', pageType)
+      .where('deletedAt', 'is', null);
+
+    if (opts?.spaceId) {
+      query = query.where('spaceId', '=', opts.spaceId);
+    }
+
+    if (opts?.metadataFilter) {
+      for (const [key, value] of Object.entries(opts.metadataFilter)) {
+        query = query.where(
+          sql`metadata->>${sql.lit(key)}`,
+          '=',
+          String(value),
+        );
+      }
+    }
+
+    if (opts?.pagination) {
+      return executeWithPagination(query.orderBy('updatedAt', 'desc'), {
+        page: opts.pagination.page,
+        perPage: opts.pagination.limit,
+      });
+    }
+
+    return query.orderBy('updatedAt', 'desc').execute();
   }
 
   async getPageAndDescendants(

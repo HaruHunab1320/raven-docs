@@ -26,6 +26,8 @@ import { ParallaxAgentsModule } from './parallax-agents/parallax-agents.module';
 import { TerminalModule } from './terminal/terminal.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { BugReportModule } from './bug-report/bug-report.module';
+import { ResearchGraphModule } from './research-graph/research-graph.module';
+import { ContextAssemblyModule } from './context-assembly/context-assembly.module';
 
 const modules = [
   UserModule,
@@ -47,6 +49,8 @@ const modules = [
   TerminalModule,
   KnowledgeModule,
   BugReportModule,
+  ResearchGraphModule,
+  ContextAssemblyModule,
 ];
 
 @Module({

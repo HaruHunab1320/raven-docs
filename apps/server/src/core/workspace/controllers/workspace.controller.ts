@@ -37,6 +37,7 @@ import { CheckHostnameDto } from '../dto/check-hostname.dto';
 import { RemoveWorkspaceUserDto } from '../dto/remove-workspace-user.dto';
 import { AgentSettingsDto } from '../dto/agent-settings.dto';
 import { WorkspaceIntegrationSettingsDto } from '../dto/workspace-integration-settings.dto';
+import { IntelligenceSettingsDto } from '../dto/intelligence-settings.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('workspace')
@@ -125,6 +126,39 @@ export class WorkspaceController {
     }
 
     return this.workspaceService.updateIntegrationSettings(workspace.id, dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/intelligence')
+  async getIntelligenceSettings(
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const ability = this.workspaceAbility.createForUser(user, workspace);
+    if (
+      ability.cannot(WorkspaceCaslAction.Read, WorkspaceCaslSubject.Settings)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    return this.workspaceService.getIntelligenceSettings(workspace.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/intelligence/update')
+  async updateIntelligenceSettings(
+    @Body() dto: IntelligenceSettingsDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const ability = this.workspaceAbility.createForUser(user, workspace);
+    if (
+      ability.cannot(WorkspaceCaslAction.Manage, WorkspaceCaslSubject.Settings)
+    ) {
+      throw new ForbiddenException();
+    }
+
+    return this.workspaceService.updateIntelligenceSettings(workspace.id, dto);
   }
 
   @HttpCode(HttpStatus.OK)
