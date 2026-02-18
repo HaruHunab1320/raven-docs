@@ -16,4 +16,5 @@ export enum QueueJob {
   TASK_BACKLINKS = 'task-backlinks',
   RESEARCH_JOB = 'research-job',
   TEAM_AGENT_LOOP = 'team-agent-loop',
+  PATTERN_DETECTION = 'pattern-detection',
 }

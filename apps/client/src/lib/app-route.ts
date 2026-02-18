@@ -16,6 +16,7 @@ const APP_ROUTE = {
     JOURNAL: (spaceId: string) => `/spaces/${spaceId}/journal`,
     INSIGHTS: (spaceId: string) => `/spaces/${spaceId}/insights`,
     RESEARCH: (spaceId: string) => `/spaces/${spaceId}/research`,
+    INTELLIGENCE: (spaceId: string) => `/spaces/${spaceId}/intelligence`,
     TRASH: (spaceId: string) => `/spaces/${spaceId}/trash`,
   },
   AUTH: {

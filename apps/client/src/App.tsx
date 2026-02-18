@@ -36,6 +36,7 @@ import { SomedayPage } from "@/features/gtd/pages/someday-page";
 import { JournalPage } from "@/features/gtd/pages/journal-page";
 import { MemoryInsightsPage } from "@/features/agent-memory/pages/memory-insights-page";
 import ResearchPage from "@/features/research/pages/research-page";
+import IntelligenceDashboardPage from "@/features/intelligence/pages/intelligence-dashboard-page";
 import { TrashPage } from "@/features/space/pages/trash-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
 import ParallaxAgentsSettings from "@/pages/settings/workspace/parallax-agents.tsx";
@@ -486,6 +487,10 @@ export default function App() {
           <Route
             path={"/spaces/:spaceId/research"}
             element={<ResearchPage />}
+          />
+          <Route
+            path={"/spaces/:spaceId/intelligence"}
+            element={<IntelligenceDashboardPage />}
           />
           <Route
             path={"/spaces/:spaceId/projects/:projectId/tasks"}

@@ -28,6 +28,7 @@ import {
   AgentInviteRepo,
 } from './repos/parallax-agent';
 import { TerminalSessionRepo } from './repos/terminal-session/terminal-session.repo';
+import { PatternDetectionRepo } from './repos/pattern-detection/pattern-detection.repo';
 
 @Module({
   providers: [
@@ -73,6 +74,7 @@ import { TerminalSessionRepo } from './repos/terminal-session/terminal-session.r
     ParallaxAgentActivityRepo,
     AgentInviteRepo,
     TerminalSessionRepo,
+    PatternDetectionRepo,
   ],
   exports: [
     KYSELY,
@@ -99,6 +101,7 @@ import { TerminalSessionRepo } from './repos/terminal-session/terminal-session.r
     ParallaxAgentActivityRepo,
     AgentInviteRepo,
     TerminalSessionRepo,
+    PatternDetectionRepo,
   ],
 })
 export class DatabaseModule {}

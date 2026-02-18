@@ -614,6 +614,23 @@ export interface TeamAgents {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface PatternDetections {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string | null;
+  patternType: string;
+  severity: Generated<string>;
+  title: string;
+  details: Generated<Json>;
+  status: Generated<string>;
+  actionTaken: Json | null;
+  detectedAt: Generated<Timestamp>;
+  acknowledgedAt: Timestamp | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
 export interface DB {
   agentInvites: AgentInvites;
   agentMemories: AgentMemories;
@@ -647,6 +664,7 @@ export interface DB {
   taskLabels: TaskLabels;
   tasks: Tasks;
   taskWatchers: TaskWatchers;
+  patternDetections: PatternDetections;
   teamAgents: TeamAgents;
   teamDeployments: TeamDeployments;
   terminalSessionLogs: TerminalSessionLogs;

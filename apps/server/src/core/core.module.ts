@@ -29,6 +29,8 @@ import { BugReportModule } from './bug-report/bug-report.module';
 import { ResearchGraphModule } from './research-graph/research-graph.module';
 import { ContextAssemblyModule } from './context-assembly/context-assembly.module';
 import { TeamModule } from './team/team.module';
+import { ResearchDashboardModule } from './research-dashboard/research-dashboard.module';
+import { PatternDetectionModule } from './pattern-detection/pattern-detection.module';
 
 const modules = [
   UserModule,
@@ -53,6 +55,8 @@ const modules = [
   ResearchGraphModule,
   ContextAssemblyModule,
   TeamModule,
+  ResearchDashboardModule,
+  PatternDetectionModule,
 ];
 
 @Module({

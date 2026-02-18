@@ -31,6 +31,7 @@ import { ExperimentHandler } from './handlers/experiment.handler';
 import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
 import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
+import { PatternHandler } from './handlers/pattern.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -96,6 +97,7 @@ export class MCPService {
     private readonly intelligenceContextHandler: IntelligenceContextHandler,
     private readonly relationshipHandler: RelationshipHandler,
     private readonly teamHandler: TeamHandler,
+    private readonly patternHandler: PatternHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -441,6 +443,14 @@ export class MCPService {
           case 'team':
             this.logger.debug(`MCPService: Delegating to team handler`);
             result = await this.handleTeamRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'pattern':
+            this.logger.debug(`MCPService: Delegating to pattern handler`);
+            result = await this.handlePatternRequest(
               operation,
               request.params,
               user.id,
@@ -1502,6 +1512,25 @@ export class MCPService {
         return this.teamHandler.teardown(params, userId);
       default:
         throw createMethodNotFoundError(`team.${operation}`);
+    }
+  }
+
+  private async handlePatternRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'list':
+        return this.patternHandler.list(params, userId);
+      case 'acknowledge':
+        return this.patternHandler.acknowledge(params, userId);
+      case 'dismiss':
+        return this.patternHandler.dismiss(params, userId);
+      case 'run':
+        return this.patternHandler.run(params, userId);
+      default:
+        throw createMethodNotFoundError(`pattern.${operation}`);
     }
   }
 

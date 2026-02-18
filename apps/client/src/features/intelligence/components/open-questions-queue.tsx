@@ -1,0 +1,66 @@
+import {
+  Card,
+  Stack,
+  Text,
+  Badge,
+  Group,
+  Loader,
+} from "@mantine/core";
+import { useOpenQuestions } from "../hooks/use-intelligence-queries";
+import { formattedDate } from "@/lib/time";
+
+interface Props {
+  spaceId: string;
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: "red",
+  high: "orange",
+  medium: "yellow",
+  low: "gray",
+};
+
+export function OpenQuestionsQueue({ spaceId }: Props) {
+  const { data: questions, isLoading } = useOpenQuestions(spaceId);
+
+  return (
+    <Card withBorder radius="md" p="md">
+      <Stack gap="sm">
+        <Text fw={600}>Open Questions</Text>
+
+        {isLoading ? (
+          <Group justify="center" py="md">
+            <Loader size="sm" />
+          </Group>
+        ) : !questions?.length ? (
+          <Text size="sm" c="dimmed">No open questions.</Text>
+        ) : (
+          <Stack gap="xs">
+            {questions.map((q) => (
+              <Card key={q.id} withBorder radius="sm" p="sm">
+                <Group justify="space-between">
+                  <Text fw={500} size="sm" style={{ flex: 1 }}>
+                    {q.title}
+                  </Text>
+                  <Group gap="xs" wrap="nowrap">
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={PRIORITY_COLORS[q.priority] || "gray"}
+                    >
+                      {q.priority}
+                    </Badge>
+                    <Badge size="xs" variant="light">{q.status}</Badge>
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+                      {formattedDate(new Date(q.updatedAt))}
+                    </Text>
+                  </Group>
+                </Group>
+              </Card>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    </Card>
+  );
+}
