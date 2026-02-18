@@ -99,6 +99,9 @@ export class AgentStreamService {
       `- search_pages: Search user-created pages in the workspace.`,
       `- create_task: Create a new task.`,
       `- report_bug: Report a bug or issue. Users can type "/bug" followed by a description.`,
+      `- context_query: Ask "what do we know about X?" to get a structured overview of hypotheses, experiments, and evidence.`,
+      `- create_hypothesis: Formalize a testable hypothesis with predictions and success criteria.`,
+      `- register_experiment: Register a new experiment linked to a hypothesis.`,
       ``,
       `Guidelines:`,
       `- ALWAYS use knowledge_search when asked about Raven Docs`,
@@ -264,6 +267,109 @@ export class AgentStreamService {
             this.logger.error(`[Tool] report_bug error: ${error?.message || error}`);
             return { error: `Failed to create bug report: ${error?.message || 'Unknown error'}` };
           }
+        },
+      }),
+
+      context_query: tool({
+        description: 'Query the research intelligence system: "What do we know about X?" Returns hypotheses, experiments, evidence, contradictions, and open questions related to the query.',
+        inputSchema: z.object({
+          query: z.string().describe('The research question or topic to query'),
+        }),
+        execute: async ({ query }) => {
+          this.logger.log(`[Tool] context_query called with: "${query}"`);
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'intelligence.query',
+              params: {
+                query,
+                workspaceId: workspace.id,
+                spaceId: dto.spaceId,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message };
+          }
+
+          return response.result;
+        },
+      }),
+
+      create_hypothesis: tool({
+        description: 'Create a formal hypothesis page with predictions and success criteria. Use when the user wants to formalize a testable claim.',
+        inputSchema: z.object({
+          title: z.string().describe('Hypothesis title'),
+          formalStatement: z.string().describe('Formal, testable statement of the hypothesis'),
+          predictions: z.array(z.string()).optional().describe('Testable predictions'),
+          priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+          domainTags: z.array(z.string()).optional().describe('Domain tags for categorization'),
+          successCriteria: z.string().optional().describe('What would validate this hypothesis'),
+        }),
+        execute: async ({ title, formalStatement, predictions, priority, domainTags, successCriteria }) => {
+          this.logger.log(`[Tool] create_hypothesis called: "${title}"`);
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'hypothesis.create',
+              params: {
+                title,
+                formalStatement,
+                predictions,
+                priority,
+                domainTags,
+                successCriteria,
+                spaceId: dto.spaceId,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message };
+          }
+
+          return response.result;
+        },
+      }),
+
+      register_experiment: tool({
+        description: 'Register a new experiment linked to a hypothesis. Use when the user wants to design or plan an experiment to test a hypothesis.',
+        inputSchema: z.object({
+          title: z.string().describe('Experiment title'),
+          hypothesisId: z.string().optional().describe('ID of the hypothesis being tested'),
+          method: z.string().optional().describe('Experimental method description'),
+          metrics: z.record(z.string(), z.any()).optional().describe('Metrics to measure'),
+        }),
+        execute: async ({ title, hypothesisId, method, metrics }) => {
+          this.logger.log(`[Tool] register_experiment called: "${title}"`);
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'experiment.register',
+              params: {
+                title,
+                hypothesisId,
+                method,
+                metrics,
+                spaceId: dto.spaceId,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message };
+          }
+
+          return response.result;
         },
       }),
     };

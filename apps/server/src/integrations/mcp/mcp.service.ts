@@ -26,6 +26,10 @@ import { ProfileHandler } from './handlers/profile.handler';
 import { ReviewHandler } from './handlers/review.handler';
 import { InsightsHandler } from './handlers/insights.handler';
 import { KnowledgeHandler } from './handlers/knowledge.handler';
+import { HypothesisHandler } from './handlers/hypothesis.handler';
+import { ExperimentHandler } from './handlers/experiment.handler';
+import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
+import { RelationshipHandler } from './handlers/relationship.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -86,6 +90,10 @@ export class MCPService {
     private readonly reviewHandler: ReviewHandler,
     private readonly insightsHandler: InsightsHandler,
     private readonly knowledgeHandler: KnowledgeHandler,
+    private readonly hypothesisHandler: HypothesisHandler,
+    private readonly experimentHandler: ExperimentHandler,
+    private readonly intelligenceContextHandler: IntelligenceContextHandler,
+    private readonly relationshipHandler: RelationshipHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -391,6 +399,38 @@ export class MCPService {
           case 'knowledge':
             this.logger.debug(`MCPService: Delegating to knowledge handler`);
             result = await this.handleKnowledgeRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'hypothesis':
+            this.logger.debug(`MCPService: Delegating to hypothesis handler`);
+            result = await this.handleHypothesisRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'experiment':
+            this.logger.debug(`MCPService: Delegating to experiment handler`);
+            result = await this.handleExperimentRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'intelligence':
+            this.logger.debug(`MCPService: Delegating to intelligence context handler`);
+            result = await this.handleIntelligenceRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'relationship':
+            this.logger.debug(`MCPService: Delegating to relationship handler`);
+            result = await this.handleRelationshipRequest(
               operation,
               request.params,
               user.id,
@@ -1364,6 +1404,70 @@ export class MCPService {
     }
 
     return sanitized;
+  }
+
+  private async handleHypothesisRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'create':
+        return this.hypothesisHandler.create(params, userId);
+      case 'update':
+        return this.hypothesisHandler.update(params, userId);
+      case 'get':
+        return this.hypothesisHandler.get(params, userId);
+      default:
+        throw createMethodNotFoundError(`hypothesis.${operation}`);
+    }
+  }
+
+  private async handleExperimentRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'register':
+        return this.experimentHandler.register(params, userId);
+      case 'complete':
+        return this.experimentHandler.complete(params, userId);
+      case 'update':
+        return this.experimentHandler.update(params, userId);
+      default:
+        throw createMethodNotFoundError(`experiment.${operation}`);
+    }
+  }
+
+  private async handleIntelligenceRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'query':
+        return this.intelligenceContextHandler.query(params, userId);
+      default:
+        throw createMethodNotFoundError(`intelligence.${operation}`);
+    }
+  }
+
+  private async handleRelationshipRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'create':
+        return this.relationshipHandler.create(params, userId);
+      case 'remove':
+        return this.relationshipHandler.remove(params, userId);
+      case 'list':
+        return this.relationshipHandler.list(params, userId);
+      default:
+        throw createMethodNotFoundError(`relationship.${operation}`);
+    }
   }
 
   /**

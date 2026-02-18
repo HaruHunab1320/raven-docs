@@ -26,6 +26,10 @@ import { ProfileHandler } from './handlers/profile.handler';
 import { ReviewHandler } from './handlers/review.handler';
 import { InsightsHandler } from './handlers/insights.handler';
 import { KnowledgeHandler } from './handlers/knowledge.handler';
+import { HypothesisHandler } from './handlers/hypothesis.handler';
+import { ExperimentHandler } from './handlers/experiment.handler';
+import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
+import { RelationshipHandler } from './handlers/relationship.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -66,6 +70,8 @@ import { AgentPolicyService } from '../../core/agent/agent-policy.service';
 import { ParallaxAgentsModule } from '../../core/parallax-agents/parallax-agents.module';
 import { KnowledgeModule } from '../../core/knowledge/knowledge.module';
 import { BugReportModule } from '../../core/bug-report/bug-report.module';
+import { ResearchGraphModule } from '../../core/research-graph/research-graph.module';
+import { ContextAssemblyModule } from '../../core/context-assembly/context-assembly.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -100,6 +106,8 @@ import { BugReportModule } from '../../core/bug-report/bug-report.module';
     forwardRef(() => ParallaxAgentsModule),
     KnowledgeModule,
     BugReportModule,
+    ResearchGraphModule,
+    ContextAssemblyModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -132,6 +140,10 @@ import { BugReportModule } from '../../core/bug-report/bug-report.module';
     ReviewHandler,
     InsightsHandler,
     KnowledgeHandler,
+    HypothesisHandler,
+    ExperimentHandler,
+    IntelligenceContextHandler,
+    RelationshipHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

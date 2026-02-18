@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
@@ -26,9 +27,12 @@ import { dbOrTx, executeTx } from '@raven-docs/db/utils';
 import { AttachmentRepo } from '../../../database/repos/attachment/attachment.repo';
 import { AgentMemoryService } from '../../agent-memory/agent-memory.service';
 import { TaskService } from '../../project/services/task.service';
+import { ResearchGraphService } from '../../research-graph/research-graph.service';
 
 @Injectable()
 export class PageService {
+  private readonly logger = new Logger(PageService.name);
+
   constructor(
     private pageRepo: PageRepo,
     private attachmentRepo: AttachmentRepo,
@@ -36,6 +40,7 @@ export class PageService {
     private readonly agentMemoryService: AgentMemoryService,
     @Inject(forwardRef(() => TaskService))
     private readonly taskService: TaskService,
+    private readonly researchGraph: ResearchGraphService,
   ) {}
 
   async findById(
@@ -122,6 +127,10 @@ export class PageService {
         workspaceId: workspaceId,
         lastUpdatedById: userId,
         content: createPageDto.content,
+        pageType: createPageDto.pageType || null,
+        metadata: createPageDto.metadata
+          ? JSON.stringify(createPageDto.metadata)
+          : null,
       },
       trx,
     );
@@ -133,17 +142,47 @@ export class PageService {
         creatorId: userId,
         source: 'page.created',
         summary: `Page created: ${createdPage.title}`,
-        tags: ['page', 'created'],
+        tags: ['page', 'created', ...(createPageDto.pageType ? [createPageDto.pageType] : [])],
         content: {
           action: 'created',
           pageId: createdPage.id,
           title: createdPage.title,
           parentPageId: createdPage.parentPageId || null,
           spaceId: createdPage.spaceId,
+          pageType: createPageDto.pageType || null,
         },
       });
     } catch {
       // Memory ingestion should not block page creation.
+    }
+
+    // Sync typed page to research graph
+    if (createPageDto.pageType) {
+      try {
+        const domainTags =
+          (createPageDto.metadata as any)?.domainTags || [];
+        await this.researchGraph.syncPageNode({
+          id: createdPage.id,
+          workspaceId,
+          spaceId: createPageDto.spaceId,
+          pageType: createPageDto.pageType,
+          title: createdPage.title || '',
+          domainTags,
+          createdAt: new Date().toISOString(),
+        });
+
+        // Auto-create edges from metadata references
+        await this.autoCreateEdgesFromMetadata(
+          createdPage.id,
+          createPageDto.pageType,
+          createPageDto.metadata || {},
+          userId,
+        );
+      } catch {
+        this.logger.warn(
+          `Failed to sync page ${createdPage.id} to research graph`,
+        );
+      }
     }
 
     if (createPageDto.content) {
@@ -609,5 +648,25 @@ export class PageService {
         trx,
       );
     });
+  }
+
+  /**
+   * Auto-create graph edges from metadata references when a typed page is created.
+   * For example, an experiment with hypothesisId gets a TESTS_HYPOTHESIS edge.
+   */
+  private async autoCreateEdgesFromMetadata(
+    pageId: string,
+    pageType: string,
+    metadata: Record<string, any>,
+    userId: string,
+  ): Promise<void> {
+    if (pageType === 'experiment' && metadata.hypothesisId) {
+      await this.researchGraph.createRelationship({
+        fromPageId: pageId,
+        toPageId: metadata.hypothesisId,
+        type: 'TESTS_HYPOTHESIS',
+        createdBy: userId,
+      });
+    }
   }
 }
