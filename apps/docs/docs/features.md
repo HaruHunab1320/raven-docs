@@ -166,6 +166,20 @@ AI-powered research from multiple sources:
 
 [Learn more about Research](/guides/research)
 
+### Research Intelligence
+
+A structured knowledge engine built on typed pages and a knowledge graph:
+
+- **Typed pages** - Hypotheses, experiments, findings, observations, and notes with structured metadata
+- **Knowledge graph** - Directed edges (VALIDATES, CONTRADICTS, EXTENDS) connecting research artifacts
+- **Evidence chains** - Automatically trace supporting and contradicting evidence for any hypothesis
+- **Intelligence queries** - Ask "What do we know about X?" and get assembled context bundles
+- **Pattern detection** - Automated scanning for convergence, contradictions, staleness, and cross-domain connections
+- **Multi-agent teams** - Deploy teams of specialized AI agents from templates to conduct research
+- **Intelligence dashboard** - Visual overview with hypothesis scoreboard, experiments, patterns, and timeline
+
+[Learn more about Research Intelligence](/guides/research-intelligence)
+
 ## Collaboration
 
 ### Real-time Editing

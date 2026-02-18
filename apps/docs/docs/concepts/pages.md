@@ -136,6 +136,24 @@ await client.pages.restore({
 });
 ```
 
+## Typed Pages
+
+Pages can optionally be assigned a **page type** that adds structured metadata and integrates them into the Research Intelligence System.
+
+### Page Types
+
+| Type | Purpose | Key Metadata |
+|------|---------|-------------|
+| `hypothesis` | A testable claim | `formalStatement`, `predictions`, `status`, `domainTags`, `priority` |
+| `experiment` | A test of a hypothesis | `hypothesisId`, `method`, `results`, `status` |
+| `finding` | A confirmed result | `source`, `confidence`, `domainTags` |
+| `observation` | A raw observation | `context`, `domainTags` |
+| `note` | A research note | `domainTags` |
+
+Typed pages are connected in a knowledge graph with edges like `VALIDATES`, `CONTRADICTS`, and `EXTENDS`, enabling evidence chains and automated pattern detection.
+
+[Learn more about Research Intelligence](/guides/research-intelligence)
+
 ## Page Metadata
 
 | Field | Description |
@@ -144,6 +162,8 @@ await client.pages.restore({
 | `title` | Page title |
 | `slug` | URL-friendly path |
 | `icon` | Emoji or custom icon |
+| `pageType` | Optional type (`hypothesis`, `experiment`, `finding`, `observation`, `note`) |
+| `metadata` | Structured metadata (varies by page type) |
 | `createdAt` | Creation timestamp |
 | `updatedAt` | Last modified timestamp |
 | `createdBy` | Author user ID |

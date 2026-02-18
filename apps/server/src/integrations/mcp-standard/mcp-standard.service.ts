@@ -1881,6 +1881,291 @@ export class MCPStandardService {
           properties: {},
         },
       },
+
+      // Hypothesis tools
+      {
+        name: 'hypothesis_create',
+        description: 'Create a hypothesis page with typed metadata',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'ID of the space' },
+            title: { type: 'string', description: 'Hypothesis title' },
+            formalStatement: { type: 'string', description: 'Formal statement of the hypothesis' },
+            predictions: { type: 'array', items: { type: 'string' }, description: 'Testable predictions' },
+            domainTags: { type: 'array', items: { type: 'string' }, description: 'Domain tags' },
+            priority: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'Priority level' },
+          },
+          required: ['workspaceId', 'spaceId', 'title', 'formalStatement'],
+        },
+      },
+      {
+        name: 'hypothesis_update',
+        description: 'Update a hypothesis status or metadata',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            pageId: { type: 'string', description: 'Hypothesis page ID' },
+            status: { type: 'string', description: 'New status' },
+            metadata: { type: 'object', description: 'Metadata fields to update' },
+          },
+          required: ['workspaceId', 'pageId'],
+        },
+      },
+      {
+        name: 'hypothesis_get',
+        description: 'Get a hypothesis with its evidence chain',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            pageId: { type: 'string', description: 'Hypothesis page ID' },
+          },
+          required: ['workspaceId', 'pageId'],
+        },
+      },
+
+      // Experiment tools
+      {
+        name: 'experiment_register',
+        description: 'Register a new experiment linked to a hypothesis',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'ID of the space' },
+            title: { type: 'string', description: 'Experiment title' },
+            hypothesisId: { type: 'string', description: 'ID of the hypothesis being tested' },
+            method: { type: 'string', description: 'Experimental method' },
+          },
+          required: ['workspaceId', 'spaceId', 'title'],
+        },
+      },
+      {
+        name: 'experiment_complete',
+        description: 'Complete an experiment with results',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            pageId: { type: 'string', description: 'Experiment page ID' },
+            results: { type: 'object', description: 'Experiment results' },
+            passedPredictions: { type: 'boolean', description: 'Whether predictions were confirmed' },
+            unexpectedObservations: { type: 'array', items: { type: 'string' }, description: 'Unexpected observations' },
+          },
+          required: ['workspaceId', 'pageId', 'results'],
+        },
+      },
+      {
+        name: 'experiment_update',
+        description: 'Update an experiment',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            pageId: { type: 'string', description: 'Experiment page ID' },
+            status: { type: 'string', description: 'New status' },
+            metadata: { type: 'object', description: 'Metadata fields to update' },
+          },
+          required: ['workspaceId', 'pageId'],
+        },
+      },
+
+      // Intelligence context
+      {
+        name: 'intelligence_query',
+        description: 'Query the research intelligence context — "What do we know about X?"',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'Optional space ID' },
+            query: { type: 'string', description: 'The query to assemble context for' },
+          },
+          required: ['workspaceId', 'query'],
+        },
+      },
+
+      // Relationship tools
+      {
+        name: 'relationship_create',
+        description: 'Create a typed relationship between two pages in the research graph',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            fromPageId: { type: 'string', description: 'Source page ID' },
+            toPageId: { type: 'string', description: 'Target page ID' },
+            type: { type: 'string', description: 'Relationship type (e.g. VALIDATES, CONTRADICTS, EXTENDS)' },
+            metadata: { type: 'object', description: 'Optional relationship metadata' },
+          },
+          required: ['workspaceId', 'fromPageId', 'toPageId', 'type'],
+        },
+      },
+      {
+        name: 'relationship_remove',
+        description: 'Remove a relationship between two pages',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            fromPageId: { type: 'string', description: 'Source page ID' },
+            toPageId: { type: 'string', description: 'Target page ID' },
+            type: { type: 'string', description: 'Relationship type' },
+          },
+          required: ['workspaceId', 'fromPageId', 'toPageId', 'type'],
+        },
+      },
+      {
+        name: 'relationship_list',
+        description: 'List relationships for a page',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            pageId: { type: 'string', description: 'Page ID to get relationships for' },
+            direction: { type: 'string', enum: ['outgoing', 'incoming', 'both'], description: 'Edge direction' },
+            types: { type: 'array', items: { type: 'string' }, description: 'Filter by relationship types' },
+          },
+          required: ['workspaceId', 'pageId'],
+        },
+      },
+
+      // Team tools
+      {
+        name: 'team_deploy',
+        description: 'Deploy a multi-agent research team from a template',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'ID of the space' },
+            templateName: { type: 'string', description: 'Team template name' },
+            projectId: { type: 'string', description: 'Optional project ID' },
+          },
+          required: ['workspaceId', 'spaceId', 'templateName'],
+        },
+      },
+      {
+        name: 'team_status',
+        description: 'Get team deployment status',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            deploymentId: { type: 'string', description: 'Deployment ID' },
+          },
+          required: ['deploymentId'],
+        },
+      },
+      {
+        name: 'team_list',
+        description: 'List team deployments in a workspace',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'Optional space filter' },
+            status: { type: 'string', description: 'Optional status filter' },
+          },
+          required: ['workspaceId'],
+        },
+      },
+      {
+        name: 'team_trigger',
+        description: 'Trigger a single run of all agents in a deployment',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            deploymentId: { type: 'string', description: 'Deployment ID' },
+          },
+          required: ['deploymentId'],
+        },
+      },
+      {
+        name: 'team_pause',
+        description: 'Pause a team deployment',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            deploymentId: { type: 'string', description: 'Deployment ID' },
+          },
+          required: ['deploymentId'],
+        },
+      },
+      {
+        name: 'team_resume',
+        description: 'Resume a paused team deployment',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            deploymentId: { type: 'string', description: 'Deployment ID' },
+          },
+          required: ['deploymentId'],
+        },
+      },
+      {
+        name: 'team_teardown',
+        description: 'Tear down a team deployment',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            deploymentId: { type: 'string', description: 'Deployment ID' },
+          },
+          required: ['deploymentId'],
+        },
+      },
+
+      // Pattern detection tools
+      {
+        name: 'pattern_list',
+        description: 'List detected patterns for a workspace',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            spaceId: { type: 'string', description: 'Optional space filter' },
+            status: { type: 'string', description: 'Filter by status (detected, acknowledged, dismissed)' },
+            patternType: { type: 'string', description: 'Filter by pattern type' },
+          },
+          required: ['workspaceId'],
+        },
+      },
+      {
+        name: 'pattern_acknowledge',
+        description: 'Acknowledge a detected pattern',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            patternId: { type: 'string', description: 'Pattern ID' },
+            actionTaken: { type: 'object', description: 'Optional action taken details' },
+          },
+          required: ['patternId'],
+        },
+      },
+      {
+        name: 'pattern_dismiss',
+        description: 'Dismiss a detected pattern',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            patternId: { type: 'string', description: 'Pattern ID' },
+          },
+          required: ['patternId'],
+        },
+      },
+      {
+        name: 'pattern_run',
+        description: 'Manually trigger pattern detection for a workspace',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+          },
+          required: ['workspaceId'],
+        },
+      },
     ];
 
     return { tools };
@@ -1999,6 +2284,30 @@ export class MCPStandardService {
       'context_delete': 'context.delete',
       'context_list': 'context.list',
       'context_clear': 'context.clear',
+      // Research intelligence tools
+      'hypothesis_create': 'hypothesis.create',
+      'hypothesis_update': 'hypothesis.update',
+      'hypothesis_get': 'hypothesis.get',
+      'experiment_register': 'experiment.register',
+      'experiment_complete': 'experiment.complete',
+      'experiment_update': 'experiment.update',
+      'intelligence_query': 'intelligence.query',
+      'relationship_create': 'relationship.create',
+      'relationship_remove': 'relationship.remove',
+      'relationship_list': 'relationship.list',
+      // Team tools
+      'team_deploy': 'team.deploy',
+      'team_status': 'team.status',
+      'team_list': 'team.list',
+      'team_trigger': 'team.trigger',
+      'team_pause': 'team.pause',
+      'team_resume': 'team.resume',
+      'team_teardown': 'team.teardown',
+      // Pattern detection tools
+      'pattern_list': 'pattern.list',
+      'pattern_acknowledge': 'pattern.acknowledge',
+      'pattern_dismiss': 'pattern.dismiss',
+      'pattern_run': 'pattern.run',
     };
 
     // Handle tool discovery tools directly (they don't route to internal MCP service)
