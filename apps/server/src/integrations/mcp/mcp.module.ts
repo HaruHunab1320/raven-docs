@@ -30,6 +30,7 @@ import { HypothesisHandler } from './handlers/hypothesis.handler';
 import { ExperimentHandler } from './handlers/experiment.handler';
 import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
 import { RelationshipHandler } from './handlers/relationship.handler';
+import { TeamHandler } from './handlers/team.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -72,6 +73,7 @@ import { KnowledgeModule } from '../../core/knowledge/knowledge.module';
 import { BugReportModule } from '../../core/bug-report/bug-report.module';
 import { ResearchGraphModule } from '../../core/research-graph/research-graph.module';
 import { ContextAssemblyModule } from '../../core/context-assembly/context-assembly.module';
+import { TeamModule } from '../../core/team/team.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -108,6 +110,7 @@ import { ContextAssemblyModule } from '../../core/context-assembly/context-assem
     BugReportModule,
     ResearchGraphModule,
     ContextAssemblyModule,
+    TeamModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -144,6 +147,7 @@ import { ContextAssemblyModule } from '../../core/context-assembly/context-assem
     ExperimentHandler,
     IntelligenceContextHandler,
     RelationshipHandler,
+    TeamHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

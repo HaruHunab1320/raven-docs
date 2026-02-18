@@ -28,6 +28,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { BugReportModule } from './bug-report/bug-report.module';
 import { ResearchGraphModule } from './research-graph/research-graph.module';
 import { ContextAssemblyModule } from './context-assembly/context-assembly.module';
+import { TeamModule } from './team/team.module';
 
 const modules = [
   UserModule,
@@ -51,6 +52,7 @@ const modules = [
   BugReportModule,
   ResearchGraphModule,
   ContextAssemblyModule,
+  TeamModule,
 ];
 
 @Module({

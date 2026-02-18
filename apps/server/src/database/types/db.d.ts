@@ -582,6 +582,38 @@ export interface Workspaces {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface TeamDeployments {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string;
+  projectId: string | null;
+  templateName: string;
+  status: Generated<string>;
+  config: Generated<Json>;
+  deployedBy: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  tornDownAt: Timestamp | null;
+}
+
+export interface TeamAgents {
+  id: Generated<string>;
+  deploymentId: string;
+  workspaceId: string;
+  userId: string | null;
+  role: string;
+  instanceNumber: number;
+  status: Generated<string>;
+  systemPrompt: string;
+  capabilities: Generated<string[]>;
+  lastRunAt: Timestamp | null;
+  lastRunSummary: string | null;
+  totalActions: Generated<number>;
+  totalErrors: Generated<number>;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface DB {
   agentInvites: AgentInvites;
   agentMemories: AgentMemories;
@@ -615,6 +647,8 @@ export interface DB {
   taskLabels: TaskLabels;
   tasks: Tasks;
   taskWatchers: TaskWatchers;
+  teamAgents: TeamAgents;
+  teamDeployments: TeamDeployments;
   terminalSessionLogs: TerminalSessionLogs;
   terminalSessions: TerminalSessions;
   users: Users;

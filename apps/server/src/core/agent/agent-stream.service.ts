@@ -102,6 +102,7 @@ export class AgentStreamService {
       `- context_query: Ask "what do we know about X?" to get a structured overview of hypotheses, experiments, and evidence.`,
       `- create_hypothesis: Formalize a testable hypothesis with predictions and success criteria.`,
       `- register_experiment: Register a new experiment linked to a hypothesis.`,
+      `- deploy_team: Deploy a multi-agent research team from a template to the current space.`,
       ``,
       `Guidelines:`,
       `- ALWAYS use knowledge_search when asked about Raven Docs`,
@@ -357,6 +358,37 @@ export class AgentStreamService {
                 hypothesisId,
                 method,
                 metrics,
+                spaceId: dto.spaceId,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message };
+          }
+
+          return response.result;
+        },
+      }),
+
+      deploy_team: tool({
+        description: 'Deploy a multi-agent research team from a template to the current space. Templates define agent roles (researcher, collaborator, synthesizer, etc.) with specific capabilities.',
+        inputSchema: z.object({
+          templateName: z.string().describe('Name of the team template to deploy (e.g. "research-team", "code-team")'),
+          projectId: z.string().optional().describe('Optional project ID to scope the team to'),
+        }),
+        execute: async ({ templateName, projectId }) => {
+          this.logger.log(`[Tool] deploy_team called: template="${templateName}"`);
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'team.deploy',
+              params: {
+                templateName,
+                projectId,
                 spaceId: dto.spaceId,
                 workspaceId: workspace.id,
               },

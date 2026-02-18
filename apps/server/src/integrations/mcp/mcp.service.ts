@@ -30,6 +30,7 @@ import { HypothesisHandler } from './handlers/hypothesis.handler';
 import { ExperimentHandler } from './handlers/experiment.handler';
 import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
 import { RelationshipHandler } from './handlers/relationship.handler';
+import { TeamHandler } from './handlers/team.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -94,6 +95,7 @@ export class MCPService {
     private readonly experimentHandler: ExperimentHandler,
     private readonly intelligenceContextHandler: IntelligenceContextHandler,
     private readonly relationshipHandler: RelationshipHandler,
+    private readonly teamHandler: TeamHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -431,6 +433,14 @@ export class MCPService {
           case 'relationship':
             this.logger.debug(`MCPService: Delegating to relationship handler`);
             result = await this.handleRelationshipRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'team':
+            this.logger.debug(`MCPService: Delegating to team handler`);
+            result = await this.handleTeamRequest(
               operation,
               request.params,
               user.id,
@@ -1467,6 +1477,31 @@ export class MCPService {
         return this.relationshipHandler.list(params, userId);
       default:
         throw createMethodNotFoundError(`relationship.${operation}`);
+    }
+  }
+
+  private async handleTeamRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'deploy':
+        return this.teamHandler.deploy(params, userId);
+      case 'status':
+        return this.teamHandler.status(params, userId);
+      case 'list':
+        return this.teamHandler.list(params, userId);
+      case 'trigger':
+        return this.teamHandler.trigger(params, userId);
+      case 'pause':
+        return this.teamHandler.pause(params, userId);
+      case 'resume':
+        return this.teamHandler.resume(params, userId);
+      case 'teardown':
+        return this.teamHandler.teardown(params, userId);
+      default:
+        throw createMethodNotFoundError(`team.${operation}`);
     }
   }
 
