@@ -7,6 +7,7 @@ import { SwarmExecutionRepo } from '../../database/repos/coding-swarm/swarm-exec
 import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-workspace.repo';
 import { GitWorkspaceService } from '../git-workspace/git-workspace.service';
 import { AgentExecutionService } from './agent-execution.service';
+import { WorkspacePreparationService } from './workspace-preparation.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { KyselyDB } from '../../database/types/kysely.types';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
@@ -20,6 +21,7 @@ export class CodingSwarmService {
     private readonly codingWorkspaceRepo: CodingWorkspaceRepo,
     private readonly gitWorkspaceService: GitWorkspaceService,
     private readonly agentExecutionService: AgentExecutionService,
+    private readonly workspacePreparationService: WorkspacePreparationService,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue(QueueName.GENERAL_QUEUE) private readonly generalQueue: Queue,
@@ -106,14 +108,29 @@ export class CodingSwarmService {
         execution.workspaceId,
       );
 
-      // Step 3: Spawn coding agent via AgentExecutionService (local PTY or remote)
+      // Step 3: Prepare workspace — MCP API key, memory file, approval config, env vars
+      const prepResult =
+        await this.workspacePreparationService.prepareWorkspace({
+          workspacePath: gitWorkspace.path,
+          workspaceId: execution.workspaceId,
+          executionId,
+          agentType: execution.agentType,
+          triggeredBy: execution.triggeredBy || 'system',
+          taskDescription: execution.taskDescription,
+          taskContext: execution.taskContext as Record<string, any> | undefined,
+          approvalPreset: config.approvalPreset,
+        });
+      const fullEnv = { ...agentEnv, ...prepResult.env };
+
+      // Step 4: Spawn coding agent via AgentExecutionService (local PTY or remote)
       const spawnResult = await this.agentExecutionService.spawn(
         execution.workspaceId,
         {
           type: execution.agentType,
           name: `swarm-${executionId.slice(0, 8)}`,
           workdir: gitWorkspace.path,
-          env: agentEnv,
+          env: fullEnv,
+          adapterConfig: prepResult.adapterConfig,
         },
         execution.triggeredBy || 'system',
       );
@@ -129,7 +146,7 @@ export class CodingSwarmService {
         `Spawned coding agent ${agentId} for execution ${executionId}`,
       );
 
-      // Steps 4-7 are event-driven (agent_ready → send task → agent_stopped → capture → finalize)
+      // Steps 5-8 are event-driven (agent_ready → send task → agent_stopped → capture → finalize)
       // The CodingSwarmListener will call handleAgentReady/handleAgentStopped
 
     } catch (error: any) {
@@ -243,6 +260,12 @@ export class CodingSwarmService {
         experimentId: execution.experimentId,
       });
 
+      // Revoke the scoped MCP API key
+      await this.workspacePreparationService.cleanupApiKey(
+        execution.id,
+        execution.triggeredBy || 'system',
+      );
+
       // Schedule deferred cleanup (30 min)
       this.scheduleCleanup(execution.codingWorkspaceId, 30 * 60 * 1000);
 
@@ -271,6 +294,12 @@ export class CodingSwarmService {
       completedAt: new Date(),
     });
     this.emitStatusChanged(execution.workspaceId, execution.id, 'failed');
+
+    // Revoke the scoped MCP API key
+    await this.workspacePreparationService.cleanupApiKey(
+      execution.id,
+      execution.triggeredBy || 'system',
+    );
 
     // Cleanup workspace
     if (execution.codingWorkspaceId) {

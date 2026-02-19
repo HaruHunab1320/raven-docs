@@ -6,6 +6,7 @@ import { SwarmExecutionRepo } from '../../database/repos/coding-swarm/swarm-exec
 import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-workspace.repo';
 import { GitWorkspaceService } from '../git-workspace/git-workspace.service';
 import { AgentExecutionService } from './agent-execution.service';
+import { WorkspacePreparationService } from './workspace-preparation.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { QueueName } from '../../integrations/queue/constants';
 
@@ -42,6 +43,22 @@ describe('CodingSwarmService', () => {
     getLogs: jest.fn(),
     getSession: jest.fn(),
     checkInstallation: jest.fn(),
+  };
+
+  const mockWorkspacePreparationService = {
+    prepareWorkspace: jest.fn().mockResolvedValue({
+      env: {
+        MCP_SERVER_URL: 'http://localhost:3000',
+        MCP_API_KEY: 'mcp_test',
+        RAVEN_WORKSPACE_ID: 'workspace-123',
+        RAVEN_EXECUTION_ID: 'exec-001',
+      },
+      adapterConfig: {
+        interactive: true,
+        approvalPreset: 'autonomous',
+      },
+    }),
+    cleanupApiKey: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockWorkspaceRepo = {
@@ -87,6 +104,7 @@ describe('CodingSwarmService', () => {
         { provide: CodingWorkspaceRepo, useValue: mockCodingWorkspaceRepo },
         { provide: GitWorkspaceService, useValue: mockGitWorkspaceService },
         { provide: AgentExecutionService, useValue: mockAgentExecutionService },
+        { provide: WorkspacePreparationService, useValue: mockWorkspacePreparationService },
         { provide: WorkspaceRepo, useValue: mockWorkspaceRepo },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: getQueueToken(QueueName.GENERAL_QUEUE), useValue: mockQueue },

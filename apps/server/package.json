@@ -64,7 +64,7 @@
     "cache-manager": "^6.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
-    "coding-agent-adapters": "0.2.16",
+    "coding-agent-adapters": "0.3.0",
     "cookie": "^1.0.2",
     "dotenv": "^16.4.7",
     "fastify": "^5.0.0",

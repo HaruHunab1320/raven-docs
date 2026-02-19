@@ -111,6 +111,77 @@ async function main() {
   }
   log('PROVISION', 'Added .git-workspace/ to .gitignore');
 
+  // ── Phase 1.5: Prepare workspace — write memory file + MCP env ──────────
+
+  log('PREPARE', 'Writing agent memory file...');
+
+  const MCP_SERVER_URL = process.env.APP_URL || 'http://localhost:3000';
+  const MCP_API_KEY = process.env.MCP_API_KEY || ''; // Optional for e2e
+
+  const TOOL_CATEGORIES_SUMMARY = [
+    '- **Space Management** (`space`): Create, update, delete spaces',
+    '- **Page Management** (`page`): Create, read, update, delete pages',
+    '- **Search** (`search`): Full-text search across pages and content',
+    '- **Coding Swarm** (`coding_swarm`): Spawn coding agents',
+    '- **GitHub Issues** (`github_issues`): Manage GitHub issues',
+  ].join('\n');
+
+  const agentContextContent = `# Raven Docs — Agent Context
+
+## Your Task
+Create a new file called "src/hello.ts" with a simple TypeScript function.
+
+## Execution Info
+- Execution ID: ${executionId}
+- Workspace ID: e2e-test
+
+## Raven API Access
+
+You have access to Raven's tool API for interacting with the platform.
+
+**Base URL:** ${MCP_SERVER_URL}/api/mcp-standard
+**Auth:** \`Authorization: Bearer $MCP_API_KEY\` (available as env var)
+
+### Discover Tools (no auth required)
+\`\`\`
+POST ${MCP_SERVER_URL}/api/mcp-standard/search_tools
+{"query": "your search term"}
+\`\`\`
+
+### Available Tool Categories
+${TOOL_CATEGORIES_SUMMARY}
+
+## Guidelines
+- Do NOT commit API keys or injected config files
+- Stay on the current git branch
+`;
+
+  // Write memory file based on agent type
+  const MEMORY_FILE_MAP: Record<string, string> = {
+    claude: 'CLAUDE.md',
+    'claude-code': 'CLAUDE.md',
+    gemini: 'GEMINI.md',
+    codex: 'AGENTS.md',
+    aider: '.aider.conventions.md',
+  };
+
+  const memoryFileName = MEMORY_FILE_MAP[AGENT_TYPE] || 'CLAUDE.md';
+  const memoryFilePath = `${workspace.path}/${memoryFileName}`;
+
+  writeFileSync(memoryFilePath, agentContextContent);
+  log('PREPARE', `Wrote ${memoryFileName} to workspace`);
+
+  // Update .gitignore to exclude the memory file
+  if (existsSync(gitignorePath)) {
+    const gitignoreContent = require('fs').readFileSync(gitignorePath, 'utf-8');
+    if (!gitignoreContent.includes(memoryFileName)) {
+      appendFileSync(gitignorePath, `${memoryFileName}\n`);
+    }
+  } else {
+    writeFileSync(gitignorePath, `${gitignoreEntry}${memoryFileName}\n`);
+  }
+  log('PREPARE', `Added ${memoryFileName} to .gitignore`);
+
   // ── Phase 2: Spawn coding agent ──────────────────────────────────────────
 
   log('AGENT', 'Initializing PTYManager...');
@@ -174,10 +245,15 @@ async function main() {
   log('AGENT', `Spawning ${AGENT_TYPE} agent in ${workspace.path}...`);
 
   // Override env vars that prevent nesting (PTYManager merges with process.env)
+  // Also pass MCP env vars so the agent can call Raven's API
   const nestingOverrides: Record<string, string> = {
     CLAUDECODE: '',
     CLAUDE_CODE_SESSION: '',
     CLAUDE_CODE_ENTRYPOINT: '',
+    ...(MCP_SERVER_URL ? { MCP_SERVER_URL } : {}),
+    ...(MCP_API_KEY ? { MCP_API_KEY } : {}),
+    RAVEN_WORKSPACE_ID: 'e2e-test',
+    RAVEN_EXECUTION_ID: executionId,
   };
 
   // Track output for detecting when the input prompt is ready
