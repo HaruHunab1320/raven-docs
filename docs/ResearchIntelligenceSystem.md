@@ -112,9 +112,22 @@ CREATE INDEX idx_pages_metadata ON pages USING GIN (metadata) WHERE metadata IS 
 ```typescript
 // Hypothesis
 { status: 'proposed'|'testing'|'validated'|'refuted'|'inconclusive'|'superseded',
-  formalStatement: string, predictions: string[], prerequisites: string[],
+  formalStatement: string,                      // Required. The testable claim.
+  claimLabel: 'hypothesis'|'conjecture'|'empirically_supported'|'proved'|'axiom',  // Required. Canon classification.
+  predictions: string[], prerequisites: string[],
+  assumptions: string[],                        // Explicit assumptions the claim depends on
+  theoremIds: string[],                         // Links to formal theorem identifiers
+  canonVersion: string,                         // Version of the canon this belongs to
   priority: 'low'|'medium'|'high'|'critical', domainTags: string[],
-  successCriteria: string, registeredBy: string, approvedBy: string|null }
+  successCriteria: string,
+  statusDecision: string,                       // Rationale for the current status (who decided, why)
+  evidenceQualityScore: number,                 // Computed: based on replication, ablations, independent impl
+  replicationCount: number,                     // How many independent replications
+  independentImplementations: number,           // Distinct implementations that validate
+  ablationsConducted: boolean,                  // Whether ablation studies were done
+  intakeGateCompleted: boolean,                 // Required true before promotion to 'proved'
+  intakeGateChecklist: Record<string, any>,     // Structured checklist + decision record
+  registeredBy: string, approvedBy: string|null }
 
 // Experiment
 { status: 'planned'|'running'|'completed'|'failed',
@@ -122,6 +135,12 @@ CREATE INDEX idx_pages_metadata ON pages USING GIN (metadata) WHERE metadata IS 
   metrics: Record<string, any>, results: Record<string, any>,
   passedPredictions: boolean|null, unexpectedObservations: string[],
   suggestedFollowUps: string[], codeRef: string|null,
+  // Reproducibility fields
+  exactCommand: string,                         // Exact command used to run the experiment
+  seedPolicy: string,                           // How random seeds are managed
+  configHash: string,                           // Hash of the configuration used
+  artifactPaths: string[],                      // Paths to output artifacts
+  artifactChecksum: string,                     // Checksum of artifacts for integrity verification
   runtime: { duration: number, compute: string } }
 
 // Paper
@@ -151,7 +170,7 @@ New node label:
 
 New relationship types:
 - `VALIDATES` — experiment → hypothesis
-- `CONTRADICTS` — experiment → hypothesis (or experiment → experiment)
+- `CONTRADICTS` — experiment → hypothesis (or experiment → experiment). Carries `contradictionType` metadata: `direct_theorem` | `scope_mismatch` | `metric_disagreement`
 - `EXTENDS` — hypothesis → hypothesis
 - `INSPIRED_BY` — any → any
 - `USES_DATA_FROM` — experiment → experiment
@@ -161,6 +180,9 @@ New relationship types:
 - `SUPERSEDES` — hypothesis → hypothesis
 - `CITES` — paper → experiment/paper
 - `REPLICATES` — experiment → experiment
+- `REPRODUCES` — experiment → experiment (independent successful reproduction)
+- `FAILS_TO_REPRODUCE` — experiment → experiment (failed reproduction attempt)
+- `USES_ASSUMPTION` — any → hypothesis (declares dependency on an assumption)
 
 All edges carry: `{ createdAt, createdBy, workspaceId, metadata? }`
 
@@ -352,13 +374,23 @@ Extend `AgentLoopService.runLoop()`:
 #### 4.1 Scheduled Graph Analysis
 BullMQ job running on configurable interval:
 - **Convergence:** 3+ experiments with VALIDATES edges → same hypothesis
-- **Contradiction:** CONTRADICTS edges between experiments/hypotheses
+- **Contradiction:** CONTRADICTS edges between experiments/hypotheses. Subtypes: `direct_theorem` (formal logical contradiction), `scope_mismatch` (different experimental conditions), `metric_disagreement` (same setup, different measurements)
 - **Staleness:** Open question tasks with no activity in N days
 - **Cross-domain:** Similar embeddings across different domain tags
 - **Untested implications:** Validated hypothesis A EXTENDS to untested B
-- **Evidence gaps:** Paper claims without experimental backing
+- **Evidence gaps:** Paper claims without experimental backing (CITES/FORMALIZES targets with < N experiments)
+- **Intake gate violations:** Hypotheses promoted to `claimLabel=proved` without `intakeGateCompleted=true` + decision record
+- **Reproduction failures:** Experiments with FAILS_TO_REPRODUCE edges flagged for review
 
-#### 4.2 Notifications & Surfacing
+#### 4.2 Evidence Quality Scoring
+Automated scoring based on:
+- Replication count (VALIDATES + REPRODUCES edge count)
+- Ablation studies conducted
+- Independent implementations (distinct research agents/teams)
+- Absence of FAILS_TO_REPRODUCE edges
+Score stored as `evidenceQualityScore` on hypothesis metadata.
+
+#### 4.3 Notifications & Surfacing
 - Pattern results → notification system
 - Dashboard widget showing detected patterns
 - PI can dismiss, prioritize, or spawn tasks from patterns
@@ -405,6 +437,16 @@ Each phase delivers standalone value:
 - Phase 2: Research MCP tools + dashboard (useful with single agent)
 - Phase 3: Multi-agent teams (full swarm capability)
 - Phase 4: Passive intelligence (system gets smarter automatically)
+
+### 5. Strict Ontology Governance
+Prevent ontology drift from day one:
+- **Claim labels are required** on hypotheses — no unclassified claims allowed
+- **Intake gate** enforced: no promotion to `proved` without checklist completion + decision record
+- **Contradiction subtypes** are typed: `direct_theorem`, `scope_mismatch`, `metric_disagreement` — forces precise classification
+- **Reproducibility fields** required on experiments: exact command, seed policy, config hash, artifact paths/checksums
+- **Evidence quality scores** computed automatically from replication count, ablations, and independent implementations
+- **Schema validation at creation time** — page metadata validated against the intelligence profile's `metadataSchema` definitions
+- Pattern detection flags violations automatically (intake gate, evidence gaps, reproduction failures)
 
 ---
 

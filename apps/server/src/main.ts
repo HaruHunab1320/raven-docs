@@ -70,6 +70,7 @@ async function bootstrap() {
         '/api/mcp-standard',
         '/api/integrations/slack',
         '/api/integrations/discord',
+        '/api/integrations/github',
       ];
 
       if (

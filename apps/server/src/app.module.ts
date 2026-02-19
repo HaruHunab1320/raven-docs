@@ -20,6 +20,7 @@ import { MCPModule } from './integrations/mcp/mcp.module';
 import { MCPStandardModule } from './integrations/mcp-standard/mcp-standard.module';
 import { SlackModule } from './integrations/slack/slack.module';
 import { DiscordModule } from './integrations/discord/discord.module';
+import { GitHubModule } from './integrations/github/github.module';
 import { LoggerModule } from 'nestjs-pino';
 
 @Module({
@@ -48,6 +49,7 @@ import { LoggerModule } from 'nestjs-pino';
     MCPStandardModule,
     SlackModule,
     DiscordModule,
+    GitHubModule,
     StorageModule.forRootAsync({
       imports: [EnvironmentModule],
     }),

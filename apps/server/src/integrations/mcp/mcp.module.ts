@@ -33,6 +33,7 @@ import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
 import { SwarmHandler } from './handlers/swarm.handler';
+import { GitHubIssueHandler } from './handlers/github-issue.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -78,6 +79,7 @@ import { ContextAssemblyModule } from '../../core/context-assembly/context-assem
 import { TeamModule } from '../../core/team/team.module';
 import { PatternDetectionModule } from '../../core/pattern-detection/pattern-detection.module';
 import { CodingSwarmModule } from '../../core/coding-swarm/coding-swarm.module';
+import { GitWorkspaceModule } from '../../core/git-workspace/git-workspace.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -117,6 +119,7 @@ import { CodingSwarmModule } from '../../core/coding-swarm/coding-swarm.module';
     TeamModule,
     PatternDetectionModule,
     CodingSwarmModule,
+    GitWorkspaceModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -156,6 +159,7 @@ import { CodingSwarmModule } from '../../core/coding-swarm/coding-swarm.module';
     TeamHandler,
     PatternHandler,
     SwarmHandler,
+    GitHubIssueHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

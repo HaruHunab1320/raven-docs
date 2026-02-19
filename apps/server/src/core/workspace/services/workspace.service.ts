@@ -302,6 +302,7 @@ export class WorkspaceService {
     const repoTokens = integrations?.repoTokens || {};
     const slack = integrations?.slack || {};
     const discord = integrations?.discord || {};
+    const github = integrations?.github || {};
     return {
       repoTokens: {
         githubToken: Boolean(repoTokens.githubToken),
@@ -327,6 +328,14 @@ export class WorkspaceService {
         publicKeyHint: this.maskSecret(discord.publicKey),
         defaultChannelId: discord.defaultChannelId || null,
         defaultUserId: discord.defaultUserId || null,
+      },
+      github: {
+        connected: github.connected === true,
+        githubUsername: github.githubUsername || null,
+        githubAvatarUrl: github.githubAvatarUrl || null,
+        connectedAt: github.connectedAt || null,
+        tokenExpiresAt: github.tokenExpiresAt || null,
+        scopes: github.scopes || [],
       },
     };
   }

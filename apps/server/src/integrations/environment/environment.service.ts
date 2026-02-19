@@ -221,4 +221,12 @@ export class EnvironmentService {
       .toLowerCase();
     return disable === 'true';
   }
+
+  getGitHubAppClientId(): string {
+    return this.configService.get<string>('GITHUB_APP_CLIENT_ID');
+  }
+
+  getGitHubAppClientSecret(): string {
+    return this.configService.get<string>('GITHUB_APP_CLIENT_SECRET');
+  }
 }

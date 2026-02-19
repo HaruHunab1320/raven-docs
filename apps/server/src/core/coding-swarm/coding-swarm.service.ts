@@ -6,7 +6,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { SwarmExecutionRepo } from '../../database/repos/coding-swarm/swarm-execution.repo';
 import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-workspace.repo';
 import { GitWorkspaceService } from '../git-workspace/git-workspace.service';
-import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
+import { AgentExecutionService } from './agent-execution.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { KyselyDB } from '../../database/types/kysely.types';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
@@ -19,7 +19,7 @@ export class CodingSwarmService {
     private readonly swarmExecRepo: SwarmExecutionRepo,
     private readonly codingWorkspaceRepo: CodingWorkspaceRepo,
     private readonly gitWorkspaceService: GitWorkspaceService,
-    private readonly parallaxAgentsService: ParallaxAgentsService,
+    private readonly agentExecutionService: AgentExecutionService,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue(QueueName.GENERAL_QUEUE) private readonly generalQueue: Queue,
@@ -101,19 +101,24 @@ export class CodingSwarmService {
       });
       this.emitStatusChanged(execution.workspaceId, executionId, 'spawning');
 
-      // Step 2: Spawn coding agent via parallax
-      const spawnResult = await this.parallaxAgentsService.spawnAgents(
+      // Step 2: Resolve API credentials for the agent
+      const agentEnv = await this.resolveAgentCredentials(
+        execution.workspaceId,
+      );
+
+      // Step 3: Spawn coding agent via AgentExecutionService (local PTY or remote)
+      const spawnResult = await this.agentExecutionService.spawn(
         execution.workspaceId,
         {
-          agentType: execution.agentType,
-          count: 1,
+          type: execution.agentType,
           name: `swarm-${executionId.slice(0, 8)}`,
-          config: { workdir: gitWorkspace.path },
+          workdir: gitWorkspace.path,
+          env: agentEnv,
         },
         execution.triggeredBy || 'system',
       );
 
-      const agentId = spawnResult.spawnedAgents?.[0]?.id;
+      const agentId = spawnResult.id;
       if (agentId) {
         await this.swarmExecRepo.updateStatus(executionId, 'spawning', {
           agentId,
@@ -124,7 +129,7 @@ export class CodingSwarmService {
         `Spawned coding agent ${agentId} for execution ${executionId}`,
       );
 
-      // Steps 3-7 are event-driven (agent_ready → send task → agent_stopped → capture → finalize)
+      // Steps 4-7 are event-driven (agent_ready → send task → agent_stopped → capture → finalize)
       // The CodingSwarmListener will call handleAgentReady/handleAgentStopped
 
     } catch (error: any) {
@@ -155,10 +160,14 @@ export class CodingSwarmService {
     });
     this.emitStatusChanged(execution.workspaceId, execution.id, 'running');
 
-    // Send the task to the agent via runtime API
+    // Send the task to the agent via AgentExecutionService
     try {
       const taskPayload = this.buildTaskPayload(execution);
-      await this.sendToRuntime(execution.workspaceId, agentId, taskPayload);
+      await this.agentExecutionService.send(
+        agentId,
+        taskPayload.message,
+        execution.workspaceId,
+      );
       this.logger.log(`Sent task to agent ${agentId} for execution ${execution.id}`);
     } catch (error: any) {
       this.logger.error(
@@ -293,10 +302,13 @@ export class CodingSwarmService {
     const execution = await this.swarmExecRepo.findById(executionId);
     if (!execution) throw new Error(`Execution ${executionId} not found`);
 
-    // Stop the runtime agent if running
+    // Stop the agent via AgentExecutionService
     if (execution.agentId) {
       try {
-        await this.stopRuntimeAgent(execution.workspaceId, execution.agentId);
+        await this.agentExecutionService.stop(
+          execution.agentId,
+          execution.workspaceId,
+        );
       } catch (error: any) {
         this.logger.warn(
           `Failed to stop agent ${execution.agentId}: ${error.message}`,
@@ -324,6 +336,22 @@ export class CodingSwarmService {
     const execution = await this.swarmExecRepo.findById(executionId);
     if (!execution) throw new Error(`Execution ${executionId} not found`);
 
+    // Try local PTY logs first if the agent is still tracked
+    if (execution.agentId) {
+      try {
+        const lines = await this.agentExecutionService.getLogs(
+          execution.agentId,
+          limit,
+        );
+        if (lines.length > 0) {
+          return { logs: lines.map((l) => ({ content: l })) };
+        }
+      } catch {
+        // Fall through to DB logs
+      }
+    }
+
+    // Fall back to DB-stored terminal session logs
     if (!execution.terminalSessionId) {
       return { logs: [], message: 'No terminal session associated' };
     }
@@ -341,58 +369,43 @@ export class CodingSwarmService {
 
   // --- Private helpers ---
 
-  private async getRuntimeEndpoint(workspaceId: string): Promise<string | null> {
-    if (process.env.AGENT_RUNTIME_ENDPOINT) {
-      return process.env.AGENT_RUNTIME_ENDPOINT;
-    }
-    return null;
-  }
-
-  private async sendToRuntime(
+  private async resolveAgentCredentials(
     workspaceId: string,
-    agentId: string,
-    payload: { message: string; context?: any },
-  ) {
-    const endpoint = await this.getRuntimeEndpoint(workspaceId);
-    if (!endpoint) {
-      throw new Error('Runtime endpoint not configured');
+  ): Promise<Record<string, string>> {
+    const env: Record<string, string> = {};
+
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      const settings = workspace?.settings as any;
+      const integrations = settings?.integrations || {};
+
+      // Anthropic key (for Claude Code)
+      if (integrations.anthropicKey) {
+        env.ANTHROPIC_API_KEY = integrations.anthropicKey;
+      } else if (process.env.ANTHROPIC_API_KEY) {
+        env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+      }
+
+      // OpenAI key (for Codex, Aider)
+      if (integrations.openaiKey) {
+        env.OPENAI_API_KEY = integrations.openaiKey;
+      } else if (process.env.OPENAI_API_KEY) {
+        env.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      }
+
+      // Google key (for Gemini CLI)
+      if (integrations.googleKey) {
+        env.GOOGLE_API_KEY = integrations.googleKey;
+      } else if (process.env.GOOGLE_API_KEY) {
+        env.GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+      }
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to resolve agent credentials for workspace ${workspaceId}: ${error.message}`,
+      );
     }
 
-    const response = await fetch(`${endpoint}/api/agents/${agentId}/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Workspace-Id': workspaceId,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Runtime returned ${response.status}: ${errorText}`);
-    }
-
-    return response.json();
-  }
-
-  private async stopRuntimeAgent(workspaceId: string, agentId: string) {
-    const endpoint = await this.getRuntimeEndpoint(workspaceId);
-    if (!endpoint) {
-      throw new Error('Runtime endpoint not configured');
-    }
-
-    const response = await fetch(`${endpoint}/api/agents/${agentId}/stop`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Workspace-Id': workspaceId,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Runtime returned ${response.status}: ${errorText}`);
-    }
+    return env;
   }
 
   private async findExecutionByAgentId(agentId: string) {

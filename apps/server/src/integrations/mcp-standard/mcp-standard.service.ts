@@ -2381,6 +2381,13 @@ export class MCPStandardService {
       'swarm_list': 'swarm.list',
       'swarm_stop': 'swarm.stop',
       'swarm_logs': 'swarm.logs',
+      // GitHub issue tools
+      'github_issue_create': 'github_issue.create',
+      'github_issue_get': 'github_issue.get',
+      'github_issue_list': 'github_issue.list',
+      'github_issue_update': 'github_issue.update',
+      'github_issue_comment': 'github_issue.comment',
+      'github_issue_close': 'github_issue.close',
     };
 
     // Handle tool discovery tools directly (they don't route to internal MCP service)

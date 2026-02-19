@@ -33,6 +33,7 @@ import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
 import { SwarmHandler } from './handlers/swarm.handler';
+import { GitHubIssueHandler } from './handlers/github-issue.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -100,6 +101,7 @@ export class MCPService {
     private readonly teamHandler: TeamHandler,
     private readonly patternHandler: PatternHandler,
     private readonly swarmHandler: SwarmHandler,
+    private readonly githubIssueHandler: GitHubIssueHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -461,6 +463,14 @@ export class MCPService {
           case 'swarm':
             this.logger.debug(`MCPService: Delegating to swarm handler`);
             result = await this.handleSwarmRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'github_issue':
+            this.logger.debug(`MCPService: Delegating to github issue handler`);
+            result = await this.handleGitHubIssueRequest(
               operation,
               request.params,
               user.id,
@@ -1562,6 +1572,29 @@ export class MCPService {
         return this.swarmHandler.logs(params, userId);
       default:
         throw createMethodNotFoundError(`swarm.${operation}`);
+    }
+  }
+
+  private async handleGitHubIssueRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'create':
+        return this.githubIssueHandler.create(params, userId);
+      case 'get':
+        return this.githubIssueHandler.get(params, userId);
+      case 'list':
+        return this.githubIssueHandler.list(params, userId);
+      case 'update':
+        return this.githubIssueHandler.update(params, userId);
+      case 'comment':
+        return this.githubIssueHandler.comment(params, userId);
+      case 'close':
+        return this.githubIssueHandler.close(params, userId);
+      default:
+        throw createMethodNotFoundError(`github_issue.${operation}`);
     }
   }
 

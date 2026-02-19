@@ -5,7 +5,7 @@ import { CodingSwarmService } from './coding-swarm.service';
 import { SwarmExecutionRepo } from '../../database/repos/coding-swarm/swarm-execution.repo';
 import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-workspace.repo';
 import { GitWorkspaceService } from '../git-workspace/git-workspace.service';
-import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
+import { AgentExecutionService } from './agent-execution.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { QueueName } from '../../integrations/queue/constants';
 
@@ -35,8 +35,13 @@ describe('CodingSwarmService', () => {
     getWorkspace: jest.fn(),
   };
 
-  const mockParallaxAgentsService = {
-    spawnAgents: jest.fn(),
+  const mockAgentExecutionService = {
+    spawn: jest.fn(),
+    send: jest.fn(),
+    stop: jest.fn(),
+    getLogs: jest.fn(),
+    getSession: jest.fn(),
+    checkInstallation: jest.fn(),
   };
 
   const mockWorkspaceRepo = {
@@ -81,7 +86,7 @@ describe('CodingSwarmService', () => {
         { provide: SwarmExecutionRepo, useValue: mockSwarmExecRepo },
         { provide: CodingWorkspaceRepo, useValue: mockCodingWorkspaceRepo },
         { provide: GitWorkspaceService, useValue: mockGitWorkspaceService },
-        { provide: ParallaxAgentsService, useValue: mockParallaxAgentsService },
+        { provide: AgentExecutionService, useValue: mockAgentExecutionService },
         { provide: WorkspaceRepo, useValue: mockWorkspaceRepo },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: getQueueToken(QueueName.GENERAL_QUEUE), useValue: mockQueue },
@@ -177,9 +182,10 @@ describe('CodingSwarmService', () => {
       },
     };
 
-    it('should provision workspace and spawn agent', async () => {
+    it('should provision workspace and spawn agent via AgentExecutionService', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue(mockExecution);
       mockSwarmExecRepo.updateStatus.mockResolvedValue({});
+      mockWorkspaceRepo.findById.mockResolvedValue({ settings: {} });
 
       mockGitWorkspaceService.provision.mockResolvedValue({
         id: 'cw-001',
@@ -188,8 +194,8 @@ describe('CodingSwarmService', () => {
         status: 'ready',
       });
 
-      mockParallaxAgentsService.spawnAgents.mockResolvedValue({
-        spawnedAgents: [{ id: 'agent-abc' }],
+      mockAgentExecutionService.spawn.mockResolvedValue({
+        id: 'agent-abc',
       });
 
       await service.processExecution('exec-001');
@@ -203,13 +209,13 @@ describe('CodingSwarmService', () => {
         }),
       );
 
-      // Should spawn agent with workdir
-      expect(mockParallaxAgentsService.spawnAgents).toHaveBeenCalledWith(
+      // Should spawn agent via AgentExecutionService
+      expect(mockAgentExecutionService.spawn).toHaveBeenCalledWith(
         'workspace-123',
         expect.objectContaining({
-          agentType: 'claude-code',
-          count: 1,
-          config: { workdir: '/tmp/raven-workspaces/repo/worktrees/exp-001' },
+          type: 'claude-code',
+          name: expect.stringContaining('swarm-'),
+          workdir: '/tmp/raven-workspaces/repo/worktrees/exp-001',
         }),
         'user-789',
       );
@@ -260,7 +266,7 @@ describe('CodingSwarmService', () => {
   });
 
   describe('handleAgentReady', () => {
-    it('should update status to running and send task', async () => {
+    it('should update status to running and send task via AgentExecutionService', async () => {
       const mockExecution = {
         id: 'exec-001',
         workspaceId: 'workspace-123',
@@ -274,16 +280,7 @@ describe('CodingSwarmService', () => {
       // Mock findExecutionByAgentId
       mockSelectChain.execute.mockResolvedValue([mockExecution]);
       mockSwarmExecRepo.updateStatus.mockResolvedValue({});
-
-      // Mock fetch for sendToRuntime - set env variable
-      const originalEndpoint = process.env.AGENT_RUNTIME_ENDPOINT;
-      process.env.AGENT_RUNTIME_ENDPOINT = 'http://localhost:3001';
-
-      const mockFetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      });
-      global.fetch = mockFetch as any;
+      mockAgentExecutionService.send.mockResolvedValue(undefined);
 
       await service.handleAgentReady('agent-abc', {
         runtimeSessionId: 'session-123',
@@ -299,17 +296,12 @@ describe('CodingSwarmService', () => {
         }),
       );
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/agents/agent-abc/send',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-          }),
-        }),
+      // Should send task via AgentExecutionService, not HTTP
+      expect(mockAgentExecutionService.send).toHaveBeenCalledWith(
+        'agent-abc',
+        'Fix the bug',
+        'workspace-123',
       );
-
-      process.env.AGENT_RUNTIME_ENDPOINT = originalEndpoint;
     });
 
     it('should no-op when no matching execution found', async () => {
@@ -480,7 +472,7 @@ describe('CodingSwarmService', () => {
   });
 
   describe('stop', () => {
-    it('should stop a running execution', async () => {
+    it('should stop a running execution via AgentExecutionService', async () => {
       const mockExecution = {
         id: 'exec-001',
         workspaceId: 'workspace-123',
@@ -490,12 +482,7 @@ describe('CodingSwarmService', () => {
       };
       mockSwarmExecRepo.findById.mockResolvedValue(mockExecution);
       mockSwarmExecRepo.updateStatus.mockResolvedValue({});
-
-      const originalEndpoint = process.env.AGENT_RUNTIME_ENDPOINT;
-      process.env.AGENT_RUNTIME_ENDPOINT = 'http://localhost:3001';
-
-      const mockFetch = jest.fn().mockResolvedValue({ ok: true });
-      global.fetch = mockFetch as any;
+      mockAgentExecutionService.stop.mockResolvedValue(undefined);
 
       const result = await service.stop('exec-001');
 
@@ -505,9 +492,9 @@ describe('CodingSwarmService', () => {
         status: 'cancelled',
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/agents/agent-abc/stop',
-        expect.objectContaining({ method: 'POST' }),
+      expect(mockAgentExecutionService.stop).toHaveBeenCalledWith(
+        'agent-abc',
+        'workspace-123',
       );
 
       expect(mockSwarmExecRepo.updateStatus).toHaveBeenCalledWith(
@@ -515,8 +502,6 @@ describe('CodingSwarmService', () => {
         'cancelled',
         expect.objectContaining({ completedAt: expect.any(Date) }),
       );
-
-      process.env.AGENT_RUNTIME_ENDPOINT = originalEndpoint;
     });
 
     it('should throw when execution not found', async () => {
@@ -527,7 +512,7 @@ describe('CodingSwarmService', () => {
       );
     });
 
-    it('should still cancel even if runtime stop fails', async () => {
+    it('should still cancel even if agent stop fails', async () => {
       const mockExecution = {
         id: 'exec-001',
         workspaceId: 'workspace-123',
@@ -537,31 +522,51 @@ describe('CodingSwarmService', () => {
       };
       mockSwarmExecRepo.findById.mockResolvedValue(mockExecution);
       mockSwarmExecRepo.updateStatus.mockResolvedValue({});
-
-      const originalEndpoint = process.env.AGENT_RUNTIME_ENDPOINT;
-      process.env.AGENT_RUNTIME_ENDPOINT = 'http://localhost:3001';
-
-      const mockFetch = jest.fn().mockRejectedValue(new Error('Connection refused'));
-      global.fetch = mockFetch as any;
+      mockAgentExecutionService.stop.mockRejectedValue(
+        new Error('Connection refused'),
+      );
 
       const result = await service.stop('exec-001');
 
       expect(result.status).toBe('cancelled');
-
-      process.env.AGENT_RUNTIME_ENDPOINT = originalEndpoint;
     });
   });
 
   describe('getLogs', () => {
-    it('should return logs from terminal session', async () => {
+    it('should try AgentExecutionService logs first', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue({
         id: 'exec-001',
+        agentId: 'agent-abc',
         terminalSessionId: 'term-456',
       });
 
+      mockAgentExecutionService.getLogs.mockResolvedValue([
+        'Building...',
+        'Done.',
+      ]);
+
+      const result = await service.getLogs('exec-001', 50);
+
+      expect(result).toEqual({
+        logs: [{ content: 'Building...' }, { content: 'Done.' }],
+      });
+      expect(mockAgentExecutionService.getLogs).toHaveBeenCalledWith(
+        'agent-abc',
+        50,
+      );
+    });
+
+    it('should fall back to DB logs when PTY logs empty', async () => {
+      mockSwarmExecRepo.findById.mockResolvedValue({
+        id: 'exec-001',
+        agentId: 'agent-abc',
+        terminalSessionId: 'term-456',
+      });
+
+      mockAgentExecutionService.getLogs.mockResolvedValue([]);
+
       const mockLogs = [
         { id: 'log-1', content: 'Building...', createdAt: new Date() },
-        { id: 'log-2', content: 'Done.', createdAt: new Date() },
       ];
       mockSelectChain.execute.mockResolvedValue(mockLogs);
 
@@ -573,6 +578,7 @@ describe('CodingSwarmService', () => {
     it('should return empty when no terminal session', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue({
         id: 'exec-001',
+        agentId: null,
         terminalSessionId: null,
       });
 

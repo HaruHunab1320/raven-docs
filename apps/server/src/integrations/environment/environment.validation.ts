@@ -110,6 +110,12 @@ export class EnvironmentVariables {
   )
   @ValidateIf((obj) => obj.CLOUD === 'true'.toLowerCase())
   SUBDOMAIN_HOST: string;
+
+  @IsOptional()
+  GITHUB_APP_CLIENT_ID: string;
+
+  @IsOptional()
+  GITHUB_APP_CLIENT_SECRET: string;
 }
 
 export function validate(config: Record<string, any>) {

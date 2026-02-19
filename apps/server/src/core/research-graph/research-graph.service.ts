@@ -13,7 +13,18 @@ export const RESEARCH_EDGE_TYPES = [
   'SUPERSEDES',
   'CITES',
   'REPLICATES',
+  'REPRODUCES',
+  'FAILS_TO_REPRODUCE',
+  'USES_ASSUMPTION',
 ] as const;
+
+export const CONTRADICTION_SUBTYPES = [
+  'direct_theorem',
+  'scope_mismatch',
+  'metric_disagreement',
+] as const;
+
+export type ContradictionSubtype = (typeof CONTRADICTION_SUBTYPES)[number];
 
 export type ResearchEdgeType = (typeof RESEARCH_EDGE_TYPES)[number];
 
@@ -305,6 +316,8 @@ export class ResearchGraphService {
     supporting: GraphEdge[];
     contradicting: GraphEdge[];
     testing: GraphEdge[];
+    reproductions: GraphEdge[];
+    failedReproductions: GraphEdge[];
   }> {
     const session = this.memgraph.getSession();
     try {
@@ -314,17 +327,27 @@ export class ResearchGraphService {
         OPTIONAL MATCH (e1:PageNode)-[r1:VALIDATES]->(h)
         OPTIONAL MATCH (e2:PageNode)-[r2:CONTRADICTS]->(h)
         OPTIONAL MATCH (e3:PageNode)-[r3:TESTS_HYPOTHESIS]->(h)
+        OPTIONAL MATCH (e4:PageNode)-[r4:REPRODUCES]->(h)
+        OPTIONAL MATCH (e5:PageNode)-[r5:FAILS_TO_REPRODUCE]->(h)
         RETURN
           collect(DISTINCT {from: e1.id, createdAt: r1.createdAt, createdBy: r1.createdBy}) AS supporting,
-          collect(DISTINCT {from: e2.id, createdAt: r2.createdAt, createdBy: r2.createdBy}) AS contradicting,
-          collect(DISTINCT {from: e3.id, createdAt: r3.createdAt, createdBy: r3.createdBy}) AS testing
+          collect(DISTINCT {from: e2.id, createdAt: r2.createdAt, createdBy: r2.createdBy, metadata: r2.metadata}) AS contradicting,
+          collect(DISTINCT {from: e3.id, createdAt: r3.createdAt, createdBy: r3.createdBy}) AS testing,
+          collect(DISTINCT {from: e4.id, createdAt: r4.createdAt, createdBy: r4.createdBy}) AS reproductions,
+          collect(DISTINCT {from: e5.id, createdAt: r5.createdAt, createdBy: r5.createdBy}) AS failedReproductions
         `,
         { hypothesisId: hypothesisPageId },
       );
 
       const record = result.records[0];
       if (!record) {
-        return { supporting: [], contradicting: [], testing: [] };
+        return {
+          supporting: [],
+          contradicting: [],
+          testing: [],
+          reproductions: [],
+          failedReproductions: [],
+        };
       }
 
       const mapEdges = (items: any[], type: string): GraphEdge[] =>
@@ -336,13 +359,15 @@ export class ResearchGraphService {
             type,
             createdAt: item.createdAt || '',
             createdBy: item.createdBy || null,
-            metadata: null,
+            metadata: item.metadata ? this.parseMetadata(item.metadata) : null,
           }));
 
       return {
         supporting: mapEdges(record.get('supporting'), 'VALIDATES'),
         contradicting: mapEdges(record.get('contradicting'), 'CONTRADICTS'),
         testing: mapEdges(record.get('testing'), 'TESTS_HYPOTHESIS'),
+        reproductions: mapEdges(record.get('reproductions'), 'REPRODUCES'),
+        failedReproductions: mapEdges(record.get('failedReproductions'), 'FAILS_TO_REPRODUCE'),
       };
     } finally {
       await session.close();

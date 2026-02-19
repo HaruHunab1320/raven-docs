@@ -32,7 +32,8 @@ export type ToolCategory =
   | 'navigation'
   | 'system'
   | 'context'
-  | 'coding_swarm';
+  | 'coding_swarm'
+  | 'github_issues';
 
 export interface ToolCategoryInfo {
   id: ToolCategory;
@@ -120,6 +121,10 @@ export const TOOL_CATEGORIES: Record<ToolCategory, { name: string; description: 
   coding_swarm: {
     name: 'Coding Swarm',
     description: 'Spawn coding agents in isolated git workspaces to write and execute code',
+  },
+  github_issues: {
+    name: 'GitHub Issues',
+    description: 'Create, read, update, and comment on GitHub issues',
   },
 };
 
@@ -1890,6 +1895,111 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         limit: { type: 'number', description: 'Max log entries to return (default: 100)' },
       },
       required: ['executionId'],
+    },
+  },
+
+  // ==========================================================================
+  // GITHUB ISSUES
+  // ==========================================================================
+  {
+    name: 'github_issue_create',
+    description: 'Create a new GitHub issue in a repository',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'create', 'bug', 'feature'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        title: { type: 'string', description: 'Issue title' },
+        body: { type: 'string', description: 'Issue body/description' },
+        labels: { type: 'array', items: { type: 'string' }, description: 'Labels to apply' },
+        assignees: { type: 'array', items: { type: 'string' }, description: 'GitHub usernames to assign' },
+      },
+      required: ['workspaceId', 'repoUrl', 'title'],
+    },
+  },
+  {
+    name: 'github_issue_get',
+    description: 'Get a GitHub issue by number',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'get', 'read', 'details'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        issueNumber: { type: 'number', description: 'Issue number' },
+      },
+      required: ['workspaceId', 'repoUrl', 'issueNumber'],
+    },
+  },
+  {
+    name: 'github_issue_list',
+    description: 'List GitHub issues for a repository',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'list', 'browse'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        state: { type: 'string', description: 'Filter by state: open, closed, all (default: open)' },
+        labels: { type: 'array', items: { type: 'string' }, description: 'Filter by labels' },
+        assignee: { type: 'string', description: 'Filter by assignee username' },
+      },
+      required: ['workspaceId', 'repoUrl'],
+    },
+  },
+  {
+    name: 'github_issue_update',
+    description: 'Update a GitHub issue (title, body, labels, assignees, state)',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'update', 'edit', 'modify'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        issueNumber: { type: 'number', description: 'Issue number' },
+        title: { type: 'string', description: 'New title' },
+        body: { type: 'string', description: 'New body' },
+        state: { type: 'string', description: 'New state: open or closed' },
+        labels: { type: 'array', items: { type: 'string' }, description: 'New labels' },
+        assignees: { type: 'array', items: { type: 'string' }, description: 'New assignees' },
+      },
+      required: ['workspaceId', 'repoUrl', 'issueNumber'],
+    },
+  },
+  {
+    name: 'github_issue_comment',
+    description: 'Add a comment to a GitHub issue',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'comment', 'discuss'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        issueNumber: { type: 'number', description: 'Issue number' },
+        body: { type: 'string', description: 'Comment body' },
+      },
+      required: ['workspaceId', 'repoUrl', 'issueNumber', 'body'],
+    },
+  },
+  {
+    name: 'github_issue_close',
+    description: 'Close a GitHub issue',
+    category: 'github_issues',
+    tags: ['github', 'issue', 'close', 'resolve', 'done'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        repoUrl: { type: 'string', description: 'GitHub repository URL' },
+        issueNumber: { type: 'number', description: 'Issue number' },
+      },
+      required: ['workspaceId', 'repoUrl', 'issueNumber'],
     },
   },
 ];

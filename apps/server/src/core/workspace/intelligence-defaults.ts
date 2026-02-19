@@ -61,14 +61,35 @@ export const defaultResearchProfile: IntelligenceSettings = {
       ],
       metadataSchema: {
         formalStatement: { type: 'text', required: true },
+        claimLabel: {
+          type: 'enum',
+          required: true,
+          values: [
+            'hypothesis',
+            'conjecture',
+            'empirically_supported',
+            'proved',
+            'axiom',
+          ],
+        },
         predictions: { type: 'text[]' },
         prerequisites: { type: 'text[]' },
+        assumptions: { type: 'text[]' },
+        theoremIds: { type: 'text[]' },
+        canonVersion: { type: 'text' },
         priority: {
           type: 'enum',
           values: ['low', 'medium', 'high', 'critical'],
         },
         domainTags: { type: 'tag[]' },
         successCriteria: { type: 'text' },
+        statusDecision: { type: 'text' },
+        evidenceQualityScore: { type: 'number' },
+        replicationCount: { type: 'number' },
+        independentImplementations: { type: 'number' },
+        ablationsConducted: { type: 'boolean' },
+        intakeGateCompleted: { type: 'boolean' },
+        intakeGateChecklist: { type: 'json' },
       },
     },
     {
@@ -85,6 +106,12 @@ export const defaultResearchProfile: IntelligenceSettings = {
         unexpectedObservations: { type: 'text[]' },
         suggestedFollowUps: { type: 'text[]' },
         codeRef: { type: 'text' },
+        exactCommand: { type: 'text' },
+        seedPolicy: { type: 'text' },
+        configHash: { type: 'text' },
+        artifactPaths: { type: 'text[]' },
+        artifactChecksum: { type: 'text' },
+        runtime: { type: 'json' },
       },
     },
     {
@@ -122,6 +149,9 @@ export const defaultResearchProfile: IntelligenceSettings = {
     { name: 'SUPERSEDES', label: 'Supersedes', from: 'hypothesis', to: 'hypothesis', color: '#adb5bd' },
     { name: 'CITES', label: 'Cites', from: 'paper', to: 'any', color: '#dee2e6' },
     { name: 'REPLICATES', label: 'Replicates', from: 'experiment', to: 'experiment', color: '#69db7c' },
+    { name: 'REPRODUCES', label: 'Reproduces', from: 'experiment', to: 'experiment', color: '#51cf66' },
+    { name: 'FAILS_TO_REPRODUCE', label: 'Fails to Reproduce', from: 'experiment', to: 'experiment', color: '#ff6b6b' },
+    { name: 'USES_ASSUMPTION', label: 'Uses Assumption', from: 'any', to: 'hypothesis', color: '#fcc419' },
   ],
 
   teamTemplates: [
@@ -216,6 +246,25 @@ Write synthesis reports as pages, update hypothesis statuses, and flag cross-dom
       condition: 'Validated hypothesis extends to untested hypothesis',
       params: {},
       action: 'create_task',
+    },
+    {
+      type: 'intake_gate',
+      condition:
+        'Hypothesis promoted to PROVED without completed intake gate checklist',
+      params: {},
+      action: 'flag',
+    },
+    {
+      type: 'evidence_gap',
+      condition: 'Paper claims without experimental backing',
+      params: { minExperiments: 1 },
+      action: 'surface',
+    },
+    {
+      type: 'reproduction_failure',
+      condition: 'Experiment has FAILS_TO_REPRODUCE edges',
+      params: {},
+      action: 'flag',
     },
   ],
 

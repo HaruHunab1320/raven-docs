@@ -58,6 +58,12 @@ export class PatternDetectionService {
         return this.detectCrossDomain(workspaceId, rule.params);
       case 'untested_implication':
         return this.detectUntestedImplications(workspaceId);
+      case 'intake_gate':
+        return this.detectIntakeGateViolations(workspaceId);
+      case 'evidence_gap':
+        return this.detectEvidenceGaps(workspaceId, rule.params);
+      case 'reproduction_failure':
+        return this.detectReproductionFailures(workspaceId);
       default:
         this.logger.warn(`Unknown pattern type: ${rule.type}`);
         return 0;
@@ -410,6 +416,184 @@ export class PatternDetectionService {
               });
               detected++;
             }
+          }
+        }
+      } catch {
+        // Skip graph failures
+      }
+    }
+
+    return detected;
+  }
+
+  /**
+   * Detect intake gate violations: hypotheses with claimLabel='proved'
+   * but intakeGateCompleted !== true
+   */
+  private async detectIntakeGateViolations(
+    workspaceId: string,
+  ): Promise<number> {
+    let detected = 0;
+
+    const provedHypotheses = await this.db
+      .selectFrom('pages')
+      .select(['pages.id', 'pages.title', 'pages.metadata'])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'hypothesis')
+      .where('pages.deletedAt', 'is', null)
+      .where(sql`pages.metadata->>'claimLabel'`, '=', 'proved')
+      .execute();
+
+    for (const hypothesis of provedHypotheses) {
+      const metadata =
+        typeof hypothesis.metadata === 'string'
+          ? JSON.parse(hypothesis.metadata)
+          : hypothesis.metadata;
+
+      if (metadata?.intakeGateCompleted !== true) {
+        const existing = await this.patternRepo.findExistingPattern(
+          workspaceId,
+          'intake_gate',
+          'hypothesisId',
+          hypothesis.id,
+        );
+        if (!existing) {
+          await this.patternRepo.create({
+            workspaceId,
+            patternType: 'intake_gate',
+            severity: 'high',
+            title: `Intake gate violation: "${hypothesis.title}" marked as PROVED without completed checklist`,
+            details: {
+              hypothesisId: hypothesis.id,
+              hypothesisTitle: hypothesis.title,
+              claimLabel: 'proved',
+              intakeGateCompleted: false,
+            },
+          });
+          detected++;
+        }
+      }
+    }
+
+    return detected;
+  }
+
+  /**
+   * Detect evidence gaps: papers that CITES or FORMALIZES hypotheses
+   * which lack experimental backing (no VALIDATES or TESTS_HYPOTHESIS edges)
+   */
+  private async detectEvidenceGaps(
+    workspaceId: string,
+    params: Record<string, any>,
+  ): Promise<number> {
+    const minExperiments = params.minExperiments || 1;
+    let detected = 0;
+
+    const papers = await this.db
+      .selectFrom('pages')
+      .select(['pages.id', 'pages.title'])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'paper')
+      .where('pages.deletedAt', 'is', null)
+      .execute();
+
+    for (const paper of papers) {
+      try {
+        const outgoing = await this.researchGraph.getRelationships(paper.id, {
+          direction: 'outgoing',
+          types: ['CITES', 'FORMALIZES'],
+        });
+
+        for (const edge of outgoing) {
+          const evidence = await this.researchGraph.getEvidenceChain(edge.to);
+          const experimentCount =
+            evidence.supporting.length + evidence.testing.length;
+
+          if (experimentCount < minExperiments) {
+            const targetPage = await this.db
+              .selectFrom('pages')
+              .select(['pages.id', 'pages.title'])
+              .where('pages.id', '=', edge.to)
+              .executeTakeFirst();
+
+            const existing = await this.patternRepo.findExistingPattern(
+              workspaceId,
+              'evidence_gap',
+              'edgeKey',
+              `${paper.id}-${edge.to}`,
+            );
+            if (!existing) {
+              await this.patternRepo.create({
+                workspaceId,
+                patternType: 'evidence_gap',
+                severity: 'medium',
+                title: `Evidence gap: "${paper.title}" references "${targetPage?.title || 'Unknown'}" which has ${experimentCount} experiments (needs ${minExperiments})`,
+                details: {
+                  edgeKey: `${paper.id}-${edge.to}`,
+                  paperPageId: paper.id,
+                  paperTitle: paper.title,
+                  targetPageId: edge.to,
+                  targetTitle: targetPage?.title || 'Unknown',
+                  experimentCount,
+                  requiredExperiments: minExperiments,
+                },
+              });
+              detected++;
+            }
+          }
+        }
+      } catch {
+        // Skip graph failures
+      }
+    }
+
+    return detected;
+  }
+
+  /**
+   * Detect reproduction failures: experiments with FAILS_TO_REPRODUCE edges
+   */
+  private async detectReproductionFailures(
+    workspaceId: string,
+  ): Promise<number> {
+    let detected = 0;
+
+    const experiments = await this.db
+      .selectFrom('pages')
+      .select(['pages.id', 'pages.title'])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'experiment')
+      .where('pages.deletedAt', 'is', null)
+      .execute();
+
+    for (const experiment of experiments) {
+      try {
+        const incoming = await this.researchGraph.getRelationships(
+          experiment.id,
+          { direction: 'incoming', types: ['FAILS_TO_REPRODUCE'] },
+        );
+
+        if (incoming.length > 0) {
+          const existing = await this.patternRepo.findExistingPattern(
+            workspaceId,
+            'reproduction_failure',
+            'experimentId',
+            experiment.id,
+          );
+          if (!existing) {
+            await this.patternRepo.create({
+              workspaceId,
+              patternType: 'reproduction_failure',
+              severity: 'high',
+              title: `Reproduction failure: "${experiment.title}" has ${incoming.length} failed reproduction attempt(s)`,
+              details: {
+                experimentId: experiment.id,
+                experimentTitle: experiment.title,
+                failedReproductionCount: incoming.length,
+                failedByIds: incoming.map((e) => e.from),
+              },
+            });
+            detected++;
           }
         }
       } catch {
