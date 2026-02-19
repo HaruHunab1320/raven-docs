@@ -521,7 +521,7 @@ importers:
     dependencies:
       '@ai-sdk/google':
         specifier: ^3.0.23
-        version: 3.0.29(zod@4.3.6)
+        version: 3.0.29(zod@3.25.76)
       '@aws-sdk/client-s3':
         specifier: 3.701.0
         version: 3.701.0
@@ -602,7 +602,7 @@ importers:
         version: 8.3.0(socket.io-adapter@2.5.6)
       ai:
         specifier: ^6.0.14
-        version: 6.0.49(zod@4.3.6)
+        version: 6.0.49(zod@3.25.76)
       bcrypt:
         specifier: ^5.1.1
         version: 5.1.1
@@ -619,8 +619,8 @@ importers:
         specifier: ^0.14.1
         version: 0.14.3
       coding-agent-adapters:
-        specifier: 0.3.0
-        version: 0.3.0(pty-manager@1.2.21)
+        specifier: 0.4.2
+        version: 0.4.2(pty-manager@1.3.2)
       cookie:
         specifier: ^1.0.2
         version: 1.1.1
@@ -666,6 +666,9 @@ importers:
       openid-client:
         specifier: ^5.7.1
         version: 5.7.1
+      parallax-agent-runtime:
+        specifier: 0.5.1
+        version: 0.5.1(@octokit/rest@22.0.1)(hono@4.11.5)
       passport-google-oauth20:
         specifier: ^2.0.0
         version: 2.0.0
@@ -682,8 +685,8 @@ importers:
         specifier: ^4.0.5
         version: 4.0.5
       pty-manager:
-        specifier: 1.2.21
-        version: 1.2.21
+        specifier: 1.3.2
+        version: 1.3.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -6514,12 +6517,22 @@ packages:
     resolution: {integrity: sha512-QVb0dM5HvG+uaxitm8wONl7jltx8dqhfU33DcqtOZcLSVIKSDDLDi7+0LbAKiyI8hD9u42m2YxXSkMGWThaecQ==}
     engines: {iojs: '>= 1.0.0', node: '>= 0.12.0'}
 
-  coding-agent-adapters@0.3.0:
-    resolution: {integrity: sha512-AX1VGIW2XE2bCXU+RPjJJsfsKc27k0Q5rfF70B55yFZ025xDvsQpz39w390IUmwim7LAxS1bPJyRP2puRu13uw==}
+  coding-agent-adapters@0.4.1:
+    resolution: {integrity: sha512-ZsdrpaDjYvCcEF0rUScfsDQbsIiJ0+o6mFmg9NBz1x1zKBu/WAHPDdXz0NbarZ53Y23hHxPSonknLMAkEV6sNw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       agent-adapter-monitor: ^0.2.0
-      pty-manager: ^1.2.22
+      pty-manager: ^1.3.1
+    peerDependenciesMeta:
+      agent-adapter-monitor:
+        optional: true
+
+  coding-agent-adapters@0.4.2:
+    resolution: {integrity: sha512-P9RY0MxhfIdg/8Z0wG4uk3Irs9PIPfQIWRWW4nsfNUy78Ww8CKg3dmK4izQG2rgQjbg3FFH/6mxhMeJQ5J4GSw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      agent-adapter-monitor: ^0.2.0
+      pty-manager: ^1.3.2
     peerDependenciesMeta:
       agent-adapter-monitor:
         optional: true
@@ -10048,6 +10061,11 @@ packages:
   pako@2.1.0:
     resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
 
+  parallax-agent-runtime@0.5.1:
+    resolution: {integrity: sha512-Xr+p0NK1xDihCXU0e0tSWwKzXekGwZZLGIBsmknPJ75clSSCdo1fqdoGY0lYOglY+EwbLM7GKHGLXQz6XDI/hA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   param-case@3.0.4:
     resolution: {integrity: sha512-RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A==}
 
@@ -10849,8 +10867,13 @@ packages:
   pstree.remy@1.1.8:
     resolution: {integrity: sha512-77DZwxQmxKnu3aR542U+X8FypNzbfJ+C5XQDk3uWjWxn6151aIMGthWYRXTqT1E5oJvg+ljaa2OJi+VfvCOQ8w==}
 
-  pty-manager@1.2.21:
-    resolution: {integrity: sha512-e55NLYInkuL7TgEP0s5TdJd2PnmhOMaB/CqPzt6lURhKMCTj/G+QRteOisB1ldRQnsSbTLYqrcc3OkCd/wMJsQ==}
+  pty-manager@1.3.1:
+    resolution: {integrity: sha512-+WzVT8WkQKQffV2bDPq00sMyy9VRDMne/QuclwbTbnuZJwWpwofKg1AGp9aBTacom/X0WXMcKsf56O0kzhITcQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  pty-manager@1.3.2:
+    resolution: {integrity: sha512-s15FeHZISjzl+0ZclftpVQuXymeHtSy/rumwKnGNP6ZvVi34soL0YHL/3i60J0Dex1x85YFQd/Yayo3ux6uk7g==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -12891,6 +12914,9 @@ packages:
     peerDependencies:
       zod: ^3.25 || ^4
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
   zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
@@ -12901,6 +12927,13 @@ snapshots:
 
   '@adobe/css-tools@4.4.3': {}
 
+  '@ai-sdk/gateway@3.0.22(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.5
+      '@ai-sdk/provider-utils': 4.0.9(zod@3.25.76)
+      '@vercel/oidc': 3.1.0
+      zod: 3.25.76
+
   '@ai-sdk/gateway@3.0.22(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.5
@@ -12908,18 +12941,25 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 4.3.6
 
-  '@ai-sdk/google@3.0.29(zod@4.3.6)':
+  '@ai-sdk/google@3.0.29(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      zod: 4.3.6
+      '@ai-sdk/provider-utils': 4.0.15(zod@3.25.76)
+      zod: 3.25.76
 
-  '@ai-sdk/provider-utils@4.0.15(zod@4.3.6)':
+  '@ai-sdk/provider-utils@4.0.15(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.0.6
-      zod: 4.3.6
+      zod: 3.25.76
+
+  '@ai-sdk/provider-utils@4.0.9(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.5
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 3.25.76
 
   '@ai-sdk/provider-utils@4.0.9(zod@4.3.6)':
     dependencies:
@@ -17255,6 +17295,28 @@ snapshots:
     dependencies:
       langium: 3.3.1
 
+  '@modelcontextprotocol/sdk@1.25.3(hono@4.11.5)(zod@3.25.76)':
+    dependencies:
+      '@hono/node-server': 1.19.9(hono@4.11.5)
+      ajv: 8.17.1
+      ajv-formats: 3.0.1(ajv@8.17.1)
+      content-type: 1.0.5
+      cors: 2.8.6
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.0.6
+      express: 5.2.1
+      express-rate-limit: 7.5.1(express@5.2.1)
+      jose: 6.1.3
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 3.25.76
+      zod-to-json-schema: 3.25.1(zod@3.25.76)
+    transitivePeerDependencies:
+      - hono
+      - supports-color
+
   '@modelcontextprotocol/sdk@1.25.3(hono@4.11.5)(zod@4.3.6)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.11.5)
@@ -19904,6 +19966,14 @@ snapshots:
       clean-stack: 2.2.0
       indent-string: 4.0.0
 
+  ai@6.0.49(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.22(zod@3.25.76)
+      '@ai-sdk/provider': 3.0.5
+      '@ai-sdk/provider-utils': 4.0.9(zod@3.25.76)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.76
+
   ai@6.0.49(zod@4.3.6):
     dependencies:
       '@ai-sdk/gateway': 3.0.22(zod@4.3.6)
@@ -20678,9 +20748,13 @@ snapshots:
 
   co@4.6.0: {}
 
-  coding-agent-adapters@0.3.0(pty-manager@1.2.21):
+  coding-agent-adapters@0.4.1(pty-manager@1.3.1):
     dependencies:
-      pty-manager: 1.2.21
+      pty-manager: 1.3.1
+
+  coding-agent-adapters@0.4.2(pty-manager@1.3.2):
+    dependencies:
+      pty-manager: 1.3.2
 
   collapse-white-space@2.1.0: {}
 
@@ -25177,6 +25251,25 @@ snapshots:
 
   pako@2.1.0: {}
 
+  parallax-agent-runtime@0.5.1(@octokit/rest@22.0.1)(hono@4.11.5):
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.25.3(hono@4.11.5)(zod@3.25.76)
+      coding-agent-adapters: 0.4.1(pty-manager@1.3.1)
+      git-workspace-service: 0.3.4(@octokit/rest@22.0.1)
+      jsonwebtoken: 9.0.3
+      pino: 9.14.0
+      pino-pretty: 13.1.3
+      pty-manager: 1.3.1
+      uuid: 11.1.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - '@octokit/auth-app'
+      - '@octokit/rest'
+      - agent-adapter-monitor
+      - hono
+      - supports-color
+
   param-case@3.0.4:
     dependencies:
       dot-case: 3.0.4
@@ -26107,7 +26200,11 @@ snapshots:
 
   pstree.remy@1.1.8: {}
 
-  pty-manager@1.2.21:
+  pty-manager@1.3.1:
+    dependencies:
+      node-pty: 1.1.0
+
+  pty-manager@1.3.2:
     dependencies:
       node-pty: 1.1.0
 
@@ -28397,9 +28494,15 @@ snapshots:
       css-what: 6.2.2
       entities: 5.0.0
 
+  zod-to-json-schema@3.25.1(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
   zod-to-json-schema@3.25.1(zod@4.3.6):
     dependencies:
       zod: 4.3.6
+
+  zod@3.25.76: {}
 
   zod@4.3.6: {}
 

@@ -627,20 +627,20 @@ export class TaskService {
     };
 
     // Handle status changes specially to manage completion state
+    let statusUpdated: typeof task | undefined;
     if (data.status && data.status !== task.status) {
       if (data.status === TaskStatus.DONE) {
-        const updated = await this.taskRepo.markCompleted(taskId);
-        if (updated) {
+        statusUpdated = await this.taskRepo.markCompleted(taskId);
+        if (statusUpdated) {
           this.recordTaskMemory({
-            workspaceId: updated.workspaceId,
-            spaceId: updated.spaceId,
-            creatorId: updated.creatorId || undefined,
+            workspaceId: statusUpdated.workspaceId,
+            spaceId: statusUpdated.spaceId,
+            creatorId: statusUpdated.creatorId || undefined,
             action: 'completed',
-            task: updated,
-            changes: { status: [task.status, updated.status] },
+            task: statusUpdated,
+            changes: { status: [task.status, statusUpdated.status] },
           });
         }
-        return updated;
       } else if (
         task.status === TaskStatus.DONE &&
         [
@@ -650,34 +650,37 @@ export class TaskService {
           TaskStatus.BLOCKED,
         ].includes(data.status)
       ) {
-        const updated = await this.taskRepo.markIncomplete(taskId);
-        if (updated) {
+        statusUpdated = await this.taskRepo.markIncomplete(taskId);
+        if (statusUpdated) {
           this.recordTaskMemory({
-            workspaceId: updated.workspaceId,
-            spaceId: updated.spaceId,
-            creatorId: updated.creatorId || undefined,
+            workspaceId: statusUpdated.workspaceId,
+            spaceId: statusUpdated.spaceId,
+            creatorId: statusUpdated.creatorId || undefined,
             action: 'reopened',
-            task: updated,
-            changes: { status: [task.status, updated.status] },
+            task: statusUpdated,
+            changes: { status: [task.status, statusUpdated.status] },
           });
         }
-        return updated;
       } else {
-        const updated = await this.taskRepo.updateTaskStatus(
+        statusUpdated = await this.taskRepo.updateTaskStatus(
           taskId,
           data.status,
         );
-        if (updated) {
+        if (statusUpdated) {
           this.recordTaskMemory({
-            workspaceId: updated.workspaceId,
-            spaceId: updated.spaceId,
-            creatorId: updated.creatorId || undefined,
+            workspaceId: statusUpdated.workspaceId,
+            spaceId: statusUpdated.spaceId,
+            creatorId: statusUpdated.creatorId || undefined,
             action: 'updated',
-            task: updated,
-            changes: { status: [task.status, updated.status] },
+            task: statusUpdated,
+            changes: { status: [task.status, statusUpdated.status] },
           });
         }
-        return updated;
+      }
+
+      // If no other fields to update, return the status-updated task
+      if (Object.keys(updateData).length === 0) {
+        return statusUpdated;
       }
     }
 
