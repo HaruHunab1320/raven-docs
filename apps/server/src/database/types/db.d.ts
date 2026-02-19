@@ -631,6 +631,56 @@ export interface PatternDetections {
   deletedAt: Timestamp | null;
 }
 
+export interface CodingWorkspaces {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string | null;
+  experimentId: string | null;
+  repoUrl: string;
+  branch: string;
+  worktreePath: string | null;
+  workspaceType: Generated<string>;
+  baseBranch: string | null;
+  status: Generated<string>;
+  prUrl: string | null;
+  prNumber: number | null;
+  commitSha: string | null;
+  errorMessage: string | null;
+  config: Generated<Json>;
+  metadata: Generated<Json>;
+  provisionedBy: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  cleanedAt: Timestamp | null;
+}
+
+export interface SwarmExecutions {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string | null;
+  experimentId: string | null;
+  codingWorkspaceId: string | null;
+  agentType: Generated<string>;
+  agentId: string | null;
+  runtimeSessionId: string | null;
+  terminalSessionId: string | null;
+  taskDescription: string;
+  taskContext: Generated<Json>;
+  status: Generated<string>;
+  outputSummary: string | null;
+  exitCode: number | null;
+  results: Generated<Json>;
+  filesChanged: Generated<Json>;
+  startedAt: Timestamp | null;
+  completedAt: Timestamp | null;
+  errorMessage: string | null;
+  config: Generated<Json>;
+  metadata: Generated<Json>;
+  triggeredBy: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface DB {
   agentInvites: AgentInvites;
   agentMemories: AgentMemories;
@@ -638,6 +688,7 @@ export interface DB {
   attachments: Attachments;
   backlinks: Backlinks;
   bugReports: BugReports;
+  codingWorkspaces: CodingWorkspaces;
   comments: Comments;
   goals: Goals;
   groups: Groups;
@@ -657,6 +708,7 @@ export interface DB {
   researchJobs: ResearchJobs;
   spaceMembers: SpaceMembers;
   spaces: Spaces;
+  swarmExecutions: SwarmExecutions;
   taskBacklinks: TaskBacklinks;
   taskDependencies: TaskDependencies;
   taskGoalAssignments: TaskGoalAssignments;

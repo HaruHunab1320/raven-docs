@@ -31,6 +31,8 @@ import { ContextAssemblyModule } from './context-assembly/context-assembly.modul
 import { TeamModule } from './team/team.module';
 import { ResearchDashboardModule } from './research-dashboard/research-dashboard.module';
 import { PatternDetectionModule } from './pattern-detection/pattern-detection.module';
+import { GitWorkspaceModule } from './git-workspace/git-workspace.module';
+import { CodingSwarmModule } from './coding-swarm/coding-swarm.module';
 
 const modules = [
   UserModule,
@@ -57,6 +59,8 @@ const modules = [
   TeamModule,
   ResearchDashboardModule,
   PatternDetectionModule,
+  GitWorkspaceModule,
+  CodingSwarmModule,
 ];
 
 @Module({

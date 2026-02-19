@@ -2166,6 +2166,73 @@ export class MCPStandardService {
           required: ['workspaceId'],
         },
       },
+      // Coding Swarm tools
+      {
+        name: 'swarm_execute',
+        description: 'Start a coding swarm — spawns a coding agent in an isolated git workspace to write code',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            repoUrl: { type: 'string', description: 'Git repository URL to clone' },
+            taskDescription: { type: 'string', description: 'What the coding agent should do' },
+            experimentId: { type: 'string', description: 'Optional experiment page ID to link results' },
+            spaceId: { type: 'string', description: 'Optional space ID' },
+            agentType: { type: 'string', description: 'Agent type: claude-code, aider, codex, gemini-cli (default: claude-code)' },
+            baseBranch: { type: 'string', description: 'Base branch to fork from (default: main)' },
+            taskContext: { type: 'object', description: 'Additional context for the coding task' },
+          },
+          required: ['workspaceId', 'repoUrl', 'taskDescription'],
+        },
+      },
+      {
+        name: 'swarm_status',
+        description: 'Get the status of a coding swarm execution',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            executionId: { type: 'string', description: 'ID of the swarm execution' },
+          },
+          required: ['executionId'],
+        },
+      },
+      {
+        name: 'swarm_list',
+        description: 'List coding swarm executions in a workspace',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            workspaceId: { type: 'string', description: 'ID of the workspace' },
+            status: { type: 'string', description: 'Filter by status' },
+            experimentId: { type: 'string', description: 'Filter by experiment' },
+            limit: { type: 'number', description: 'Max results to return' },
+          },
+          required: ['workspaceId'],
+        },
+      },
+      {
+        name: 'swarm_stop',
+        description: 'Stop a running coding swarm execution',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            executionId: { type: 'string', description: 'ID of the swarm execution to stop' },
+          },
+          required: ['executionId'],
+        },
+      },
+      {
+        name: 'swarm_logs',
+        description: 'Get terminal output logs from a coding swarm execution',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            executionId: { type: 'string', description: 'ID of the swarm execution' },
+            limit: { type: 'number', description: 'Max log entries to return (default: 100)' },
+          },
+          required: ['executionId'],
+        },
+      },
     ];
 
     return { tools };
@@ -2308,6 +2375,12 @@ export class MCPStandardService {
       'pattern_acknowledge': 'pattern.acknowledge',
       'pattern_dismiss': 'pattern.dismiss',
       'pattern_run': 'pattern.run',
+      // Coding swarm tools
+      'swarm_execute': 'swarm.execute',
+      'swarm_status': 'swarm.status',
+      'swarm_list': 'swarm.list',
+      'swarm_stop': 'swarm.stop',
+      'swarm_logs': 'swarm.logs',
     };
 
     // Handle tool discovery tools directly (they don't route to internal MCP service)

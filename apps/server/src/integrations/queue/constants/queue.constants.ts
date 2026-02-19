@@ -17,4 +17,5 @@ export enum QueueJob {
   RESEARCH_JOB = 'research-job',
   TEAM_AGENT_LOOP = 'team-agent-loop',
   PATTERN_DETECTION = 'pattern-detection',
+  CODING_SWARM = 'coding-swarm',
 }

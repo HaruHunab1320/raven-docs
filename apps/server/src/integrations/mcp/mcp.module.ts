@@ -32,6 +32,7 @@ import { IntelligenceContextHandler } from './handlers/intelligence-context.hand
 import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
+import { SwarmHandler } from './handlers/swarm.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
 import { PageModule } from '../../core/page/page.module';
 import { ProjectModule } from '../../core/project/project.module';
@@ -76,6 +77,7 @@ import { ResearchGraphModule } from '../../core/research-graph/research-graph.mo
 import { ContextAssemblyModule } from '../../core/context-assembly/context-assembly.module';
 import { TeamModule } from '../../core/team/team.module';
 import { PatternDetectionModule } from '../../core/pattern-detection/pattern-detection.module';
+import { CodingSwarmModule } from '../../core/coding-swarm/coding-swarm.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -114,6 +116,7 @@ import { PatternDetectionModule } from '../../core/pattern-detection/pattern-det
     ContextAssemblyModule,
     TeamModule,
     PatternDetectionModule,
+    CodingSwarmModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -152,6 +155,7 @@ import { PatternDetectionModule } from '../../core/pattern-detection/pattern-det
     RelationshipHandler,
     TeamHandler,
     PatternHandler,
+    SwarmHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

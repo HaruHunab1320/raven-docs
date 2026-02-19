@@ -29,6 +29,8 @@ import {
 } from './repos/parallax-agent';
 import { TerminalSessionRepo } from './repos/terminal-session/terminal-session.repo';
 import { PatternDetectionRepo } from './repos/pattern-detection/pattern-detection.repo';
+import { CodingWorkspaceRepo } from './repos/coding-swarm/coding-workspace.repo';
+import { SwarmExecutionRepo } from './repos/coding-swarm/swarm-execution.repo';
 
 @Module({
   providers: [
@@ -75,6 +77,8 @@ import { PatternDetectionRepo } from './repos/pattern-detection/pattern-detectio
     AgentInviteRepo,
     TerminalSessionRepo,
     PatternDetectionRepo,
+    CodingWorkspaceRepo,
+    SwarmExecutionRepo,
   ],
   exports: [
     KYSELY,
@@ -102,6 +106,8 @@ import { PatternDetectionRepo } from './repos/pattern-detection/pattern-detectio
     AgentInviteRepo,
     TerminalSessionRepo,
     PatternDetectionRepo,
+    CodingWorkspaceRepo,
+    SwarmExecutionRepo,
   ],
 })
 export class DatabaseModule {}

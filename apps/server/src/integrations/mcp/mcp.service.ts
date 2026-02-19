@@ -32,6 +32,7 @@ import { IntelligenceContextHandler } from './handlers/intelligence-context.hand
 import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
+import { SwarmHandler } from './handlers/swarm.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -98,6 +99,7 @@ export class MCPService {
     private readonly relationshipHandler: RelationshipHandler,
     private readonly teamHandler: TeamHandler,
     private readonly patternHandler: PatternHandler,
+    private readonly swarmHandler: SwarmHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -451,6 +453,14 @@ export class MCPService {
           case 'pattern':
             this.logger.debug(`MCPService: Delegating to pattern handler`);
             result = await this.handlePatternRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'swarm':
+            this.logger.debug(`MCPService: Delegating to swarm handler`);
+            result = await this.handleSwarmRequest(
               operation,
               request.params,
               user.id,
@@ -1531,6 +1541,27 @@ export class MCPService {
         return this.patternHandler.run(params, userId);
       default:
         throw createMethodNotFoundError(`pattern.${operation}`);
+    }
+  }
+
+  private async handleSwarmRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'execute':
+        return this.swarmHandler.execute(params, userId);
+      case 'status':
+        return this.swarmHandler.status(params, userId);
+      case 'list':
+        return this.swarmHandler.list(params, userId);
+      case 'stop':
+        return this.swarmHandler.stop(params, userId);
+      case 'logs':
+        return this.swarmHandler.logs(params, userId);
+      default:
+        throw createMethodNotFoundError(`swarm.${operation}`);
     }
   }
 
