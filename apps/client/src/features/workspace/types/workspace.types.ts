@@ -94,6 +94,15 @@ export interface IWorkspaceIntegrations {
   };
 }
 
+export interface IGitHubConnectionStatus {
+  connected: boolean;
+  githubUsername?: string;
+  githubAvatarUrl?: string;
+  connectedAt?: string;
+  tokenExpiresAt?: string;
+  scopes?: string[];
+}
+
 export interface IChannelMapping {
   slackChannelId: string;
   spaceId: string;

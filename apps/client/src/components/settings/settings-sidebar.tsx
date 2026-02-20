@@ -67,6 +67,7 @@ const groupedData: DataGroup[] = [
           { label: "Name", hash: "name" },
           { label: "Agent", hash: "agent" },
           { label: "Knowledge", hash: "knowledge" },
+          { label: "GitHub", hash: "github" },
           { label: "Repository Tokens", hash: "repo-tokens" },
           { label: "Chat Integrations", hash: "chat-integrations" },
         ],

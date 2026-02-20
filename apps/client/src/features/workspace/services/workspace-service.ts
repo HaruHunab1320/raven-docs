@@ -10,6 +10,7 @@ import {
   IVersion,
   IWorkspaceIntegrations,
   IChannelMapping,
+  IGitHubConnectionStatus,
 } from "../types/workspace.types";
 import { IPagination, QueryParams } from "@/lib/types.ts";
 import { ISetupWorkspace } from "@/features/auth/types/auth.types.ts";
@@ -158,6 +159,27 @@ export async function uploadLogo(file: File) {
       "Content-Type": "multipart/form-data",
     },
   });
+  return req.data;
+}
+
+export async function authorizeGitHub(): Promise<{ authorizationUrl: string }> {
+  const req = await api.post<{ authorizationUrl: string }>(
+    "/integrations/github/authorize",
+  );
+  return req.data;
+}
+
+export async function getGitHubStatus(): Promise<IGitHubConnectionStatus> {
+  const req = await api.get<IGitHubConnectionStatus>(
+    "/integrations/github/status",
+  );
+  return req.data;
+}
+
+export async function disconnectGitHub(): Promise<{ success: boolean }> {
+  const req = await api.post<{ success: boolean }>(
+    "/integrations/github/disconnect",
+  );
   return req.data;
 }
 

@@ -154,8 +154,8 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2
       coding-agent-adapters:
-        specifier: 0.5.0
-        version: 0.5.0(pty-manager@1.4.0)
+        specifier: 0.7.1
+        version: 0.7.1(pty-manager@1.6.0)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -193,8 +193,8 @@ importers:
         specifier: ^13.0.0
         version: 13.1.3
       pty-manager:
-        specifier: 1.4.0
-        version: 1.4.0
+        specifier: 1.6.0
+        version: 1.6.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -6533,18 +6533,18 @@ packages:
       agent-adapter-monitor:
         optional: true
 
-  coding-agent-adapters@0.5.0:
-    resolution: {integrity: sha512-pPyqUHN0PaAK6BsN7nzOscIOWxhWjZN0xDIosGNDpEhwlKuaFPLYYoKwRgxlim38b527xRkSrELLX/ncd91XFQ==}
+  coding-agent-adapters@0.7.0:
+    resolution: {integrity: sha512-Bvg7H6p0X2fb/6RVYEgdJ7BnFcOUPASdMUIoEnIuSv4zoG++X6eh1DcobOPSpDFi1h+wBaXVXoQYQBPJEv3zGA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       agent-adapter-monitor: ^0.3.0
-      pty-manager: ^1.4.0
+      pty-manager: ^1.6.0
     peerDependenciesMeta:
       agent-adapter-monitor:
         optional: true
 
-  coding-agent-adapters@0.7.0:
-    resolution: {integrity: sha512-Bvg7H6p0X2fb/6RVYEgdJ7BnFcOUPASdMUIoEnIuSv4zoG++X6eh1DcobOPSpDFi1h+wBaXVXoQYQBPJEv3zGA==}
+  coding-agent-adapters@0.7.1:
+    resolution: {integrity: sha512-WuttW2GZV/JyXKpzHPKpBSlCSX8y7esCHv8QIC/ObJRUMEn/dSE2RMc52MdMBZaBykOrKvPMI09k5LTj0lwdFQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       agent-adapter-monitor: ^0.3.0
@@ -10897,11 +10897,6 @@ packages:
 
   pty-manager@1.3.1:
     resolution: {integrity: sha512-+WzVT8WkQKQffV2bDPq00sMyy9VRDMne/QuclwbTbnuZJwWpwofKg1AGp9aBTacom/X0WXMcKsf56O0kzhITcQ==}
-    engines: {node: '>=18'}
-    hasBin: true
-
-  pty-manager@1.4.0:
-    resolution: {integrity: sha512-Y0guajvq4wBqDBer2fkSQ7QTlJG0ayqludZ4X/PvXBYjeT+w95wrOnzC8YZvgl6Vf8ykcQy/KCutF4LcuRksSA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20785,11 +20780,11 @@ snapshots:
     dependencies:
       pty-manager: 1.3.1
 
-  coding-agent-adapters@0.5.0(pty-manager@1.4.0):
-    dependencies:
-      pty-manager: 1.4.0
-
   coding-agent-adapters@0.7.0(pty-manager@1.6.0):
+    dependencies:
+      pty-manager: 1.6.0
+
+  coding-agent-adapters@0.7.1(pty-manager@1.6.0):
     dependencies:
       pty-manager: 1.6.0
 
@@ -26242,10 +26237,6 @@ snapshots:
   pstree.remy@1.1.8: {}
 
   pty-manager@1.3.1:
-    dependencies:
-      node-pty: 1.1.0
-
-  pty-manager@1.4.0:
     dependencies:
       node-pty: 1.1.0
 

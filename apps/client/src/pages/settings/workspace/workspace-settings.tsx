@@ -9,6 +9,7 @@ import { workspaceAtom } from "@/features/user/atoms/current-user-atom";
 import { AgentSettingsPanel } from "@/features/agent/components/agent-settings-panel";
 import { WorkspaceRepoTokensPanel } from "@/features/workspace/components/settings/components/workspace-repo-tokens-panel";
 import { WorkspaceChatIntegrationsPanel } from "@/features/workspace/components/settings/components/workspace-chat-integrations-panel";
+import { WorkspaceGitHubIntegrationPanel } from "@/features/workspace/components/settings/components/workspace-github-integration-panel";
 import { KnowledgeSourcesPanel } from "@/features/knowledge/components/knowledge-sources-panel";
 
 export default function WorkspaceSettings() {
@@ -21,20 +22,20 @@ export default function WorkspaceSettings() {
         <title>Workspace Settings - {getAppName()}</title>
       </Helmet>
 
-      <Box id="name">
+      <Box id="name" style={{ scrollMarginTop: 24 }}>
         <SettingsTitle title={t("General")} />
         <WorkspaceNameForm />
       </Box>
 
       <Divider my="md" />
 
-      <Box id="agent">
+      <Box id="agent" style={{ scrollMarginTop: 24 }}>
         <AgentSettingsPanel />
       </Box>
 
       <Divider my="md" />
 
-      <Box id="knowledge">
+      <Box id="knowledge" style={{ scrollMarginTop: 24 }}>
         <SettingsTitle title={t("Knowledge")} />
         {workspace?.id && (
           <KnowledgeSourcesPanel
@@ -46,14 +47,21 @@ export default function WorkspaceSettings() {
 
       <Divider my="md" />
 
-      <Box id="repo-tokens">
+      <Box id="github" style={{ scrollMarginTop: 24 }}>
+        <SettingsTitle title={t("GitHub")} />
+        <WorkspaceGitHubIntegrationPanel />
+      </Box>
+
+      <Divider my="md" />
+
+      <Box id="repo-tokens" style={{ scrollMarginTop: 24 }}>
         <SettingsTitle title={t("Repository tokens")} />
         <WorkspaceRepoTokensPanel />
       </Box>
 
       <Divider my="md" />
 
-      <Box id="chat-integrations">
+      <Box id="chat-integrations" style={{ scrollMarginTop: 24 }}>
         <SettingsTitle title={t("Chat integrations")} />
         <WorkspaceChatIntegrationsPanel />
       </Box>

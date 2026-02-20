@@ -63,7 +63,7 @@ export class GitHubOAuthController {
 
     if (!code || !state) {
       return reply.redirect(
-        `${appUrl}/settings/integrations?github=error&reason=missing_params`,
+        `${appUrl}/settings/workspace?github=error&reason=missing_params`,
       );
     }
 
@@ -71,12 +71,12 @@ export class GitHubOAuthController {
 
     if (result.success) {
       return reply.redirect(
-        `${appUrl}/settings/integrations?github=connected`,
+        `${appUrl}/settings/workspace?github=connected`,
       );
     }
 
     return reply.redirect(
-      `${appUrl}/settings/integrations?github=error`,
+      `${appUrl}/settings/workspace?github=error`,
     );
   }
 
