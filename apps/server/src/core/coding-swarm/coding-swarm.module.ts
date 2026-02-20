@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { CodingSwarmService } from './coding-swarm.service';
 import { CodingSwarmProcessor } from './coding-swarm.processor';
 import { CodingSwarmListener } from './coding-swarm.listener';
+import { CodingSwarmController } from './coding-swarm.controller';
 import { AgentExecutionService } from './agent-execution.service';
 import { WorkspacePreparationService } from './workspace-preparation.service';
 import { GitWorkspaceModule } from '../git-workspace/git-workspace.module';
@@ -18,6 +19,7 @@ import { WsModule } from '../../ws/ws.module';
     forwardRef(() => MCPModule),
     WsModule,
   ],
+  controllers: [CodingSwarmController],
   providers: [
     CodingSwarmService,
     CodingSwarmProcessor,

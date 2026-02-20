@@ -6,8 +6,10 @@ import {
   Group,
   Stack,
   Select,
+  Checkbox,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePageMutation } from "@/features/page/queries/page-query";
@@ -20,6 +22,7 @@ interface Props {
   opened: boolean;
   onClose: () => void;
   spaceId: string;
+  onLaunchSwarm?: (experimentId: string, title: string) => void;
 }
 
 const STATUS_OPTIONS = [
@@ -29,11 +32,12 @@ const STATUS_OPTIONS = [
   { value: "failed", label: "Failed" },
 ];
 
-export function CreateExperimentModal({ opened, onClose, spaceId }: Props) {
+export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createPageMutation = useCreatePageMutation();
   const { data: hypotheses } = useHypothesesList(spaceId);
+  const [launchAgent, setLaunchAgent] = useState(false);
 
   const hypothesisOptions = (hypotheses ?? []).map((h) => ({
     value: h.id,
@@ -81,9 +85,15 @@ export function CreateExperimentModal({ opened, onClose, spaceId }: Props) {
             queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
           }),
         ]);
+        const title = values.title;
         form.reset();
+        setLaunchAgent(false);
         onClose();
-        navigate(`/p/${page.slugId}`);
+        if (launchAgent && onLaunchSwarm) {
+          onLaunchSwarm(page.id, title);
+        } else {
+          navigate(`/p/${page.slugId}`);
+        }
       }
     } catch {
       // Error handled by mutation
@@ -134,12 +144,20 @@ export function CreateExperimentModal({ opened, onClose, spaceId }: Props) {
             {...form.getInputProps("codeRef")}
           />
 
+          {onLaunchSwarm && (
+            <Checkbox
+              label="Launch coding agent after creation"
+              checked={launchAgent}
+              onChange={(e) => setLaunchAgent(e.currentTarget.checked)}
+            />
+          )}
+
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" loading={createPageMutation.isPending}>
-              Create Experiment
+              {launchAgent ? "Create & Launch Agent" : "Create Experiment"}
             </Button>
           </Group>
         </Stack>

@@ -23,6 +23,7 @@ import {
   IconBulb,
   IconFlask,
   IconQuestionMark,
+  IconRobot,
 } from "@tabler/icons-react";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { HypothesisScoreboard } from "../components/hypothesis-scoreboard";
@@ -35,10 +36,13 @@ import { PatternAlertsPanel } from "../components/pattern-alerts-panel";
 import { CreateHypothesisModal } from "../components/create-hypothesis-modal";
 import { CreateExperimentModal } from "../components/create-experiment-modal";
 import { CreateOpenQuestionModal } from "../components/create-open-question-modal";
+import { LaunchSwarmModal } from "../components/launch-swarm-modal";
+import { SwarmExecutionsPanel } from "../components/swarm-executions-panel";
 import {
   useIntelligenceStats,
   INTELLIGENCE_KEYS,
 } from "../hooks/use-intelligence-queries";
+import { useSwarmSocket } from "../hooks/use-swarm-socket";
 
 export default function IntelligenceDashboardPage() {
   const { spaceId = "" } = useParams();
@@ -54,6 +58,28 @@ export default function IntelligenceDashboardPage() {
     useDisclosure(false);
   const [questionOpened, { open: openQuestion, close: closeQuestion }] =
     useDisclosure(false);
+  const [swarmOpened, { open: openSwarm, close: closeSwarm }] =
+    useDisclosure(false);
+  const [swarmExperimentId, setSwarmExperimentId] = useState<
+    string | undefined
+  >();
+  const [swarmExperimentTitle, setSwarmExperimentTitle] = useState<
+    string | undefined
+  >();
+
+  useSwarmSocket(spaceId);
+
+  const handleLaunchSwarm = (experimentId?: string, title?: string) => {
+    setSwarmExperimentId(experimentId);
+    setSwarmExperimentTitle(title);
+    openSwarm();
+  };
+
+  const handleCloseSwarm = () => {
+    closeSwarm();
+    setSwarmExperimentId(undefined);
+    setSwarmExperimentTitle(undefined);
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -125,6 +151,13 @@ export default function IntelligenceDashboardPage() {
                 >
                   New Open Question
                 </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  leftSection={<IconRobot size={14} />}
+                  onClick={() => handleLaunchSwarm()}
+                >
+                  Launch Agent
+                </Menu.Item>
               </Menu.Dropdown>
             </Menu>
             <ActionIcon
@@ -150,6 +183,7 @@ export default function IntelligenceDashboardPage() {
             <Tabs.Tab value="questions">Open Questions</Tabs.Tab>
             <Tabs.Tab value="graph">Domain Graph</Tabs.Tab>
             <Tabs.Tab value="patterns">Patterns</Tabs.Tab>
+            <Tabs.Tab value="agents">Agents</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="overview" pt="md">
@@ -166,6 +200,7 @@ export default function IntelligenceDashboardPage() {
             <ActiveExperimentsList
               spaceId={spaceId}
               onNewExperiment={openExperiment}
+              onLaunchSwarm={handleLaunchSwarm}
             />
           </Tabs.Panel>
 
@@ -191,6 +226,10 @@ export default function IntelligenceDashboardPage() {
           <Tabs.Panel value="patterns" pt="md">
             <PatternAlertsPanel spaceId={spaceId} full />
           </Tabs.Panel>
+
+          <Tabs.Panel value="agents" pt="md">
+            <SwarmExecutionsPanel spaceId={spaceId} />
+          </Tabs.Panel>
         </Tabs>
       </Stack>
 
@@ -203,11 +242,19 @@ export default function IntelligenceDashboardPage() {
         opened={experimentOpened}
         onClose={closeExperiment}
         spaceId={spaceId}
+        onLaunchSwarm={handleLaunchSwarm}
       />
       <CreateOpenQuestionModal
         opened={questionOpened}
         onClose={closeQuestion}
         spaceId={spaceId}
+      />
+      <LaunchSwarmModal
+        opened={swarmOpened}
+        onClose={handleCloseSwarm}
+        spaceId={spaceId}
+        experimentId={swarmExperimentId}
+        experimentTitle={swarmExperimentTitle}
       />
     </Container>
   );
