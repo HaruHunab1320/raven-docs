@@ -625,8 +625,8 @@ importers:
         specifier: ^0.14.1
         version: 0.14.3
       coding-agent-adapters:
-        specifier: 0.5.0
-        version: 0.5.0(pty-manager@1.4.0)
+        specifier: 0.7.0
+        version: 0.7.0(pty-manager@1.6.0)
       cookie:
         specifier: ^1.0.2
         version: 1.1.1
@@ -640,8 +640,8 @@ importers:
         specifier: ^11.3.0
         version: 11.3.3
       git-workspace-service:
-        specifier: ^0.3.4
-        version: 0.3.4(@octokit/rest@22.0.1)
+        specifier: ^0.4.0
+        version: 0.4.0(@octokit/rest@22.0.1)
       happy-dom:
         specifier: ^15.11.6
         version: 15.11.7
@@ -691,8 +691,8 @@ importers:
         specifier: ^4.0.5
         version: 4.0.5
       pty-manager:
-        specifier: 1.4.0
-        version: 1.4.0
+        specifier: 1.6.0
+        version: 1.6.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -6543,6 +6543,16 @@ packages:
       agent-adapter-monitor:
         optional: true
 
+  coding-agent-adapters@0.7.0:
+    resolution: {integrity: sha512-Bvg7H6p0X2fb/6RVYEgdJ7BnFcOUPASdMUIoEnIuSv4zoG++X6eh1DcobOPSpDFi1h+wBaXVXoQYQBPJEv3zGA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      agent-adapter-monitor: ^0.3.0
+      pty-manager: ^1.6.0
+    peerDependenciesMeta:
+      agent-adapter-monitor:
+        optional: true
+
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
 
@@ -7993,6 +8003,18 @@ packages:
 
   git-workspace-service@0.3.4:
     resolution: {integrity: sha512-ZHh69S7fXknANlC3UBqpkFQ8zWQsmFGol8t2vCrLBQJvlNG8I2PkKV59Z4GMzUzyL679Pa+1hMYmfLMC3A0V2Q==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@octokit/auth-app': '>=6.0.0'
+      '@octokit/rest': '>=20.0.0'
+    peerDependenciesMeta:
+      '@octokit/auth-app':
+        optional: true
+      '@octokit/rest':
+        optional: true
+
+  git-workspace-service@0.4.0:
+    resolution: {integrity: sha512-SQ6W7oz7UYb+i5VQ5Qy839H859MAL2JzIBbpCTh4n1lTplD2u+hDhcbLPENtDAQ3yhjwfdVVATheDH4nKWPghQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@octokit/auth-app': '>=6.0.0'
@@ -10880,6 +10902,11 @@ packages:
 
   pty-manager@1.4.0:
     resolution: {integrity: sha512-Y0guajvq4wBqDBer2fkSQ7QTlJG0ayqludZ4X/PvXBYjeT+w95wrOnzC8YZvgl6Vf8ykcQy/KCutF4LcuRksSA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  pty-manager@1.6.0:
+    resolution: {integrity: sha512-T+gsTAqNPE2yGBSjoQeJvwELh2stgxJzuX2Ld3iE7WjOD7Ys85hcGUcZQ0iRYXNG7f0hEtm4b/70gKjFRlcrqA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20762,6 +20789,10 @@ snapshots:
     dependencies:
       pty-manager: 1.4.0
 
+  coding-agent-adapters@0.7.0(pty-manager@1.6.0):
+    dependencies:
+      pty-manager: 1.6.0
+
   collapse-white-space@2.1.0: {}
 
   collect-v8-coverage@1.0.3: {}
@@ -22565,6 +22596,10 @@ snapshots:
       shelljs.exec: 1.1.8
 
   git-workspace-service@0.3.4(@octokit/rest@22.0.1):
+    optionalDependencies:
+      '@octokit/rest': 22.0.1
+
+  git-workspace-service@0.4.0(@octokit/rest@22.0.1):
     optionalDependencies:
       '@octokit/rest': 22.0.1
 
@@ -26211,6 +26246,10 @@ snapshots:
       node-pty: 1.1.0
 
   pty-manager@1.4.0:
+    dependencies:
+      node-pty: 1.1.0
+
+  pty-manager@1.6.0:
     dependencies:
       node-pty: 1.1.0
 

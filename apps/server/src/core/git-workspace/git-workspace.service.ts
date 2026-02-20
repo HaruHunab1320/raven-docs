@@ -47,13 +47,16 @@ export class GitWorkspaceService {
     experimentId?: string;
     spaceId?: string;
     baseBranch?: string;
+    branchName?: string;
     workspaceType?: string;
     provisionedBy?: string;
     config?: Record<string, any>;
   }) {
-    const branchName = config.experimentId
-      ? `experiment/${config.experimentId.slice(0, 8)}`
-      : `experiment/${Date.now()}`;
+    // Use custom branch name if provided, otherwise fall back to convention
+    const branchName = config.branchName
+      || (config.experimentId
+        ? `experiment/${config.experimentId.slice(0, 8)}`
+        : `experiment/${Date.now()}`);
 
     // Create the DB record
     const record = await this.codingWorkspaceRepo.create({
@@ -78,11 +81,12 @@ export class GitWorkspaceService {
         record.id,
       );
 
-      // Provision via git-workspace-service
+      // Provision via git-workspace-service (0.4.0+ supports branchName)
       const workspace = await this.wsService.provision({
         repo: config.repoUrl,
         strategy: (config.workspaceType as 'clone' | 'worktree') || 'worktree',
         branchStrategy: 'feature_branch',
+        branchName,
         baseBranch: config.baseBranch || 'main',
         execution: {
           id: record.id,
