@@ -198,7 +198,7 @@ describe('ApiKeyController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           lastUsedAt: null,
-        } as MCPApiKey,
+        } as unknown as MCPApiKey,
         {
           id: 'key-2',
           name: 'Test Key 2',
@@ -207,7 +207,7 @@ describe('ApiKeyController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           lastUsedAt: new Date(),
-        } as MCPApiKey,
+        } as unknown as MCPApiKey,
       ];
 
       mockMCPApiKeyService.listApiKeys.mockResolvedValue(mockKeys);

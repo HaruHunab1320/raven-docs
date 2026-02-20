@@ -158,6 +158,7 @@ async function main() {
   let testTaskId: string | null = null;
   let wsService: GitWsService | null = null;
   let gitWorkspaceId: string | null = null;
+  let workspaceId = MCP_WORKSPACE_ID;
 
   try {
     // ════════════════════════════════════════════════════════════════════════
@@ -165,7 +166,6 @@ async function main() {
     // ════════════════════════════════════════════════════════════════════════
 
     // Auto-discover workspace ID if the configured one doesn't work
-    let workspaceId = MCP_WORKSPACE_ID;
     log('MCP-SETUP', 'Finding available space...');
 
     let spaces: any;
@@ -768,7 +768,7 @@ Run this command AFTER creating the nonce file:
               base: 'main',
             },
           );
-          prUrl = pr.url || pr.html_url || null;
+          prUrl = pr.url || (pr as any).html_url || null;
           log('FINALIZE', `PR created manually: ${prUrl}`);
         } catch (fallbackErr: any) {
           log('FINALIZE', `Manual fallback also failed: ${fallbackErr.message}`);

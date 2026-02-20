@@ -477,7 +477,7 @@ ${TOOL_CATEGORIES_SUMMARY}
           base: 'main',
         },
       );
-      log('FINALIZE', `✅ PR created manually: ${pr.url || pr.html_url}`);
+      log('FINALIZE', `✅ PR created manually: ${pr.url || (pr as any).html_url}`);
     } catch (fallbackErr: any) {
       log('FINALIZE', `Manual fallback also failed: ${fallbackErr.message}`);
     }

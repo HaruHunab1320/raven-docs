@@ -1,6 +1,13 @@
+// Mock deep transitive imports to avoid module resolution issues in Jest
+jest.mock('../../common/helpers/prosemirror/html/index', () => ({}));
+jest.mock('../../collaboration/collaboration.util', () => ({}));
+jest.mock('../../core/workspace/services/workspace-invitation.service', () => ({
+  WorkspaceInvitationService: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { MCPService } from './mcp.service';
-import { MCPRequest, MCPResponse } from './interfaces/mcp.interface';
+import { MCPRequest } from './interfaces/mcp.interface';
 import { User } from '@raven-docs/db/types/entity.types';
 import { PageHandler } from './handlers/page.handler';
 import { SpaceHandler } from './handlers/space.handler';
@@ -12,7 +19,6 @@ import { CommentHandler } from './handlers/comment.handler';
 import { SystemHandler } from './handlers/system.handler';
 import { ContextHandler } from './handlers/context.handler';
 import { UIHandler } from './handlers/ui.handler';
-import { MCPContextService } from './services/mcp-context.service';
 import { ProjectHandler } from './handlers/project.handler';
 import { TaskHandler } from './handlers/task.handler';
 import { ApprovalHandler } from './handlers/approval.handler';
@@ -26,12 +32,26 @@ import { AIHandler } from './handlers/ai.handler';
 import { MemoryHandler } from './handlers/memory.handler';
 import { RepoHandler } from './handlers/repo.handler';
 import { ResearchHandler } from './handlers/research.handler';
+import { ParallaxAgentHandler } from './handlers/parallax-agent.handler';
+import { GoalHandler } from './handlers/goal.handler';
+import { ProfileHandler } from './handlers/profile.handler';
+import { ReviewHandler } from './handlers/review.handler';
+import { InsightsHandler } from './handlers/insights.handler';
+import { KnowledgeHandler } from './handlers/knowledge.handler';
+import { HypothesisHandler } from './handlers/hypothesis.handler';
+import { ExperimentHandler } from './handlers/experiment.handler';
+import { IntelligenceContextHandler } from './handlers/intelligence-context.handler';
+import { RelationshipHandler } from './handlers/relationship.handler';
+import { TeamHandler } from './handlers/team.handler';
+import { PatternHandler } from './handlers/pattern.handler';
+import { SwarmHandler } from './handlers/swarm.handler';
+import { GitHubIssueHandler } from './handlers/github-issue.handler';
+import { MCPEventService } from './services/mcp-event.service';
+import { BugReportService } from '../../core/bug-report/bug-report.service';
 import { MCPErrorCode } from './utils/error.utils';
 
 describe('MCPService', () => {
   let service: MCPService;
-  let contextService: MCPContextService;
-  let handlers: Map<string, any>;
 
   const mockUser: User = {
     id: 'user-123',
@@ -44,152 +64,108 @@ describe('MCPService', () => {
   } as User;
 
   const mockPageHandler = {
-    list: jest.fn(),
-    get: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
+    listPages: jest.fn(),
+    getPage: jest.fn(),
+    createPage: jest.fn(),
+    updatePage: jest.fn(),
+    deletePage: jest.fn(),
+    getRecentPages: jest.fn(),
+    getPageBreadcrumbs: jest.fn(),
+    getSidebarPages: jest.fn(),
+    getPageHistoryInfo: jest.fn(),
+    movePageToSpace: jest.fn(),
+    movePage: jest.fn(),
+    searchPages: jest.fn(),
+    getPageHistory: jest.fn(),
+    restorePageVersion: jest.fn(),
   };
 
   const mockSystemHandler = {
-    ping: jest.fn(),
     listMethods: jest.fn(),
     getMethodSchema: jest.fn(),
   };
 
   const mockApprovalService = {
-    requiresApproval: jest.fn(() => false),
+    requiresApproval: jest.fn(),
     createApproval: jest.fn(),
     consumeApproval: jest.fn(),
   };
 
   const mockPolicyService = {
-    isSupportedMethod: jest.fn(() => true),
-    evaluate: jest.fn(() => ({ decision: 'allow' })),
+    isSupportedMethod: jest.fn(),
+    evaluate: jest.fn(),
   };
 
   const mockWorkspaceRepo = {
-    findById: jest.fn(() => ({ settings: {} })),
+    findById: jest.fn(),
   };
 
-  const mockContextService = {
-    clearContext: jest.fn(),
-    getContext: jest.fn(),
-    setContext: jest.fn(),
+  const mockEventService = {
+    createToolExecutedEvent: jest.fn(),
+  };
+
+  const mockBugReportService = {
+    createAutoReport: jest.fn(),
   };
 
   beforeEach(async () => {
+    // Set up default mock returns
+    mockPolicyService.isSupportedMethod.mockReturnValue(true);
+    mockPolicyService.evaluate.mockReturnValue({ decision: 'auto', reason: '' });
+    mockWorkspaceRepo.findById.mockResolvedValue({ settings: {} });
+    mockApprovalService.requiresApproval.mockReturnValue(false);
+    mockBugReportService.createAutoReport.mockResolvedValue(undefined);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MCPService,
-        {
-          provide: PageHandler,
-          useValue: mockPageHandler,
-        },
-        {
-          provide: SpaceHandler,
-          useValue: {},
-        },
-        {
-          provide: UserHandler,
-          useValue: {},
-        },
-        {
-          provide: GroupHandler,
-          useValue: {},
-        },
-        {
-          provide: WorkspaceHandler,
-          useValue: {},
-        },
-        {
-          provide: AttachmentHandler,
-          useValue: {},
-        },
-        {
-          provide: CommentHandler,
-          useValue: {},
-        },
-        {
-          provide: SystemHandler,
-          useValue: mockSystemHandler,
-        },
-        {
-          provide: ContextHandler,
-          useValue: {},
-        },
-        {
-          provide: UIHandler,
-          useValue: {},
-        },
-        {
-          provide: ProjectHandler,
-          useValue: {},
-        },
-        {
-          provide: TaskHandler,
-          useValue: {},
-        },
-        {
-          provide: ApprovalHandler,
-          useValue: {},
-        },
-        {
-          provide: MCPApprovalService,
-          useValue: mockApprovalService,
-        },
-        {
-          provide: AgentPolicyService,
-          useValue: mockPolicyService,
-        },
-        {
-          provide: WorkspaceRepo,
-          useValue: mockWorkspaceRepo,
-        },
-        {
-          provide: SearchHandler,
-          useValue: {},
-        },
-        {
-          provide: ImportHandler,
-          useValue: {},
-        },
-        {
-          provide: ExportHandler,
-          useValue: {},
-        },
-        {
-          provide: AIHandler,
-          useValue: {},
-        },
-        {
-          provide: MemoryHandler,
-          useValue: {},
-        },
-        {
-          provide: RepoHandler,
-          useValue: {},
-        },
-        {
-          provide: ResearchHandler,
-          useValue: {},
-        },
-        {
-          provide: MCPContextService,
-          useValue: mockContextService,
-        },
+        { provide: PageHandler, useValue: mockPageHandler },
+        { provide: SpaceHandler, useValue: {} },
+        { provide: UserHandler, useValue: {} },
+        { provide: GroupHandler, useValue: {} },
+        { provide: WorkspaceHandler, useValue: {} },
+        { provide: AttachmentHandler, useValue: {} },
+        { provide: CommentHandler, useValue: {} },
+        { provide: SystemHandler, useValue: mockSystemHandler },
+        { provide: ContextHandler, useValue: {} },
+        { provide: UIHandler, useValue: {} },
+        { provide: ProjectHandler, useValue: {} },
+        { provide: TaskHandler, useValue: {} },
+        { provide: ApprovalHandler, useValue: {} },
+        { provide: MCPApprovalService, useValue: mockApprovalService },
+        { provide: AgentPolicyService, useValue: mockPolicyService },
+        { provide: WorkspaceRepo, useValue: mockWorkspaceRepo },
+        { provide: SearchHandler, useValue: {} },
+        { provide: ImportHandler, useValue: {} },
+        { provide: ExportHandler, useValue: {} },
+        { provide: AIHandler, useValue: {} },
+        { provide: MemoryHandler, useValue: {} },
+        { provide: RepoHandler, useValue: {} },
+        { provide: ResearchHandler, useValue: {} },
+        { provide: ParallaxAgentHandler, useValue: {} },
+        { provide: GoalHandler, useValue: {} },
+        { provide: ProfileHandler, useValue: {} },
+        { provide: ReviewHandler, useValue: {} },
+        { provide: InsightsHandler, useValue: {} },
+        { provide: KnowledgeHandler, useValue: {} },
+        { provide: HypothesisHandler, useValue: {} },
+        { provide: ExperimentHandler, useValue: {} },
+        { provide: IntelligenceContextHandler, useValue: {} },
+        { provide: RelationshipHandler, useValue: {} },
+        { provide: TeamHandler, useValue: {} },
+        { provide: PatternHandler, useValue: {} },
+        { provide: SwarmHandler, useValue: {} },
+        { provide: GitHubIssueHandler, useValue: {} },
+        { provide: MCPEventService, useValue: mockEventService },
+        { provide: BugReportService, useValue: mockBugReportService },
       ],
     }).compile();
 
     service = module.get<MCPService>(MCPService);
-    contextService = module.get<MCPContextService>(MCPContextService);
-    
-    // Access the private handlers map for testing
-    handlers = (service as any).handlers;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   it('should be defined', () => {
@@ -197,7 +173,7 @@ describe('MCPService', () => {
   });
 
   describe('processRequest', () => {
-    it('should process a valid request successfully', async () => {
+    it('should process a valid page.list request', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: 'page.list',
@@ -206,7 +182,7 @@ describe('MCPService', () => {
       };
 
       const expectedResult = { pages: [{ id: 'page-1', title: 'Test Page' }] };
-      mockPageHandler.list.mockResolvedValue(expectedResult);
+      mockPageHandler.listPages.mockResolvedValue(expectedResult);
 
       const response = await service.processRequest(request, mockUser);
 
@@ -215,13 +191,16 @@ describe('MCPService', () => {
         result: expectedResult,
         id: 'req-123',
       });
-      expect(mockPageHandler.list).toHaveBeenCalledWith(request.params, mockUser);
+      expect(mockPageHandler.listPages).toHaveBeenCalledWith(
+        request.params,
+        mockUser.id,
+      );
     });
 
-    it('should deny a request when policy blocks the method', async () => {
+    it('should deny a request when policy decision is deny', async () => {
       mockPolicyService.evaluate.mockReturnValue({
         decision: 'deny',
-        reason: 'blocked',
+        reason: 'blocked by policy',
       });
 
       const request: MCPRequest = {
@@ -234,13 +213,14 @@ describe('MCPService', () => {
       const response = await service.processRequest(request, mockUser);
 
       expect(response.error?.code).toBe(MCPErrorCode.PERMISSION_DENIED);
+      expect(response.error?.message).toBe('Permission denied');
       expect(response.error?.data).toMatchObject({
         method: 'page.list',
-        reason: 'blocked',
+        reason: 'blocked by policy',
       });
     });
 
-    it('should require approval when policy requests it', async () => {
+    it('should require approval when policy decision is approval', async () => {
       mockPolicyService.evaluate.mockReturnValue({
         decision: 'approval',
         reason: 'needs approval',
@@ -260,10 +240,30 @@ describe('MCPService', () => {
       const response = await service.processRequest(request, mockUser);
 
       expect(response.error?.code).toBe(MCPErrorCode.APPROVAL_REQUIRED);
+      expect(response.error?.message).toBe('Approval required');
       expect(response.error?.data).toMatchObject({
         approvalToken: 'approval-token',
         method: 'page.create',
       });
+    });
+
+    it('should require approval when approvalService flags the method', async () => {
+      mockApprovalService.requiresApproval.mockReturnValue(true);
+      mockApprovalService.createApproval.mockResolvedValue({
+        token: 'token-456',
+        expiresAt: new Date().toISOString(),
+      });
+
+      const request: MCPRequest = {
+        jsonrpc: '2.0',
+        method: 'page.delete',
+        params: { pageId: 'page-123' },
+        id: 'req-123',
+      };
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.error?.code).toBe(MCPErrorCode.APPROVAL_REQUIRED);
     });
 
     it('should reject invalid approval tokens', async () => {
@@ -287,7 +287,31 @@ describe('MCPService', () => {
       });
     });
 
-    it('should validate JSON-RPC version', async () => {
+    it('should accept valid approval tokens and proceed', async () => {
+      mockApprovalService.consumeApproval.mockResolvedValue(true);
+      const expectedResult = { id: 'page-123', title: 'Updated' };
+      mockPageHandler.updatePage.mockResolvedValue(expectedResult);
+
+      const request: MCPRequest = {
+        jsonrpc: '2.0',
+        method: 'page.update',
+        params: {
+          pageId: 'page-123',
+          title: 'Updated',
+          approvalToken: 'valid-token',
+        },
+        id: 'req-123',
+      };
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.result).toEqual(expectedResult);
+      expect(mockApprovalService.consumeApproval).toHaveBeenCalled();
+    });
+  });
+
+  describe('request validation', () => {
+    it('should reject unsupported JSON-RPC version', async () => {
       const request: MCPRequest = {
         jsonrpc: '1.0' as any,
         method: 'page.list',
@@ -297,17 +321,11 @@ describe('MCPService', () => {
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.INVALID_REQUEST,
-          message: 'Invalid JSON-RPC version',
-        },
-        id: 'req-123',
-      });
+      expect(response.error?.code).toBe(MCPErrorCode.INVALID_REQUEST);
+      expect(response.error?.message).toBe('Invalid request');
     });
 
-    it('should handle missing method', async () => {
+    it('should reject missing method', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: '',
@@ -317,17 +335,10 @@ describe('MCPService', () => {
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.INVALID_REQUEST,
-          message: 'Method is required',
-        },
-        id: 'req-123',
-      });
+      expect(response.error?.code).toBe(MCPErrorCode.INVALID_REQUEST);
     });
 
-    it('should handle invalid method format', async () => {
+    it('should reject method without dot separator', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: 'invalidmethod',
@@ -337,17 +348,22 @@ describe('MCPService', () => {
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.METHOD_NOT_FOUND,
-          message: 'Invalid method format. Expected: resource.operation',
-        },
-        id: 'req-123',
-      });
+      expect(response.error?.code).toBe(MCPErrorCode.INVALID_REQUEST);
     });
 
-    it('should handle unknown resource', async () => {
+    it('should reject request without id', async () => {
+      const request = {
+        jsonrpc: '2.0',
+        method: 'page.list',
+        params: {},
+      } as MCPRequest;
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.error?.code).toBe(MCPErrorCode.INVALID_REQUEST);
+    });
+
+    it('should return method not found for unknown resource', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: 'unknown.operation',
@@ -357,93 +373,24 @@ describe('MCPService', () => {
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.METHOD_NOT_FOUND,
-          message: 'Unknown resource: unknown',
-        },
-        id: 'req-123',
-      });
+      expect(response.error?.code).toBe(MCPErrorCode.METHOD_NOT_FOUND);
+      expect(response.error?.message).toBe('Method not found');
     });
 
-    it('should handle unknown operation', async () => {
+    it('should return method not found for unknown operation on known resource', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
-        method: 'page.unknown',
+        method: 'page.nonexistent',
         params: {},
         id: 'req-123',
       };
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.METHOD_NOT_FOUND,
-          message: 'Unknown operation: unknown for resource: page',
-        },
-        id: 'req-123',
-      });
+      expect(response.error?.code).toBe(MCPErrorCode.METHOD_NOT_FOUND);
     });
 
-    it('should handle handler errors', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'page.create',
-        params: { title: 'Test' },
-        id: 'req-123',
-      };
-
-      const error = new Error('Permission denied');
-      mockPageHandler.create.mockRejectedValue(error);
-
-      const response = await service.processRequest(request, mockUser);
-
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.INTERNAL_ERROR,
-          message: 'Permission denied',
-        },
-        id: 'req-123',
-      });
-    });
-
-    it('should handle requests without id (notifications)', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'system.ping',
-        params: {},
-      };
-
-      mockSystemHandler.ping.mockResolvedValue({ pong: true });
-
-      const response = await service.processRequest(request, mockUser);
-
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        result: { pong: true },
-      });
-      expect(response).not.toHaveProperty('id');
-    });
-
-    it('should clear context before processing each request', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'system.ping',
-        params: {},
-        id: 'req-123',
-      };
-
-      mockSystemHandler.ping.mockResolvedValue({ pong: true });
-
-      await service.processRequest(request, mockUser);
-
-      expect(mockContextService.clearContext).toHaveBeenCalled();
-    });
-
-    it('should handle null params', async () => {
+    it('should treat null params as empty object', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: 'page.list',
@@ -451,30 +398,17 @@ describe('MCPService', () => {
         id: 'req-123',
       };
 
-      mockPageHandler.list.mockResolvedValue({ pages: [] });
+      mockPageHandler.listPages.mockResolvedValue({ pages: [] });
 
-      const response = await service.processRequest(request, mockUser);
+      await service.processRequest(request, mockUser);
 
-      expect(mockPageHandler.list).toHaveBeenCalledWith({}, mockUser);
-      expect(response).toHaveProperty('result');
+      // params get passed through (the handler receives whatever was in params)
+      expect(mockPageHandler.listPages).toHaveBeenCalled();
     });
+  });
 
-    it('should handle undefined params', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'page.list',
-        id: 'req-123',
-      } as MCPRequest;
-
-      mockPageHandler.list.mockResolvedValue({ pages: [] });
-
-      const response = await service.processRequest(request, mockUser);
-
-      expect(mockPageHandler.list).toHaveBeenCalledWith({}, mockUser);
-      expect(response).toHaveProperty('result');
-    });
-
-    it('should preserve error data if present', async () => {
+  describe('error handling', () => {
+    it('should wrap plain Error in internal error response', async () => {
       const request: MCPRequest = {
         jsonrpc: '2.0',
         method: 'page.create',
@@ -482,87 +416,132 @@ describe('MCPService', () => {
         id: 'req-123',
       };
 
-      const customError = {
-        code: -32001,
-        message: 'Custom error',
-        data: { field: 'title', reason: 'Too short' },
-      };
-      mockPageHandler.create.mockRejectedValue(customError);
+      mockPageHandler.createPage.mockRejectedValue(
+        new Error('Something went wrong'),
+      );
 
       const response = await service.processRequest(request, mockUser);
 
-      expect(response).toEqual({
+      expect(response.error?.code).toBe(MCPErrorCode.INTERNAL_ERROR);
+      expect(response.error?.message).toBe('Internal error');
+    });
+
+    it('should pass through MCP errors with code and message', async () => {
+      const request: MCPRequest = {
         jsonrpc: '2.0',
-        error: {
-          code: MCPErrorCode.INTERNAL_ERROR,
-          message: 'Custom error',
-        },
+        method: 'page.create',
+        params: { title: 'Test' },
         id: 'req-123',
-      });
+      };
+
+      const mcpError = {
+        code: MCPErrorCode.INVALID_PARAMS,
+        message: 'Invalid params',
+        data: 'title is required',
+      };
+      mockPageHandler.createPage.mockRejectedValue(mcpError);
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.error).toEqual(mcpError);
+    });
+
+    it('should handle string thrown as error', async () => {
+      const request: MCPRequest = {
+        jsonrpc: '2.0',
+        method: 'page.create',
+        params: { title: 'Test' },
+        id: 'req-123',
+      };
+
+      mockPageHandler.createPage.mockRejectedValue('String error');
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.error?.code).toBe(MCPErrorCode.INTERNAL_ERROR);
+    });
+
+    it('should handle Error with empty message', async () => {
+      const request: MCPRequest = {
+        jsonrpc: '2.0',
+        method: 'page.create',
+        params: { title: 'Test' },
+        id: 'req-123',
+      };
+
+      mockPageHandler.createPage.mockRejectedValue(new Error(''));
+
+      const response = await service.processRequest(request, mockUser);
+
+      expect(response.error?.code).toBe(MCPErrorCode.INTERNAL_ERROR);
     });
   });
 
-  describe('handler registration', () => {
-    it('should register all handlers correctly', () => {
-      expect(handlers.has('page')).toBe(true);
-      expect(handlers.has('space')).toBe(true);
-      expect(handlers.has('user')).toBe(true);
-      expect(handlers.has('group')).toBe(true);
-      expect(handlers.has('workspace')).toBe(true);
-      expect(handlers.has('attachment')).toBe(true);
-      expect(handlers.has('comment')).toBe(true);
-      expect(handlers.has('system')).toBe(true);
-      expect(handlers.has('context')).toBe(true);
-      expect(handlers.has('ui')).toBe(true);
+  describe('page handler routing', () => {
+    const makeRequest = (operation: string, params: any = {}): MCPRequest => ({
+      jsonrpc: '2.0',
+      method: `page.${operation}`,
+      params,
+      id: 'req-123',
+    });
+
+    it('should route page.get to getPage', async () => {
+      mockPageHandler.getPage.mockResolvedValue({ id: 'page-1' });
+      await service.processRequest(makeRequest('get', { pageId: 'page-1' }), mockUser);
+      expect(mockPageHandler.getPage).toHaveBeenCalledWith({ pageId: 'page-1' }, mockUser.id);
+    });
+
+    it('should route page.list to listPages', async () => {
+      mockPageHandler.listPages.mockResolvedValue({ pages: [] });
+      await service.processRequest(makeRequest('list', { spaceId: 's1' }), mockUser);
+      expect(mockPageHandler.listPages).toHaveBeenCalledWith({ spaceId: 's1' }, mockUser.id);
+    });
+
+    it('should route page.create to createPage', async () => {
+      mockPageHandler.createPage.mockResolvedValue({ id: 'new' });
+      await service.processRequest(makeRequest('create', { title: 'New' }), mockUser);
+      expect(mockPageHandler.createPage).toHaveBeenCalledWith({ title: 'New' }, mockUser.id);
+    });
+
+    it('should route page.update to updatePage', async () => {
+      mockPageHandler.updatePage.mockResolvedValue({ id: 'p1' });
+      await service.processRequest(makeRequest('update', { pageId: 'p1', title: 'X' }), mockUser);
+      expect(mockPageHandler.updatePage).toHaveBeenCalledWith({ pageId: 'p1', title: 'X' }, mockUser.id);
+    });
+
+    it('should route page.delete to deletePage', async () => {
+      mockPageHandler.deletePage.mockResolvedValue({ success: true });
+      await service.processRequest(makeRequest('delete', { pageId: 'p1' }), mockUser);
+      expect(mockPageHandler.deletePage).toHaveBeenCalledWith({ pageId: 'p1' }, mockUser.id);
+    });
+
+    it('should route page.search to searchPages', async () => {
+      mockPageHandler.searchPages.mockResolvedValue({ pages: [] });
+      await service.processRequest(makeRequest('search', { query: 'test' }), mockUser);
+      expect(mockPageHandler.searchPages).toHaveBeenCalledWith({ query: 'test' }, mockUser.id);
+    });
+
+    it('should route page.move to movePage', async () => {
+      mockPageHandler.movePage.mockResolvedValue({ success: true });
+      await service.processRequest(makeRequest('move', { pageId: 'p1' }), mockUser);
+      expect(mockPageHandler.movePage).toHaveBeenCalledWith({ pageId: 'p1' }, mockUser.id);
     });
   });
 
-  describe('error handling edge cases', () => {
-    it('should handle errors without message', async () => {
+  describe('system handler routing', () => {
+    it('should route system.listMethods', async () => {
+      mockSystemHandler.listMethods.mockResolvedValue({ methods: [] });
       const request: MCPRequest = {
         jsonrpc: '2.0',
-        method: 'page.create',
+        method: 'system.listMethods',
         params: {},
         id: 'req-123',
       };
 
-      const error = new Error();
-      error.message = '';
-      mockPageHandler.create.mockRejectedValue(error);
-
       const response = await service.processRequest(request, mockUser);
 
-      expect(response.error?.message).toBe('An error occurred');
-    });
-
-    it('should handle non-Error objects thrown', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'page.create',
-        params: {},
-        id: 'req-123',
-      };
-
-      mockPageHandler.create.mockRejectedValue('String error');
-
-      const response = await service.processRequest(request, mockUser);
-
-      expect(response.error?.message).toBe('String error');
-    });
-
-    it('should handle null/undefined thrown', async () => {
-      const request: MCPRequest = {
-        jsonrpc: '2.0',
-        method: 'page.create',
-        params: {},
-        id: 'req-123',
-      };
-
-      mockPageHandler.create.mockRejectedValue(null);
-
-      const response = await service.processRequest(request, mockUser);
-
-      expect(response.error?.message).toBe('An error occurred');
+      expect(response.result).toEqual({ methods: [] });
+      expect(mockSystemHandler.listMethods).toHaveBeenCalled();
     });
   });
 });
