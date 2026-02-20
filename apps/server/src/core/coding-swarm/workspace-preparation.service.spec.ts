@@ -26,7 +26,7 @@ const mockGenerateApprovalConfig = jest.fn().mockReturnValue({
 jest.mock('coding-agent-adapters', () => ({
   createAllAdapters: () => mockAdapters,
   BaseCodingAdapter: class {},
-  generateApprovalConfig: function() { return mockGenerateApprovalConfig.apply(null, arguments); },
+  generateApprovalConfig: (...args: unknown[]) => mockGenerateApprovalConfig(...args),
 }));
 
 jest.mock('fs', () => {

@@ -9,6 +9,8 @@ import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-wo
 import { KyselyDB } from '../../database/types/kysely.types';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { GitHubOAuthService } from '../../integrations/github/github-oauth.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class GitWorkspaceService {
@@ -408,8 +410,6 @@ export class GitWorkspaceService {
 
   private ensureGitignore(workspacePath: string, entry: string) {
     try {
-      const fs = require('fs');
-      const path = require('path');
       const gitignorePath = path.join(workspacePath, '.gitignore');
       if (fs.existsSync(gitignorePath)) {
         const content = fs.readFileSync(gitignorePath, 'utf-8');

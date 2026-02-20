@@ -172,7 +172,7 @@ export class ResearchDashboardService {
     spaceId?: string,
     domainTags?: string[],
   ) {
-    let query = this.db
+    const query = this.db
       .selectFrom('tasks')
       .innerJoin('taskLabelAssignments', 'taskLabelAssignments.taskId', 'tasks.id')
       .innerJoin('taskLabels', 'taskLabels.id', 'taskLabelAssignments.labelId')

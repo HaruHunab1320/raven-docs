@@ -18,6 +18,8 @@
 import { resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { config as dotenvConfig } from 'dotenv';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
 
 // Load .env from project root
 dotenvConfig({ path: resolve(__dirname, '../../../.env') });
@@ -270,7 +272,7 @@ async function main() {
     log('PROVISION', `Branch: ${workspace.branch.name}`);
 
     // Ensure .git-workspace/ is gitignored
-    const { writeFileSync, existsSync, appendFileSync, readFileSync } = require('fs');
+    const { writeFileSync, existsSync, appendFileSync, readFileSync } = fs;
     const gitignorePath = `${workspace.path}/.gitignore`;
     const gitignoreEntry = '.git-workspace/\n';
     if (existsSync(gitignorePath)) {
@@ -550,11 +552,13 @@ Run this command AFTER creating the nonce file:
         // Log raw chunks periodically to debug agent state
         rawLogCounter++;
         if (rawLogCounter <= 5 || rawLogCounter % 20 === 0) {
+          // eslint-disable-next-line no-control-regex
           const clean = data.replace(/\x1b\[[^m]*m/g, '').replace(/[\r\x00-\x1f]/g, ' ').trim();
           if (clean.length > 0) {
             log('RAW', `[chunk#${rawLogCounter}] ${clean.slice(0, 200)}`);
           }
         }
+        // eslint-disable-next-line no-control-regex
         const stripped = outputBuffer.replace(/\x1b\[[^m]*m/g, '').replace(/\r/g, '');
         if (
           !inputReady &&
@@ -600,7 +604,7 @@ Run this command AFTER creating the nonce file:
           if (logs.length >= 50) break;
         }
         logs.forEach((l) => console.log(`  ${l}`));
-      } catch {}
+      } catch { /* best-effort log collection */ }
       await ptyManager.shutdown();
       process.exit(1);
     }
@@ -705,7 +709,6 @@ Run this command AFTER creating the nonce file:
 
     log('FINALIZE', 'Checking workspace for changes...');
 
-    const { execSync } = require('child_process');
     const gitStatus = execSync('git status --porcelain', {
       cwd: workspace.path,
       encoding: 'utf-8',
@@ -925,18 +928,18 @@ Run this command AFTER creating the nonce file:
       try {
         await callTool('task_delete', { taskId: testTaskId, workspaceId });
         log('CLEANUP', 'Test task deleted.');
-      } catch {}
+      } catch { /* best-effort cleanup */ }
     }
     if (testProjectId) {
       try {
         await callTool('project_delete', { projectId: testProjectId, workspaceId });
         log('CLEANUP', 'Test project deleted.');
-      } catch {}
+      } catch { /* best-effort cleanup */ }
     }
     if (wsService && gitWorkspaceId) {
       try {
         await wsService.cleanup(gitWorkspaceId);
-      } catch {}
+      } catch { /* best-effort cleanup */ }
     }
 
     process.exit(1);

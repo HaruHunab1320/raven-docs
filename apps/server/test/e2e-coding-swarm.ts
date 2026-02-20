@@ -9,6 +9,8 @@
 
 import { resolve } from 'path';
 import { config as dotenvConfig } from 'dotenv';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
 
 // Load .env from project root
 dotenvConfig({ path: resolve(__dirname, '../../../.env') });
@@ -98,11 +100,11 @@ async function main() {
   log('PROVISION', `Branch: ${workspace.branch.name}`);
 
   // Ensure .git-workspace directory is gitignored (it contains credential-context.json)
-  const { writeFileSync, existsSync, appendFileSync } = require('fs');
+  const { writeFileSync, existsSync, appendFileSync, readFileSync } = fs;
   const gitignorePath = `${workspace.path}/.gitignore`;
   const gitignoreEntry = '.git-workspace/\n';
   if (existsSync(gitignorePath)) {
-    const content = require('fs').readFileSync(gitignorePath, 'utf-8');
+    const content = readFileSync(gitignorePath, 'utf-8');
     if (!content.includes('.git-workspace')) {
       appendFileSync(gitignorePath, `\n${gitignoreEntry}`);
     }
@@ -173,7 +175,7 @@ ${TOOL_CATEGORIES_SUMMARY}
 
   // Update .gitignore to exclude the memory file
   if (existsSync(gitignorePath)) {
-    const gitignoreContent = require('fs').readFileSync(gitignorePath, 'utf-8');
+    const gitignoreContent = readFileSync(gitignorePath, 'utf-8');
     if (!gitignoreContent.includes(memoryFileName)) {
       appendFileSync(gitignorePath, `${memoryFileName}\n`);
     }
@@ -283,6 +285,7 @@ ${TOOL_CATEGORIES_SUMMARY}
       }
       // Detect the actual input prompt — Claude Code shows ❯ or "for shortcuts"
       // when the input field is ready to accept text
+      // eslint-disable-next-line no-control-regex
       const stripped = outputBuffer.replace(/\x1b\[[^m]*m/g, '').replace(/\r/g, '');
       if (
         !inputReady &&
@@ -332,7 +335,7 @@ ${TOOL_CATEGORIES_SUMMARY}
       }
       log('AGENT', `Last ${logs.length} log lines:`);
       logs.forEach((l) => console.log(`  ${l}`));
-    } catch {}
+    } catch { /* best-effort log collection */ }
     await ptyManager.shutdown();
     process.exit(1);
   }
@@ -407,7 +410,6 @@ ${TOOL_CATEGORIES_SUMMARY}
 
   log('VERIFY', 'Checking workspace for new files...');
 
-  const { execSync } = require('child_process');
   const gitStatus = execSync('git status --porcelain', {
     cwd: workspace.path,
     encoding: 'utf-8',
@@ -489,7 +491,7 @@ ${TOOL_CATEGORIES_SUMMARY}
   try {
     await wsService.cleanup(workspaceId);
     log('CLEANUP', 'Workspace cleaned up.');
-  } catch {
+  } catch { /* best-effort cleanup */
     log('CLEANUP', `Workspace at ${workspace.path} — clean up manually if needed.`);
   }
 
