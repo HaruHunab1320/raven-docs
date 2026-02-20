@@ -6,7 +6,9 @@ import {
   Group,
   SegmentedControl,
   Loader,
+  ActionIcon,
 } from "@mantine/core";
+import { IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActiveExperiments } from "../hooks/use-intelligence-queries";
@@ -14,6 +16,7 @@ import { formattedDate } from "@/lib/time";
 
 interface Props {
   spaceId: string;
+  onNewExperiment?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -23,7 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
   failed: "red",
 };
 
-export function ActiveExperimentsList({ spaceId }: Props) {
+export function ActiveExperimentsList({ spaceId, onNewExperiment }: Props) {
   const navigate = useNavigate();
   const { data: experiments, isLoading } = useActiveExperiments(spaceId);
   const [filter, setFilter] = useState("all");
@@ -39,6 +42,12 @@ export function ActiveExperimentsList({ spaceId }: Props) {
       <Stack gap="sm">
         <Group justify="space-between">
           <Text fw={600}>Experiments</Text>
+          <Group gap="xs">
+          {onNewExperiment && (
+            <ActionIcon variant="subtle" size="sm" onClick={onNewExperiment} aria-label="New Experiment">
+              <IconPlus size={14} />
+            </ActionIcon>
+          )}
           <SegmentedControl
             size="xs"
             value={filter}
@@ -50,6 +59,7 @@ export function ActiveExperimentsList({ spaceId }: Props) {
               { value: "completed", label: "Completed" },
             ]}
           />
+          </Group>
         </Group>
 
         {isLoading ? (

@@ -10,11 +10,20 @@ import {
   Loader,
   Card,
   Badge,
+  Menu,
+  Button,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { IconRefresh } from "@tabler/icons-react";
+import {
+  IconRefresh,
+  IconPlus,
+  IconBulb,
+  IconFlask,
+  IconQuestionMark,
+} from "@tabler/icons-react";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { HypothesisScoreboard } from "../components/hypothesis-scoreboard";
 import { ActiveExperimentsList } from "../components/active-experiments-list";
@@ -23,6 +32,9 @@ import { RecentFindingsTimeline } from "../components/recent-findings-timeline";
 import { ContradictionAlerts } from "../components/contradiction-alerts";
 import { DomainGraphVisualization } from "../components/domain-graph-visualization";
 import { PatternAlertsPanel } from "../components/pattern-alerts-panel";
+import { CreateHypothesisModal } from "../components/create-hypothesis-modal";
+import { CreateExperimentModal } from "../components/create-experiment-modal";
+import { CreateOpenQuestionModal } from "../components/create-open-question-modal";
 import {
   useIntelligenceStats,
   INTELLIGENCE_KEYS,
@@ -35,6 +47,13 @@ export default function IntelligenceDashboardPage() {
   const [activeTab, setActiveTab] = useState<string | null>("overview");
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+
+  const [hypothesisOpened, { open: openHypothesis, close: closeHypothesis }] =
+    useDisclosure(false);
+  const [experimentOpened, { open: openExperiment, close: closeExperiment }] =
+    useDisclosure(false);
+  const [questionOpened, { open: openQuestion, close: closeQuestion }] =
+    useDisclosure(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -53,6 +72,9 @@ export default function IntelligenceDashboardPage() {
       }),
       queryClient.invalidateQueries({
         queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
       }),
       queryClient.invalidateQueries({
         queryKey: INTELLIGENCE_KEYS.patterns(spaceId),
@@ -78,6 +100,33 @@ export default function IntelligenceDashboardPage() {
                 {stats.totalTypedPages} typed pages
               </Badge>
             )}
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Button size="xs" leftSection={<IconPlus size={14} />}>
+                  New
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconBulb size={14} />}
+                  onClick={openHypothesis}
+                >
+                  New Hypothesis
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconFlask size={14} />}
+                  onClick={openExperiment}
+                >
+                  New Experiment
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconQuestionMark size={14} />}
+                  onClick={openQuestion}
+                >
+                  New Open Question
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             <ActionIcon
               variant="subtle"
               size="sm"
@@ -89,7 +138,10 @@ export default function IntelligenceDashboardPage() {
           </Group>
         </Group>
 
-        <HypothesisScoreboard spaceId={spaceId} />
+        <HypothesisScoreboard
+          spaceId={spaceId}
+          onNewHypothesis={openHypothesis}
+        />
 
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
@@ -111,11 +163,17 @@ export default function IntelligenceDashboardPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="experiments" pt="md">
-            <ActiveExperimentsList spaceId={spaceId} />
+            <ActiveExperimentsList
+              spaceId={spaceId}
+              onNewExperiment={openExperiment}
+            />
           </Tabs.Panel>
 
           <Tabs.Panel value="questions" pt="md">
-            <OpenQuestionsQueue spaceId={spaceId} />
+            <OpenQuestionsQueue
+              spaceId={spaceId}
+              onNewQuestion={openQuestion}
+            />
           </Tabs.Panel>
 
           <Tabs.Panel value="graph" pt="md">
@@ -135,6 +193,22 @@ export default function IntelligenceDashboardPage() {
           </Tabs.Panel>
         </Tabs>
       </Stack>
+
+      <CreateHypothesisModal
+        opened={hypothesisOpened}
+        onClose={closeHypothesis}
+        spaceId={spaceId}
+      />
+      <CreateExperimentModal
+        opened={experimentOpened}
+        onClose={closeExperiment}
+        spaceId={spaceId}
+      />
+      <CreateOpenQuestionModal
+        opened={questionOpened}
+        onClose={closeQuestion}
+        spaceId={spaceId}
+      />
     </Container>
   );
 }

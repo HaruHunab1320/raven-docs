@@ -10,6 +10,8 @@ export const INTELLIGENCE_KEYS = {
     ["intelligence-contradictions", spaceId] as const,
   experiments: (spaceId: string) =>
     ["intelligence-experiments", spaceId] as const,
+  hypotheses: (spaceId: string) =>
+    ["intelligence-hypotheses", spaceId] as const,
   patterns: (spaceId: string) => ["intelligence-patterns", spaceId] as const,
 };
 
@@ -53,6 +55,15 @@ export function useActiveExperiments(spaceId: string) {
   return useQuery({
     queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
     queryFn: () => intelligenceService.getActiveExperiments({ spaceId }),
+    enabled: !!spaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useHypothesesList(spaceId: string) {
+  return useQuery({
+    queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
+    queryFn: () => intelligenceService.getHypotheses({ spaceId }),
     enabled: !!spaceId,
     staleTime: 30_000,
   });

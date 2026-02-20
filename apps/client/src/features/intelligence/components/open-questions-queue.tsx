@@ -5,13 +5,16 @@ import {
   Badge,
   Group,
   Loader,
+  ActionIcon,
 } from "@mantine/core";
+import { IconPlus } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
 import { useOpenQuestions } from "../hooks/use-intelligence-queries";
 import { formattedDate } from "@/lib/time";
 
 interface Props {
   spaceId: string;
+  onNewQuestion?: () => void;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -21,14 +24,21 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: "gray",
 };
 
-export function OpenQuestionsQueue({ spaceId }: Props) {
+export function OpenQuestionsQueue({ spaceId, onNewQuestion }: Props) {
   const navigate = useNavigate();
   const { data: questions, isLoading } = useOpenQuestions(spaceId);
 
   return (
     <Card withBorder radius="md" p="md">
       <Stack gap="sm">
-        <Text fw={600}>Open Questions</Text>
+        <Group justify="space-between">
+          <Text fw={600}>Open Questions</Text>
+          {onNewQuestion && (
+            <ActionIcon variant="subtle" size="sm" onClick={onNewQuestion} aria-label="New Open Question">
+              <IconPlus size={14} />
+            </ActionIcon>
+          )}
+        </Group>
 
         {isLoading ? (
           <Group justify="center" py="md">

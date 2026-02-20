@@ -55,6 +55,12 @@ export class PatternListDto {
   patternType?: string;
 }
 
+export class HypothesesDto {
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+}
+
 export class PatternActionDto {
   @IsUUID()
   id: string;

@@ -268,6 +268,35 @@ export class ResearchDashboardService {
     }));
   }
 
+  async getHypotheses(workspaceId: string, spaceId?: string) {
+    const rows = await this.db
+      .selectFrom('pages')
+      .select([
+        'pages.id',
+        'pages.title',
+        'pages.pageType',
+        'pages.metadata',
+        'pages.slugId',
+        'pages.updatedAt',
+      ])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'hypothesis')
+      .where('pages.deletedAt', 'is', null)
+      .$if(!!spaceId, (qb) => qb.where('pages.spaceId', '=', spaceId!))
+      .orderBy('pages.updatedAt', 'desc')
+      .limit(50)
+      .execute();
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      pageType: r.pageType,
+      metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata,
+      slugId: r.slugId,
+      updatedAt: r.updatedAt,
+    }));
+  }
+
   async getDomainGraph(workspaceId: string, domainTags: string[]) {
     try {
       return await this.researchGraph.getDomainGraph(workspaceId, domainTags);

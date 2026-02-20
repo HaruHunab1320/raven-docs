@@ -57,6 +57,16 @@ export async function getActiveExperiments(params: {
   return req.data;
 }
 
+export async function getHypotheses(params: {
+  spaceId?: string;
+}): Promise<TypedPageSummary[]> {
+  const req = await api.post<TypedPageSummary[]>(
+    `${ENDPOINT}/hypotheses`,
+    params,
+  );
+  return req.data;
+}
+
 export async function getPatterns(params: {
   spaceId?: string;
   status?: string;

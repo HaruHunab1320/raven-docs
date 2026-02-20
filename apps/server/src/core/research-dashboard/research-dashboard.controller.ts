@@ -16,6 +16,7 @@ import {
   OpenQuestionsDto,
   ContradictionsDto,
   ActiveExperimentsDto,
+  HypothesesDto,
   PatternListDto,
   PatternActionDto,
 } from './dto/dashboard.dto';
@@ -81,6 +82,15 @@ export class ResearchDashboardController {
       workspace.id,
       dto.spaceId,
     );
+  }
+
+  @Post('hypotheses')
+  @HttpCode(HttpStatus.OK)
+  async getHypotheses(
+    @Body() dto: HypothesesDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.dashboardService.getHypotheses(workspace.id, dto.spaceId);
   }
 
   @Post('patterns')
