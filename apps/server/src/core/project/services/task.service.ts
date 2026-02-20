@@ -171,7 +171,10 @@ export class TaskService {
     return this.taskLabelRepo.listByWorkspace(workspaceId);
   }
 
-  async createLabel(workspaceId: string, data: { name: string; color: string }) {
+  async createLabel(
+    workspaceId: string,
+    data: { name: string; color: string },
+  ) {
     return this.taskLabelRepo.createLabel({
       name: data.name,
       color: data.color,
@@ -200,11 +203,7 @@ export class TaskService {
     return { success: true };
   }
 
-  async assignLabel(
-    workspaceId: string,
-    taskId: string,
-    labelId: string,
-  ) {
+  async assignLabel(workspaceId: string, taskId: string, labelId: string) {
     const task = await this.taskRepo.findById(taskId);
     if (!task || task.workspaceId !== workspaceId) {
       throw new NotFoundException('Task not found');
@@ -221,11 +220,7 @@ export class TaskService {
     return { success: true };
   }
 
-  async removeLabel(
-    workspaceId: string,
-    taskId: string,
-    labelId: string,
-  ) {
+  async removeLabel(workspaceId: string, taskId: string, labelId: string) {
     const task = await this.taskRepo.findById(taskId);
     if (!task || task.workspaceId !== workspaceId) {
       throw new NotFoundException('Task not found');
@@ -251,7 +246,7 @@ export class TaskService {
       return triage;
     }
 
-    let workspaceId = options.workspaceId;
+    const workspaceId = options.workspaceId;
     const workspace = await this.workspaceRepo.findById(workspaceId);
     const agentSettings = resolveAgentSettings(workspace?.settings);
     if (!agentSettings.enableAutoTriage) {
@@ -268,7 +263,11 @@ export class TaskService {
       { goalId: string; name: string; horizon?: string; tasks: Task[] }
     >();
 
-    const goals = await this.goalService.listGoals(workspaceId, options.userId, spaceId);
+    const goals = await this.goalService.listGoals(
+      workspaceId,
+      options.userId,
+      spaceId,
+    );
 
     const matchGoals = (text: string) => {
       const lowered = text.toLowerCase();
@@ -574,13 +573,11 @@ export class TaskService {
       return undefined;
     }
 
-    const [mostRecent] = tasks
-      .slice()
-      .sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      });
+    const [mostRecent] = tasks.slice().sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
 
     if (!mostRecent) {
       return undefined;
@@ -690,7 +687,10 @@ export class TaskService {
       if (data.title !== undefined && data.title !== previous.title) {
         changes.title = [previous.title, data.title];
       }
-      if (data.description !== undefined && data.description !== previous.description) {
+      if (
+        data.description !== undefined &&
+        data.description !== previous.description
+      ) {
         changes.description = [previous.description, data.description];
       }
       if (data.priority !== undefined && data.priority !== previous.priority) {
@@ -702,13 +702,19 @@ export class TaskService {
       if (data.dueDate !== undefined && data.dueDate !== previous.dueDate) {
         changes.dueDate = [previous.dueDate, data.dueDate];
       }
-      if (data.assigneeId !== undefined && data.assigneeId !== previous.assigneeId) {
+      if (
+        data.assigneeId !== undefined &&
+        data.assigneeId !== previous.assigneeId
+      ) {
         changes.assigneeId = [previous.assigneeId, data.assigneeId];
       }
       if (data.pageId !== undefined && data.pageId !== previous.pageId) {
         changes.pageId = [previous.pageId, data.pageId];
       }
-      if (data.estimatedTime !== undefined && data.estimatedTime !== previous.estimatedTime) {
+      if (
+        data.estimatedTime !== undefined &&
+        data.estimatedTime !== previous.estimatedTime
+      ) {
         changes.estimatedTime = [previous.estimatedTime, data.estimatedTime];
       }
       if (data.position !== undefined && data.position !== previous.position) {
