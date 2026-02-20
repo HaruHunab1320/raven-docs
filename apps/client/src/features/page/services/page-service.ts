@@ -36,6 +36,14 @@ export async function updatePage(data: Partial<IPageInput>): Promise<IPage> {
   return req.data;
 }
 
+export async function updatePageMetadata(
+  pageId: string,
+  metadata: Record<string, any>,
+): Promise<IPage> {
+  const req = await api.post<IPage>("/pages/update", { pageId, metadata });
+  return req.data;
+}
+
 export async function deletePage(pageId: string): Promise<void> {
   await api.post("/pages/delete", { pageId });
 }

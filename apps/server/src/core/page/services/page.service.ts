@@ -263,6 +263,12 @@ export class PageService {
     if (updatePageDto.content !== undefined) {
       updatePayload.content = updatePageDto.content;
     }
+    if (updatePageDto.metadata !== undefined) {
+      updatePayload.metadata = JSON.stringify(updatePageDto.metadata);
+    }
+    if (updatePageDto.pageType !== undefined) {
+      updatePayload.pageType = updatePageDto.pageType;
+    }
 
     await this.pageRepo.updatePage(updatePayload, page.id);
 

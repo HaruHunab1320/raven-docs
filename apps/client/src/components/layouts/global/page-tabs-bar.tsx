@@ -72,7 +72,9 @@ export function PageTabsBar() {
         {tabs.map((tab) => {
           const tabPageSlug = getPageSlugFromPath(tab.url);
           const tabSlugId = tabPageSlug ? extractPageSlugId(tabPageSlug) : null;
-          const isActive = currentSlugId && currentSlugId === tabSlugId;
+          const isActive = tabSlugId
+            ? currentSlugId && currentSlugId === tabSlugId
+            : location.pathname === tab.url;
           return (
             <div
               key={tab.id}

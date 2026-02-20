@@ -15,8 +15,9 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePageTabs } from "@/features/page/hooks/use-page-tabs";
 import {
   IconRefresh,
   IconPlus,
@@ -51,6 +52,18 @@ export default function IntelligenceDashboardPage() {
   const [activeTab, setActiveTab] = useState<string | null>("overview");
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const { upsertTab } = usePageTabs();
+
+  useEffect(() => {
+    if (spaceId) {
+      upsertTab({
+        id: `intelligence:${spaceId}`,
+        title: "Research Intelligence",
+        url: `/spaces/${spaceId}/intelligence`,
+        icon: "🔬",
+      });
+    }
+  }, [spaceId, upsertTab]);
 
   const [hypothesisOpened, { open: openHypothesis, close: closeHypothesis }] =
     useDisclosure(false);

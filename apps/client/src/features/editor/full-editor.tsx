@@ -6,6 +6,8 @@ import { Container } from "@mantine/core";
 import { useAtom } from "jotai";
 import { userAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { TaskPagePanel } from "@/features/project/components/task-page-panel";
+import { HypothesisPagePanel } from "@/features/intelligence/components/hypothesis-page-panel";
+import { ExperimentPagePanel } from "@/features/intelligence/components/experiment-page-panel";
 
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageEditor = React.memo(PageEditor);
@@ -17,6 +19,8 @@ export interface FullEditorProps {
   content: string;
   spaceSlug: string;
   editable: boolean;
+  pageType?: string;
+  spaceId?: string;
 }
 
 export function FullEditor({
@@ -26,6 +30,8 @@ export function FullEditor({
   content,
   spaceSlug,
   editable,
+  pageType,
+  spaceId,
 }: FullEditorProps) {
   const [user] = useAtom(userAtom);
   const fullPageWidth = user.settings?.preferences?.fullPageWidth;
@@ -44,6 +50,10 @@ export function FullEditor({
         editable={editable}
       />
       <TaskPagePanel pageId={pageId} />
+      {pageType === "hypothesis" && <HypothesisPagePanel pageId={pageId} />}
+      {pageType === "experiment" && spaceId && (
+        <ExperimentPagePanel pageId={pageId} spaceId={spaceId} />
+      )}
       <MemoizedPageEditor pageId={pageId} editable={editable} content={content} />
     </Container>
   );

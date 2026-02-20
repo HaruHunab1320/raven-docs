@@ -162,6 +162,8 @@ export default function Page() {
           SpaceCaslAction.Manage,
           SpaceCaslSubject.Page
         )}
+        pageType={page.pageType}
+        spaceId={page.spaceId}
       />
       <HistoryModal pageId={page.id} />
     </div>

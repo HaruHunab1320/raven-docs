@@ -22,6 +22,8 @@ export interface IPage {
   creator: ICreator;
   lastUpdatedBy: ILastUpdatedBy;
   space: Partial<ISpace>;
+  pageType?: string;
+  metadata?: Record<string, any>;
 }
 
 interface ICreator {

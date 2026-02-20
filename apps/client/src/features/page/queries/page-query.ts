@@ -11,6 +11,7 @@ import {
   getPageById,
   getSidebarPages,
   updatePage,
+  updatePageMetadata,
   movePage,
   getPageBreadcrumbs,
   getRecentChanges,
@@ -87,6 +88,25 @@ export function useUpdatePageMutation() {
         });
       }
 
+      if (pageById) {
+        queryClient.setQueryData(["pages", data.id], { ...pageById, ...data });
+      }
+    },
+  });
+}
+
+export function useUpdatePageMetadataMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<IPage, Error, { pageId: string; metadata: Record<string, any> }>({
+    mutationFn: ({ pageId, metadata }) => updatePageMetadata(pageId, metadata),
+    onSuccess: (data) => {
+      const pageBySlug = queryClient.getQueryData<IPage>(["pages", data.slugId]);
+      const pageById = queryClient.getQueryData<IPage>(["pages", data.id]);
+
+      if (pageBySlug) {
+        queryClient.setQueryData(["pages", data.slugId], { ...pageBySlug, ...data });
+      }
       if (pageById) {
         queryClient.setQueryData(["pages", data.id], { ...pageById, ...data });
       }
