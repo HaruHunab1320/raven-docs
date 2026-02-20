@@ -57,8 +57,8 @@
 
     .selectedCell:after {
       background: light-dark(
-        rgba(var(--mantine-primary-color-filled-rgb), 0.15),
-        rgba(var(--mantine-primary-color-filled-rgb), 0.25)
+        color-mix(in srgb, var(--mantine-primary-color-filled) 15%, transparent),
+        color-mix(in srgb, var(--mantine-primary-color-filled) 25%, transparent)
       );
       content: "";
       left: 0;

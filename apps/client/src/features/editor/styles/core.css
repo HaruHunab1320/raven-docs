@@ -182,8 +182,8 @@
   .selection,
   *::selection {
     background-color: light-dark(
-      rgba(var(--mantine-primary-color-filled-rgb), 0.2),
-      rgba(var(--mantine-primary-color-filled-rgb), 0.3)
+      color-mix(in srgb, var(--mantine-primary-color-filled) 20%, transparent),
+      color-mix(in srgb, var(--mantine-primary-color-filled) 30%, transparent)
     );
     border-radius: 0.15em;
   }

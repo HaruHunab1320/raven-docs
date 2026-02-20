@@ -66,13 +66,13 @@
 
 @keyframes planHistoryPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(var(--mantine-primary-color-filled-rgb), 0.35);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mantine-primary-color-filled) 35%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(var(--mantine-primary-color-filled-rgb), 0);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--mantine-primary-color-filled) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--mantine-primary-color-filled-rgb), 0);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mantine-primary-color-filled) 0%, transparent);
   }
 }
 
