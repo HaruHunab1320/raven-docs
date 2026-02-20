@@ -13,7 +13,9 @@ Raven Docs isn't just another documentation tool. It's a complete AI-native work
 - **Knowledge Management** — Real-time collaborative docs with rich editing, diagrams, and page history
 - **GTD Task System** — Capture, triage, and execute with inbox zero methodology
 - **Agentic AI** — Built-in agent with planning, memory, and autonomous execution
-- **Multi-Agent Orchestration** — Spawn and coordinate Claude Code, Codex, Gemini CLI, and Aider agents
+- **Research Intelligence** — Typed pages, knowledge graph, pattern detection, and context assembly
+- **Coding Swarms** — Spawn agents in isolated git workspaces to execute coding tasks and create PRs
+- **Multi-Agent Orchestration** — Coordinate Claude Code, Codex, Gemini CLI, and Aider agents
 - **MCP Server** — 100+ tools for external AI agents to interact with your knowledge base
 
 ```
@@ -26,6 +28,8 @@ Raven Docs isn't just another documentation tool. It's a complete AI-native work
 │   • Search      │   • Goals       │     • Gemini CLI            │
 │   • History     │   • Reviews     │     • Aider                 │
 ├─────────────────┴─────────────────┴─────────────────────────────┤
+│  Research Intelligence  │  Coding Swarms  │  Knowledge Graph    │
+├─────────────────────────────────────────────────────────────────┤
 │                     MCP Server (100+ tools)                     │
 ├─────────────────────────────────────────────────────────────────┤
 │  External Agents  │  Approvals  │  Memory  │  Web Terminal      │
@@ -47,20 +51,58 @@ The built-in agent operates across multiple planning horizons:
 
 The agent maintains persistent memory, learns your preferences, and can run autonomously on schedules (daily, weekly, monthly).
 
-### Multi-Agent Swarm Orchestration
+### Research Intelligence
+
+A structured knowledge engine built on typed pages, a knowledge graph, and automated pattern detection:
+
+- **Typed Pages** — Hypotheses, experiments, findings, observations with structured metadata
+- **Knowledge Graph** — Directed edges (VALIDATES, CONTRADICTS, EXTENDS, and 11 more) stored in Memgraph
+- **Context Assembly** — Ask "What do we know about X?" and get a structured evidence bundle
+- **Pattern Detection** — 8 automated evaluators surface convergence, contradictions, staleness, and more
+- **Multi-Agent Teams** — Deploy specialized research teams from templates (hypothesis-testing, literature-review, exploration)
+
+```typescript
+// Create a hypothesis
+await mcp.call("hypothesis_create", {
+  workspaceId: "ws_123",
+  spaceId: "space_456",
+  title: "Redis caching reduces API latency by 50%",
+  formalStatement: "Adding Redis caching will reduce p95 latency from 800ms to under 400ms",
+  predictions: ["Cache hit rate > 80%", "Memory stays under 512MB"]
+});
+
+// Query assembled context
+const context = await mcp.call("intelligence_query", {
+  workspaceId: "ws_123",
+  query: "What do we know about caching performance?"
+});
+// Returns: hypotheses, experiments, graph edges, patterns, open questions, contradictions
+```
+
+### Coding Swarms
+
+Execute coding tasks by spawning agents in isolated git workspaces:
+
+```typescript
+// Execute a coding task
+const execution = await mcp.call("swarm_execute", {
+  workspaceId: "ws_123",
+  repoUrl: "https://github.com/org/repo",
+  taskDescription: "Add input validation to the user registration endpoint",
+  agentType: "claude-code"
+});
+// Agent clones repo → creates branch → implements changes → commits → creates PR
+```
+
+The coding swarm system handles the full lifecycle:
+1. **Provision** — Clone repo, create feature branch, set up isolated workspace
+2. **Prepare** — Generate MCP API key, write agent memory file with context
+3. **Execute** — Spawn agent, send task, monitor progress
+4. **Finalize** — Commit changes, push branch, create pull request
+
+### Multi-Agent Orchestration
 
 Spawn and manage coding agents through Raven Docs:
-
-```bash
-# Spawn 3 Claude Code agents for a project
-curl -X POST https://your-instance.com/api/parallax-agents/spawn \
-  -H "Authorization: Bearer TOKEN" \
-  -d '{
-    "agentType": "claude-code",
-    "count": 3,
-    "name": "Code Review Team"
-  }'
-```
 
 **Supported agent types:**
 - **Claude Code** — Anthropic's CLI coding assistant
@@ -101,11 +143,17 @@ External AI agents connect via Model Context Protocol:
 ```
 
 **Tool categories:**
-- Pages — CRUD, history, search
-- Tasks — Full GTD workflow
-- Goals — Planning horizons
-- Memory — Persistent agent context
-- Research — Autonomous research jobs
+- Pages — CRUD, history, search, move, export
+- Tasks — Full GTD workflow, triage, assignments
+- Goals — Planning horizons, task alignment
+- Memory — Persistent agent context, entity graph
+- Research — Autonomous multi-source research jobs
+- Intelligence — Context assembly ("What do we know about X?")
+- Hypotheses & Experiments — Typed research pages with evidence chains
+- Patterns — Automated detection of convergence, contradictions, staleness
+- Knowledge — Semantic search with embeddings
+- Swarms — Execute coding tasks in isolated git workspaces
+- Teams — Deploy multi-agent research teams from templates
 - Search — Full-text across workspace
 
 ### GTD Productivity System
@@ -215,24 +263,16 @@ pnpm --filter ./apps/server run migration:latest
 }
 ```
 
-### Spawn Agent Swarm via API
+### Execute a Coding Swarm
 
 ```typescript
-// Spawn coding agents for a task
-const response = await fetch('/api/parallax-agents/spawn', {
-  method: 'POST',
-  headers: { 'Authorization': `Bearer ${token}` },
-  body: JSON.stringify({
-    agentType: 'claude-code',
-    count: 5,
-    name: 'Feature Implementation Team',
-    capabilities: ['code_review', 'testing', 'documentation']
-  })
-});
-
-// Monitor via WebSocket
-socket.on('agent:status', (status) => {
-  console.log(`Agent ${status.id}: ${status.state}`);
+// Execute a coding task — agent clones, implements, and creates a PR
+await mcpClient.callTool('swarm_execute', {
+  workspaceId: 'ws_123',
+  repoUrl: 'https://github.com/org/repo',
+  taskDescription: 'Add rate limiting middleware to all API routes',
+  agentType: 'claude-code',
+  baseBranch: 'main'
 });
 ```
 
@@ -247,12 +287,24 @@ await mcpClient.callTool('research_create', {
 });
 ```
 
+### Query Research Intelligence
+
+```typescript
+// "What do we know about X?" — assembles evidence from all sources
+const context = await mcpClient.callTool('intelligence_query', {
+  workspaceId: 'ws_123',
+  query: 'database migration strategies'
+});
+// Returns: hypotheses, experiments, graph edges, patterns, open questions
+```
+
 ## Documentation
 
 Full documentation available at your instance's `/docs` path or at the [documentation site](https://docs.ravendocs.com).
 
 **Key guides:**
-- [Agent Runtime Setup](/guides/agent-runtime) — Configure agent hosting
+- [Research Intelligence](/guides/research-intelligence) — Knowledge graph, hypotheses, pattern detection
+- [Agent Runtime Setup](/guides/agent-runtime) — Configure agent hosting and coding swarms
 - [MCP Integration](/mcp/overview) — Connect external agents
 - [GTD Workflow](/concepts/gtd) — Productivity system
 - [Self-Hosting](/self-hosting/overview) — Deployment options

@@ -110,6 +110,7 @@ const sidebars: SidebarsConfig = {
         'mcp/tools/relationship',
         'mcp/tools/team',
         'mcp/tools/pattern',
+        'mcp/tools/swarm',
         'mcp/tools/agent',
       ],
     },

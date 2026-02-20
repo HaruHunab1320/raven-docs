@@ -6,6 +6,7 @@ import {
   Group,
   Loader,
 } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import { useOpenQuestions } from "../hooks/use-intelligence-queries";
 import { formattedDate } from "@/lib/time";
 
@@ -21,6 +22,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export function OpenQuestionsQueue({ spaceId }: Props) {
+  const navigate = useNavigate();
   const { data: questions, isLoading } = useOpenQuestions(spaceId);
 
   return (
@@ -37,7 +39,14 @@ export function OpenQuestionsQueue({ spaceId }: Props) {
         ) : (
           <Stack gap="xs">
             {questions.map((q) => (
-              <Card key={q.id} withBorder radius="sm" p="sm">
+              <Card
+                key={q.id}
+                withBorder
+                radius="sm"
+                p="sm"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate(`/p/${q.id}`)}
+              >
                 <Group justify="space-between">
                   <Text fw={500} size="sm" style={{ flex: 1 }}>
                     {q.title}

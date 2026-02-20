@@ -130,10 +130,17 @@ List relationships for a page.
 | `VALIDATES` | Evidence supports a hypothesis | Experiment → Hypothesis |
 | `CONTRADICTS` | Evidence contradicts a hypothesis | Experiment → Hypothesis |
 | `TESTS_HYPOTHESIS` | An experiment tests a hypothesis | Experiment → Hypothesis |
-| `EXTENDS` | One finding extends another | Hypothesis → Hypothesis |
-| `REFINES` | A more specific version | Finding → Finding |
-| `DEPENDS_ON` | Logical dependency | Hypothesis → Hypothesis |
-| `RELATED_TO` | General association | Any → Any |
+| `EXTENDS` | One finding builds on another | Hypothesis → Hypothesis |
+| `INSPIRED_BY` | Work was inspired by another page | Any → Any |
+| `USES_DATA_FROM` | Uses data from another experiment | Experiment → Experiment |
+| `FORMALIZES` | Formalizes an informal observation | Finding → Observation |
+| `SPAWNED_FROM` | Created as a follow-up | Any → Any |
+| `SUPERSEDES` | Replaces an older page | Hypothesis → Hypothesis |
+| `CITES` | References another work | Any → Any |
+| `REPLICATES` | Successfully replicates results | Experiment → Experiment |
+| `REPRODUCES` | Reproduces results | Experiment → Experiment |
+| `FAILS_TO_REPRODUCE` | Failed reproduction attempt | Experiment → Experiment |
+| `USES_ASSUMPTION` | Depends on an assumption | Any → Any |
 
 ## Knowledge Graph
 

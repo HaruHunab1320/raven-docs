@@ -40,52 +40,59 @@ This tool assembles a comprehensive context bundle by searching across typed pag
 {
   "context": {
     "query": "What do we know about API caching performance?",
-    "hypotheses": [
+    "directHits": [
       {
         "id": "page_hyp_123",
         "title": "Caching reduces API latency by 50%",
-        "status": "validated",
-        "formalStatement": "Adding Redis caching will reduce p95 latency...",
-        "evidenceCount": 2
+        "pageType": "hypothesis"
       }
     ],
-    "experiments": [
-      {
-        "id": "page_exp_456",
-        "title": "Redis cache benchmark",
-        "status": "completed",
-        "results": { "p95After": 350, "hitRate": 0.87 }
-      }
-    ],
-    "relatedPages": [
+    "relatedWork": [
       {
         "id": "page_789",
         "title": "Caching Architecture Decisions",
         "pageType": "finding"
       }
     ],
-    "graphEdges": [
+    "timeline": [
       {
-        "from": "page_exp_456",
-        "to": "page_hyp_123",
-        "type": "VALIDATES"
+        "id": "page_exp_456",
+        "title": "Redis cache benchmark",
+        "updatedAt": "2024-01-15T14:30:00Z"
       }
     ],
-    "patterns": [
-      {
-        "id": "pat_001",
-        "patternType": "convergence",
-        "title": "Multiple experiments validate caching hypothesis",
-        "severity": "medium"
-      }
-    ],
+    "currentState": {
+      "validated": [
+        { "id": "page_hyp_123", "title": "Caching reduces API latency by 50%" }
+      ],
+      "refuted": [],
+      "testing": [],
+      "open": []
+    },
     "openQuestions": [
       {
         "id": "task_oq_123",
         "title": "What is the cache invalidation strategy?",
-        "status": "todo"
+        "status": "todo",
+        "priority": "medium",
+        "labels": ["open-question"]
       }
-    ]
+    ],
+    "contradictions": [
+      {
+        "from": "page_hyp_123",
+        "to": "page_hyp_456",
+        "type": "CONTRADICTS"
+      }
+    ],
+    "experiments": [
+      {
+        "id": "page_exp_456",
+        "title": "Redis cache benchmark",
+        "pageType": "experiment"
+      }
+    ],
+    "papers": []
   }
 }
 ```
@@ -97,22 +104,26 @@ The intelligence query assembles context from multiple sources:
 ```mermaid
 flowchart TB
     Q["intelligence_query"]
-    Q --> H["Hypotheses<br/>Typed pages with status"]
-    Q --> E["Experiments<br/>Results and evidence"]
-    Q --> G["Graph Edges<br/>VALIDATES, CONTRADICTS, EXTENDS"]
-    Q --> P["Patterns<br/>Detected convergence, contradictions"]
+    Q --> DH["Direct Hits<br/>Full-text search matches"]
+    Q --> RW["Related Work<br/>Graph traversal (depth 2)"]
+    Q --> TL["Timeline<br/>Recent activity sorted by date"]
+    Q --> CS["Current State<br/>Hypotheses by status"]
     Q --> OQ["Open Questions<br/>Tasks labeled 'open-question'"]
-    Q --> R["Related Pages<br/>Findings, observations, notes"]
+    Q --> CT["Contradictions<br/>CONTRADICTS edges"]
+    Q --> EX["Experiments<br/>Linked experiments"]
+    Q --> PA["Papers<br/>Related papers"]
 ```
 
 | Section | Source | Description |
 |---------|--------|-------------|
-| `hypotheses` | Typed pages | Hypotheses matching the query, with status and evidence count |
-| `experiments` | Typed pages | Experiments related to matching hypotheses |
-| `relatedPages` | Semantic search | Other typed pages (findings, observations, notes) |
-| `graphEdges` | Memgraph | Relationships between matched pages |
-| `patterns` | Pattern detections | Relevant detected patterns |
-| `openQuestions` | Tasks | Open questions related to the domain |
+| `directHits` | Full-text search | Pages matching the query via tsquery |
+| `relatedWork` | Knowledge graph | Pages connected via graph traversal (max depth 2) |
+| `timeline` | Page metadata | All matched pages sorted by last update |
+| `currentState` | Typed pages | Hypotheses grouped by status (validated, refuted, testing, open) |
+| `openQuestions` | Tasks | Tasks labeled "open-question" or matching the query |
+| `contradictions` | Memgraph | CONTRADICTS edges involving result pages |
+| `experiments` | Typed pages | Experiments related to matched hypotheses |
+| `papers` | Typed pages | Papers and formal publications |
 
 ## Use Cases
 

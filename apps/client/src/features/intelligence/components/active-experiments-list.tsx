@@ -8,6 +8,7 @@ import {
   Loader,
 } from "@mantine/core";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useActiveExperiments } from "../hooks/use-intelligence-queries";
 import { formattedDate } from "@/lib/time";
 
@@ -23,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function ActiveExperimentsList({ spaceId }: Props) {
+  const navigate = useNavigate();
   const { data: experiments, isLoading } = useActiveExperiments(spaceId);
   const [filter, setFilter] = useState("all");
 
@@ -61,7 +63,14 @@ export function ActiveExperimentsList({ spaceId }: Props) {
             {filtered.map((exp) => {
               const status = exp.metadata?.status || "unknown";
               return (
-                <Card key={exp.id} withBorder radius="sm" p="sm">
+                <Card
+                  key={exp.id}
+                  withBorder
+                  radius="sm"
+                  p="sm"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/p/${exp.slugId || exp.id}`)}
+                >
                   <Group justify="space-between">
                     <Stack gap={2}>
                       <Text fw={500} size="sm">{exp.title || "Untitled"}</Text>

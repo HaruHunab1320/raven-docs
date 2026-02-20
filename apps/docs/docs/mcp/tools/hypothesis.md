@@ -150,6 +150,7 @@ Get a hypothesis with its full evidence chain from the research graph.
 | `validated` | Evidence supports the hypothesis |
 | `refuted` | Evidence contradicts the hypothesis |
 | `inconclusive` | Results are mixed or insufficient |
+| `superseded` | Replaced by a newer hypothesis |
 
 ## Example: Full Hypothesis Lifecycle
 

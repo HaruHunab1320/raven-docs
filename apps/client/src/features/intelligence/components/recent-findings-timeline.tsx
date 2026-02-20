@@ -1,4 +1,5 @@
 import { Card, Stack, Text, Badge, Group, Loader } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import { useTimeline } from "../hooks/use-intelligence-queries";
 import { formattedDate } from "@/lib/time";
 
@@ -14,6 +15,7 @@ const PAGE_TYPE_COLORS: Record<string, string> = {
 };
 
 export function RecentFindingsTimeline({ spaceId }: Props) {
+  const navigate = useNavigate();
   const { data: timeline, isLoading } = useTimeline(spaceId);
 
   return (
@@ -37,7 +39,9 @@ export function RecentFindingsTimeline({ spaceId }: Props) {
                 style={{
                   borderLeft: `3px solid var(--mantine-color-${PAGE_TYPE_COLORS[entry.pageType || ""] || "gray"}-4)`,
                   paddingLeft: 12,
+                  cursor: "pointer",
                 }}
+                onClick={() => navigate(`/p/${entry.id}`)}
               >
                 <Stack gap={2} style={{ flex: 1 }}>
                   <Text fw={500} size="sm" lineClamp={1}>

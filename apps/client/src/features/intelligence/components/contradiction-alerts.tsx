@@ -1,5 +1,6 @@
 import { Card, Stack, Text, Badge, Group, Loader } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
+import { useNavigate } from "react-router-dom";
 import { useContradictions } from "../hooks/use-intelligence-queries";
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function ContradictionAlerts({ spaceId }: Props) {
+  const navigate = useNavigate();
   const { data: contradictions, isLoading } = useContradictions(spaceId);
 
   return (
@@ -42,7 +44,12 @@ export function ContradictionAlerts({ spaceId }: Props) {
             {contradictions.map((c, i) => (
               <Card key={i} withBorder radius="sm" p="sm">
                 <Stack gap={4}>
-                  <Group gap="xs" wrap="nowrap">
+                  <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => navigate(`/p/${c.from}`)}
+                  >
                     <Badge size="xs" variant="light" color="blue">
                       {c.fromType || "page"}
                     </Badge>
@@ -53,7 +60,12 @@ export function ContradictionAlerts({ spaceId }: Props) {
                   <Text size="xs" c="dimmed" ta="center">
                     contradicts
                   </Text>
-                  <Group gap="xs" wrap="nowrap">
+                  <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => navigate(`/p/${c.to}`)}
+                  >
                     <Badge size="xs" variant="light" color="violet">
                       {c.toType || "page"}
                     </Badge>

@@ -128,6 +128,9 @@ Pattern detection also runs automatically every 6 hours for workspaces with inte
 | `staleness` | low | Open questions that haven't been updated in a configurable period |
 | `cross_domain` | medium | Connections detected between pages with different domain tags |
 | `untested_implication` | medium | A validated hypothesis `EXTENDS` a proposed hypothesis with no testing |
+| `intake_gate` | high | Hypothesis marked as "proved" without completing its intake gate checklist |
+| `evidence_gap` | medium | Hypothesis with citations or formalizations but fewer than N experiments |
+| `reproduction_failure` | high | Experiment with incoming `FAILS_TO_REPRODUCE` edges from other experiments |
 
 ## Pattern Statuses
 
@@ -136,7 +139,6 @@ Pattern detection also runs automatically every 6 hours for workspaces with inte
 | `detected` | Pattern was found by an evaluator |
 | `acknowledged` | A user has reviewed and acknowledged the pattern |
 | `dismissed` | Pattern was dismissed as not relevant |
-| `actioned` | Action was taken (e.g., task created, experiment started) |
 
 ## How Detection Works
 
@@ -167,6 +169,12 @@ flowchart TB
 **Cross-domain** — Detects connections between pages with different domain tags, revealing unexpected relationships.
 
 **Untested implications** — Finds validated hypotheses that `EXTEND` proposed hypotheses with no experiments testing them.
+
+**Intake gate violation** — Flags hypotheses whose claim label is "proved" but whose intake gate checklist hasn't been completed.
+
+**Evidence gap** — Identifies hypotheses that are cited or formalized by other pages but have fewer than the configured number of experiments testing them.
+
+**Reproduction failure** — Detects experiments that have incoming `FAILS_TO_REPRODUCE` edges, indicating another experiment could not reproduce the results.
 
 ### Actions
 

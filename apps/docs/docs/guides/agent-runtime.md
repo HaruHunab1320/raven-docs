@@ -332,6 +332,72 @@ runtimeWs.send(JSON.stringify({
 | Disconnected | Runtime connection lost |
 | Terminated | Session has ended |
 
+## Coding Swarms
+
+Coding swarms extend the agent runtime to execute coding tasks in isolated git workspaces. Instead of manually spawning agents and directing them, coding swarms handle the full lifecycle automatically.
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RavenServer
+    participant GitService
+    participant AgentRuntime
+    participant Agent
+
+    User->>RavenServer: swarm_execute(repoUrl, taskDescription)
+    RavenServer->>GitService: Clone repo, create branch
+    RavenServer->>RavenServer: Generate MCP key, write memory file
+    RavenServer->>AgentRuntime: Spawn agent in workspace
+    AgentRuntime->>Agent: Start with task + context
+    Agent->>RavenServer: Call MCP tools (read pages, update tasks)
+    Agent->>Agent: Implement changes
+    Agent-->>AgentRuntime: Done
+    AgentRuntime-->>RavenServer: agent_stopped
+    RavenServer->>GitService: Commit, push, create PR
+    RavenServer-->>User: Completed (PR URL, files changed)
+```
+
+### Workspace Preparation
+
+Before an agent starts, the system prepares its isolated workspace:
+
+1. **Git workspace** — Clones the target repo and creates a feature branch
+2. **MCP API key** — Generates a scoped key so the agent can call back to Raven
+3. **Memory file** — Writes `.raven-memory.md` with workspace context, long-term memory, and API documentation
+4. **Environment variables** — Sets `MCP_API_KEY`, `MCP_SERVER_URL`, `RAVEN_WORKSPACE_ID`
+
+### Triggering via MCP
+
+```typescript
+const { executionId } = await mcp.call("swarm_execute", {
+  workspaceId: "ws_123",
+  repoUrl: "https://github.com/org/repo",
+  taskDescription: "Add rate limiting middleware",
+  agentType: "claude-code"  // or codex, gemini, aider
+});
+
+// Check progress
+const status = await mcp.call("swarm_status", { executionId });
+```
+
+### Execution Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Execution created, waiting for processing |
+| `provisioning` | Cloning repo, creating feature branch |
+| `spawning` | Generating credentials, starting agent |
+| `running` | Agent is implementing the task |
+| `capturing` | Extracting results and changed files |
+| `finalizing` | Committing, pushing, creating PR |
+| `completed` | Finished successfully |
+| `failed` | Error occurred |
+| `cancelled` | Stopped by user |
+
+See [Swarm Tools](/mcp/tools/swarm) for the full MCP API reference.
+
 ## External Agent Registration (BYOA)
 
 External agents can request access to your workspace using invite tokens.

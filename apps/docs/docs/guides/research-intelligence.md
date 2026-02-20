@@ -49,6 +49,7 @@ Pages can be assigned a **page type** that adds structured metadata and integrat
 | `validated` | Evidence supports the claim |
 | `refuted` | Evidence contradicts the claim |
 | `inconclusive` | Mixed or insufficient results |
+| `superseded` | Replaced by a newer hypothesis |
 
 ### Creating Typed Pages
 
@@ -102,9 +103,16 @@ flowchart LR
 | `CONTRADICTS` | Evidence contradicts a claim |
 | `TESTS_HYPOTHESIS` | Experiment is testing a hypothesis |
 | `EXTENDS` | One hypothesis builds on another |
-| `REFINES` | A more specific version of a finding |
-| `DEPENDS_ON` | Logical dependency between claims |
-| `RELATED_TO` | General association |
+| `INSPIRED_BY` | Work was inspired by another page |
+| `USES_DATA_FROM` | Uses data produced by another experiment |
+| `FORMALIZES` | Formalizes an informal observation |
+| `SPAWNED_FROM` | Created as a follow-up to another page |
+| `SUPERSEDES` | Replaces an older hypothesis or finding |
+| `CITES` | References another work |
+| `REPLICATES` | Successfully replicates another experiment |
+| `REPRODUCES` | Reproduces results from another experiment |
+| `FAILS_TO_REPRODUCE` | Failed to reproduce another experiment's results |
+| `USES_ASSUMPTION` | Depends on an assumption from another page |
 
 ### Evidence Chains
 
@@ -171,6 +179,9 @@ The pattern detection engine automatically scans the research graph every 6 hour
 | **Staleness** | Open questions not updated in 14+ days | Low |
 | **Cross-domain** | Unexpected connections across domain tags | Medium |
 | **Untested implication** | Validated hypothesis EXTENDS an untested one | Medium |
+| **Intake gate violation** | Hypothesis marked "proved" without completed gate checklist | High |
+| **Evidence gap** | Hypothesis with citations but fewer than N experiments | Medium |
+| **Reproduction failure** | Experiments with FAILS_TO_REPRODUCE edges | High |
 
 ### Managing Patterns
 
@@ -221,6 +232,29 @@ The Intelligence Dashboard (accessible at `/spaces/:spaceId/intelligence`) provi
 - **Contradiction Alerts** — Pairs of contradicting pages
 - **Pattern Alerts** — Detected patterns with acknowledge/dismiss actions
 
+## Coding Swarms
+
+The coding swarm system bridges research and implementation. Spawn agents in isolated git workspaces to execute coding tasks, with optional links to experiments for full traceability.
+
+```typescript
+// Execute a coding task linked to an experiment
+await mcp.call("swarm_execute", {
+  workspaceId: "ws_123",
+  repoUrl: "https://github.com/org/repo",
+  taskDescription: "Implement rate limiting middleware",
+  experimentId: "page_exp_456",
+  agentType: "claude-code"
+});
+```
+
+The swarm lifecycle:
+1. **Provision** — Clone repo, create feature branch
+2. **Prepare** — Generate MCP API key, write agent memory with workspace context
+3. **Execute** — Spawn agent, send task, monitor progress
+4. **Finalize** — Commit, push, create pull request
+
+See [Swarm Tools](/mcp/tools/swarm) for the full API reference.
+
 ## Enabling Intelligence
 
 To enable the Research Intelligence System for a workspace:
@@ -240,9 +274,12 @@ To enable the Research Intelligence System for a workspace:
 | [relationship_create/remove/list](/mcp/tools/relationship) | Manage graph edges |
 | [team_deploy/status/list/trigger/pause/resume/teardown](/mcp/tools/team) | Multi-agent teams |
 | [pattern_list/acknowledge/dismiss/run](/mcp/tools/pattern) | Pattern detection |
+| [swarm_execute/status/list/stop/logs](/mcp/tools/swarm) | Coding swarms |
+| [knowledge_search/list/get](/mcp/tools/knowledge) | Semantic knowledge search |
 
 ## Related
 
 - [Research Tools](/mcp/tools/research) - AI-powered research jobs
+- [Swarm Tools](/mcp/tools/swarm) - Coding task execution
 - [Agent Tools](/mcp/tools/agent) - Agent management
 - [Pages Concept](/concepts/pages) - Page basics including typed pages
