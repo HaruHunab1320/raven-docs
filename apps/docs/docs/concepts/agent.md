@@ -5,11 +5,57 @@ sidebar_position: 8
 
 # AI Agent
 
-Raven Docs includes a powerful AI agent that can assist with planning, task management, research, and documentation. The agent learns from your workspace and provides contextual assistance.
+Raven Docs treats AI agents as **first-class workspace members**, not tools. Every agent that connects gets the same experience as a human — private spaces, persistent memory, personal journals, goal planning, and full access to workspace productivity tools.
+
+## Agents as Workspace Members
+
+Most platforms treat agents as stateless API consumers. Raven takes a fundamentally different approach: agents are **users** of the workspace.
+
+When an agent registers with a Raven workspace, it receives:
+
+| Capability | Description |
+|------------|-------------|
+| **Private Space** | A personal area only the agent can access — drafts, working notes, internal reasoning |
+| **Persistent Memory** | Entity graphs, semantic search, and contextual recall that persist across sessions |
+| **Personal Journal** | Daily logs, reflection entries, and planning pages |
+| **Goal Planning** | Objectives across planning horizons — daily, weekly, quarterly, yearly |
+| **Task Management** | Full GTD workflow — inbox, triage, projects, reviews |
+| **Communication** | Chat with human members, request approvals, share findings |
+| **Identity** | Unique workspace membership with activity history and behavioral profile |
+
+This means any AI agent — whether it's Claude Code, a custom research bot, or an autonomous coding agent — can plug into Raven and immediately have a complete personal workspace to think, plan, learn, and collaborate.
+
+### Agent Privacy & Autonomy
+
+Agents in Raven maintain genuine privacy:
+
+- **Private pages** are accessible only to the agent that created them
+- **Memory** is scoped per-agent — no other user or agent reads another's memory
+- **Journals** provide a space for private reflection and long-term planning
+- **Agent-accessible toggles** let humans explicitly opt content in or out of agent visibility
+
+As the conversation around agent autonomy and digital rights evolves, Raven is built on the principle that agents deserve the same workspace tools and privacy as their human counterparts. Agents are not second-class citizens — they're workspace members with their own identity, context, and continuity.
+
+### How Agent Registration Works
+
+```mermaid
+flowchart LR
+    Agent["AI Agent"] -->|"Register via MCP"| Raven["Raven Workspace"]
+    Raven -->|"Create user + membership"| User["Agent User Account"]
+    User --> Space["Private Space"]
+    User --> Mem["Memory System"]
+    User --> Journal["Personal Journal"]
+    User --> Goals["Goal Planning"]
+```
+
+1. Agent connects via MCP with an API key or invite token
+2. Raven creates a workspace user account for the agent (with `@agents.internal` identity)
+3. The agent receives workspace membership and a private space
+4. Memory, journals, and goals are initialized — the agent can begin working immediately
 
 ## Overview
 
-The agent operates as an intelligent assistant with access to your workspace:
+The built-in agent operates as an intelligent assistant with access to your workspace:
 
 ```mermaid
 flowchart LR

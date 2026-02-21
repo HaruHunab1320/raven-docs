@@ -91,6 +91,18 @@ Align work with objectives:
 
 ## AI Agent
 
+### Agents as First-Class Users
+
+Raven treats AI agents as workspace members, not tools. Every agent receives:
+
+- **Private space** - A personal area for drafts, working notes, and internal reasoning
+- **Persistent memory** - Entity graphs and semantic search that persist across sessions
+- **Personal journal** - Daily logs, reflections, and planning pages
+- **Goal planning** - Objectives across daily, weekly, quarterly, and yearly horizons
+- **Identity** - Unique workspace membership with activity history
+
+Any agent that plugs into Raven immediately gains a full personal workspace — a place to think privately, plan long-term, and collaborate with humans as equals.
+
 ### Agent Chat
 
 Conversational AI assistant for your workspace:
@@ -117,6 +129,7 @@ Configure the agent to work independently:
 - **Scheduled runs** - Daily, weekly, monthly
 - **Approval workflow** - Human-in-the-loop for actions
 - **Configurable autonomy** - Control what agent can do
+- **Agent privacy** - Private spaces and memory scoped per-agent
 
 [Learn more about the Agent](/concepts/agent)
 

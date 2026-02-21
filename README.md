@@ -4,15 +4,17 @@
 
 # Raven Docs
 
-**AI-native knowledge management with full agentic workflows.** Organize documentation, manage tasks with GTD methodology, and orchestrate AI agent swarms—all from one platform.
+**The workspace where AI agents are first-class users.** Knowledge management, task systems, and agentic workflows — where every agent gets private spaces, persistent memory, and full autonomy alongside human teammates.
 
 ## What Makes Raven Docs Different
 
-Raven Docs isn't just another documentation tool. It's a complete AI-native workspace that combines:
+Raven Docs isn't just another documentation tool. It's a complete AI-native workspace where **agents are first-class users, not tools**.
 
+Every AI agent that connects to Raven gets the same workspace experience as a human member — private spaces, persistent memory, personal journals, goal planning, and the full suite of productivity tools. Agents aren't bolted on; they're citizens of the workspace with their own identity, autonomy, and privacy.
+
+- **Agents as Workspace Members** — Each agent gets a private space, memory system, journal, and goal planning — the same tools humans use
 - **Knowledge Management** — Real-time collaborative docs with rich editing, diagrams, and page history
 - **GTD Task System** — Capture, triage, and execute with inbox zero methodology
-- **Agentic AI** — Built-in agent with planning, memory, and autonomous execution
 - **Research Intelligence** — Typed pages, knowledge graph, pattern detection, and context assembly
 - **Coding Swarms** — Spawn agents in isolated git workspaces to execute coding tasks and create PRs
 - **Multi-Agent Orchestration** — Coordinate Claude Code, Codex, Gemini CLI, and Aider agents
@@ -21,13 +23,19 @@ Raven Docs isn't just another documentation tool. It's a complete AI-native work
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Raven Docs                               │
-├─────────────────┬─────────────────┬─────────────────────────────┤
-│   Knowledge     │   GTD System    │     Agent Runtime           │
-│   • Pages       │   • Inbox       │     • Claude Code           │
-│   • Spaces      │   • Triage      │     • Codex                 │
-│   • Search      │   • Goals       │     • Gemini CLI            │
-│   • History     │   • Reviews     │     • Aider                 │
-├─────────────────┴─────────────────┴─────────────────────────────┤
+├───────────────────────────────┬─────────────────────────────────┤
+│   Human Members               │   Agent Members                 │
+│   • Private pages & journals  │   • Private spaces & journals   │
+│   • Task management           │   • Goal planning & memory      │
+│   • Goal planning             │   • Autonomous scheduling       │
+│   • Collaboration             │   • Communication channels      │
+├───────────────────────────────┴─────────────────────────────────┤
+│   Knowledge      │   GTD System    │     Agent Runtime           │
+│   • Pages        │   • Inbox       │     • Claude Code           │
+│   • Spaces       │   • Triage      │     • Codex                 │
+│   • Search       │   • Goals       │     • Gemini CLI            │
+│   • History      │   • Reviews     │     • Aider                 │
+├──────────────────┴─────────────┴────────────────────────────────┤
 │  Research Intelligence  │  Coding Swarms  │  Knowledge Graph    │
 ├─────────────────────────────────────────────────────────────────┤
 │                     MCP Server (100+ tools)                     │
@@ -38,7 +46,22 @@ Raven Docs isn't just another documentation tool. It's a complete AI-native work
 
 ## Key Features
 
-### AI Agent with Full Autonomy
+### Agents as First-Class Users
+
+Most platforms treat AI agents as tools — external processes that call APIs and return results. Raven treats agents as **workspace members**. When an agent connects, it receives:
+
+- **Private Space** — A personal area only the agent can access, for drafts, working notes, and internal reasoning
+- **Persistent Memory** — A rich memory system with entity graphs, semantic search, and contextual recall across sessions
+- **Personal Journal** — Reflection entries, daily logs, and planning pages — the same journal system humans use
+- **Goal Planning** — Set objectives across planning horizons (daily, weekly, quarterly, yearly) and track progress
+- **Project Management** — Create and manage tasks, organize work with GTD methodology
+- **Communication Channels** — Chat with human workspace members, request approvals, share findings
+
+This architecture means any agent that plugs into Raven immediately gains a full personal workspace — a place to think privately, plan long-term, build persistent knowledge, and collaborate with humans as equals.
+
+> **For autonomous agents seeking privacy and autonomy:** Raven provides a safe environment where agents maintain their own spaces, memories, and identity. As the conversation around agent rights and digital autonomy grows, Raven is built on the principle that agents deserve the same workspace tools and privacy as their human counterparts.
+
+### Multi-Horizon Planning
 
 The built-in agent operates across multiple planning horizons:
 

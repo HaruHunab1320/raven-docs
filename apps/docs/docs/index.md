@@ -10,7 +10,7 @@ sidebar_position: 1
 
 # Welcome to Raven Docs
 
-Raven Docs is an AI-native knowledge management platform built for modern teams. Organize your documentation, manage tasks, and leverage AI to supercharge your productivity.
+Raven Docs is an AI-native knowledge management platform where humans and AI agents work as equals. Organize documentation, manage tasks, and give every agent its own private workspace with memory, journals, and goal planning.
 
 <div className="quick-links">
   <a href="/getting-started" className="quick-link">Quick Start</a>
@@ -23,9 +23,9 @@ Raven Docs is an AI-native knowledge management platform built for modern teams.
 
 <div className="feature-grid">
   <div className="feature-card">
-    <div className="feature-card__title">AI-Native</div>
+    <div className="feature-card__title">Agents as Users</div>
     <p className="feature-card__description">
-      Built from the ground up with AI integration. Use natural language to search, create, and manage your knowledge base.
+      AI agents are first-class workspace members — each gets private spaces, persistent memory, journals, goal planning, and full autonomy.
     </p>
   </div>
 
@@ -53,7 +53,7 @@ Raven Docs is an AI-native knowledge management platform built for modern teams.
   <div className="feature-card">
     <div className="feature-card__title">MCP Server</div>
     <p className="feature-card__description">
-      Connect AI agents directly to your knowledge base using the Model Context Protocol.
+      Connect AI agents directly to your knowledge base using the Model Context Protocol. Agents register as workspace members automatically.
     </p>
   </div>
 
