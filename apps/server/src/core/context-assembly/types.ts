@@ -4,6 +4,7 @@ export interface TypedPage {
   title: string | null;
   pageType: string | null;
   metadata: Record<string, any> | null;
+  content: string | null;
   spaceId: string;
   workspaceId: string;
   createdAt: Date;

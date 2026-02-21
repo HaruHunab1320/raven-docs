@@ -20,7 +20,7 @@ export interface SwarmExecution {
 }
 
 export interface ExecuteSwarmParams {
-  repoUrl: string;
+  repoUrl?: string;
   taskDescription: string;
   experimentId?: string;
   spaceId?: string;

@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { TeamAgentLoopJob } from './team-deployment.service';
 import { RoleAwareLoopService } from './role-aware-loop.service';
@@ -13,6 +14,7 @@ export class TeamAgentLoopProcessor extends WorkerHost {
   constructor(
     private readonly roleAwareLoop: RoleAwareLoopService,
     private readonly teamRepo: TeamDeploymentRepo,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -39,6 +41,8 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         role: data.role,
         systemPrompt: data.systemPrompt,
         capabilities: data.capabilities,
+        stepId: data.stepId,
+        stepContext: data.stepContext,
       });
 
       // Update agent run stats
@@ -49,12 +53,23 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         errorsEncountered: result.errorsEncountered,
       });
 
-      // Mark agent as idle
+      // Clear currentStepId and mark agent as idle
+      if (data.stepId) {
+        await this.teamRepo.updateAgentCurrentStep(data.teamAgentId, null);
+      }
       await this.teamRepo.updateAgentStatus(data.teamAgentId, 'idle');
 
       this.logger.log(
         `Team agent loop completed: ${data.role} — ${result.summary}`,
       );
+
+      // Emit completion event for workflow advancement
+      this.eventEmitter.emit('team.agent_loop.completed', {
+        deploymentId: data.deploymentId,
+        teamAgentId: data.teamAgentId,
+        stepId: data.stepId,
+        result,
+      });
 
       return result;
     } catch (error: any) {
@@ -63,13 +78,24 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         error?.stack,
       );
 
-      // Mark agent as error
+      // Clear currentStepId and mark agent as error
+      if (data.stepId) {
+        await this.teamRepo.updateAgentCurrentStep(data.teamAgentId, null);
+      }
       await this.teamRepo.updateAgentStatus(data.teamAgentId, 'error');
       await this.teamRepo.updateAgentRunStats(data.teamAgentId, {
         lastRunAt: new Date(),
         lastRunSummary: `Error: ${error?.message || 'Unknown'}`,
         actionsExecuted: 0,
         errorsEncountered: 1,
+      });
+
+      // Emit failure event for workflow advancement
+      this.eventEmitter.emit('team.agent_loop.failed', {
+        deploymentId: data.deploymentId,
+        teamAgentId: data.teamAgentId,
+        stepId: data.stepId,
+        error: error?.message || 'Unknown error',
       });
 
       throw error;

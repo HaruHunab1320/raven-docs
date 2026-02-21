@@ -140,6 +140,7 @@ export class ContextAssemblyService {
           'title',
           'pageType',
           'metadata',
+          'textContent',
           'spaceId',
           'workspaceId',
           'createdAt',
@@ -161,6 +162,7 @@ export class ContextAssemblyService {
         title: r.title,
         pageType: r.pageType,
         metadata: r.metadata as Record<string, any> | null,
+        content: this.truncateContent(r.textContent),
         spaceId: r.spaceId,
         workspaceId: r.workspaceId,
         createdAt: r.createdAt as unknown as Date,
@@ -183,6 +185,7 @@ export class ContextAssemblyService {
         'title',
         'pageType',
         'metadata',
+        'textContent',
         'spaceId',
         'workspaceId',
         'createdAt',
@@ -198,6 +201,7 @@ export class ContextAssemblyService {
       title: r.title,
       pageType: r.pageType,
       metadata: r.metadata as Record<string, any> | null,
+      content: this.truncateContent(r.textContent),
       spaceId: r.spaceId,
       workspaceId: r.workspaceId,
       createdAt: r.createdAt as unknown as Date,
@@ -271,6 +275,12 @@ export class ContextAssemblyService {
         metadataStatus: (p.metadata as any)?.status,
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  private truncateContent(text: string | null, maxLength = 4000): string | null {
+    if (!text) return null;
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '…';
   }
 
   private categorizeHypotheses(pages: TypedPage[]): ContextBundle['currentState'] {

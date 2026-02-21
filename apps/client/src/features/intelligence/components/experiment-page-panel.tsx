@@ -10,6 +10,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from "react";
 import { usePageQuery } from "@/features/page/queries/page-query";
 import { useUpdatePageMetadataMutation } from "@/features/page/queries/page-query";
 import { useHypothesesList } from "@/features/intelligence/hooks/use-intelligence-queries";
@@ -35,11 +36,34 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
   const updateMetadata = useUpdatePageMetadataMutation();
   const { data: hypotheses } = useHypothesesList(spaceId);
 
-  if (!page || page.pageType !== "experiment" || !page.metadata) {
+  const metadata = page?.metadata;
+
+  // Local state for text fields — syncs from server, persists on blur
+  const [method, setMethod] = useState("");
+  const [codeRef, setCodeRef] = useState("");
+
+  useEffect(() => {
+    setMethod(metadata?.method || "");
+  }, [metadata?.method]);
+
+  useEffect(() => {
+    setCodeRef(metadata?.codeRef || "");
+  }, [metadata?.codeRef]);
+
+  const persistMetadata = useCallback(
+    (key: string, value: any) => {
+      if (!metadata) return;
+      updateMetadata.mutate({
+        pageId,
+        metadata: { ...metadata, [key]: value },
+      });
+    },
+    [pageId, metadata, updateMetadata],
+  );
+
+  if (!page || page.pageType !== "experiment" || !metadata) {
     return null;
   }
-
-  const metadata = page.metadata;
 
   const propertyLabelWidth = 96;
   const propertyRowStyle = {
@@ -57,13 +81,6 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
   }`;
   const inputClassNames = { input: classes.inlineInput };
   const dropdownStyles = { dropdown: { border: controlBorder } };
-
-  const handleChange = (key: string, value: any) => {
-    updateMetadata.mutate({
-      pageId,
-      metadata: { ...metadata, [key]: value },
-    });
-  };
 
   const hypothesisOptions = Array.isArray(hypotheses)
     ? hypotheses.map((h: any) => ({
@@ -87,7 +104,7 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
             <Select
               data={STATUS_OPTIONS}
               value={metadata.status || "planned"}
-              onChange={(value) => handleChange("status", value)}
+              onChange={(value) => persistMetadata("status", value)}
               size="sm"
               classNames={inputClassNames}
               styles={dropdownStyles}
@@ -102,7 +119,7 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
             <Select
               data={hypothesisOptions}
               value={metadata.hypothesisId || null}
-              onChange={(value) => handleChange("hypothesisId", value)}
+              onChange={(value) => persistMetadata("hypothesisId", value)}
               placeholder={t("Link hypothesis...")}
               clearable
               searchable
@@ -118,8 +135,9 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
               {t("Method")}
             </Text>
             <Textarea
-              value={metadata.method || ""}
-              onChange={(e) => handleChange("method", e.currentTarget.value)}
+              value={method}
+              onChange={(e) => setMethod(e.currentTarget.value)}
+              onBlur={() => persistMetadata("method", method)}
               placeholder={t("Experiment method...")}
               minRows={2}
               size="sm"
@@ -133,8 +151,9 @@ export function ExperimentPagePanel({ pageId, spaceId }: ExperimentPagePanelProp
               {t("Code Ref")}
             </Text>
             <TextInput
-              value={metadata.codeRef || ""}
-              onChange={(e) => handleChange("codeRef", e.currentTarget.value)}
+              value={codeRef}
+              onChange={(e) => setCodeRef(e.currentTarget.value)}
+              onBlur={() => persistMetadata("codeRef", codeRef)}
               placeholder={t("Code reference...")}
               size="sm"
               classNames={inputClassNames}

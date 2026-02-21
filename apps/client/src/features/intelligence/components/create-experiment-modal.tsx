@@ -9,14 +9,14 @@ import {
   Checkbox,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePageMutation } from "@/features/page/queries/page-query";
 import {
   useHypothesesList,
   INTELLIGENCE_KEYS,
 } from "../hooks/use-intelligence-queries";
+import { notifications } from "@mantine/notifications";
 
 interface Props {
   opened: boolean;
@@ -33,11 +33,11 @@ const STATUS_OPTIONS = [
 ];
 
 export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm }: Props) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createPageMutation = useCreatePageMutation();
   const { data: hypotheses } = useHypothesesList(spaceId);
   const [launchAgent, setLaunchAgent] = useState(false);
+  const addAnotherRef = useRef(false);
 
   const hypothesisOptions = (hypotheses ?? []).map((h) => ({
     value: h.id,
@@ -56,6 +56,19 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
       title: (v) => (v.trim() ? null : "Title is required"),
     },
   });
+
+  const invalidateQueries = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.stats(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.timeline(spaceId),
+      }),
+    ]);
 
   const handleSubmit = form.onSubmit(async (values) => {
     try {
@@ -77,23 +90,22 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
       } as any);
 
       if (page) {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: INTELLIGENCE_KEYS.stats(spaceId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
-          }),
-        ]);
+        await invalidateQueries();
         const title = values.title;
+        notifications.show({
+          message: `Experiment "${title}" created`,
+          color: "green",
+        });
         form.reset();
         setLaunchAgent(false);
-        onClose();
+
         if (launchAgent && onLaunchSwarm) {
+          onClose();
           onLaunchSwarm(page.id, title);
-        } else {
-          navigate(`/p/${page.slugId}`);
+        } else if (!addAnotherRef.current) {
+          onClose();
         }
+        addAnotherRef.current = false;
       }
     } catch {
       // Error handled by mutation
@@ -156,6 +168,18 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
             <Button variant="default" onClick={onClose}>
               Cancel
             </Button>
+            {!launchAgent && (
+              <Button
+                variant="light"
+                type="submit"
+                loading={createPageMutation.isPending}
+                onClick={() => {
+                  addAnotherRef.current = true;
+                }}
+              >
+                Create & Add Another
+              </Button>
+            )}
             <Button type="submit" loading={createPageMutation.isPending}>
               {launchAgent ? "Create & Launch Agent" : "Create Experiment"}
             </Button>

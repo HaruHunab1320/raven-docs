@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
+import { TeamTemplateRepo } from '../../database/repos/team/team-template.repo';
 import { UserRepo } from '@raven-docs/db/repos/user/user.repo';
 import { WorkspaceService } from '../workspace/services/workspace.service';
 import { SpaceMemberService } from '../space/services/space-member.service';
@@ -9,6 +10,10 @@ import { SpaceRole } from '../../common/helpers/types/permission';
 import { resolveIntelligenceSettings } from '../workspace/intelligence-defaults';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
+import { compileOrgPattern } from './raven-compile-target';
+import { WorkflowExecutorService } from './workflow-executor.service';
+import type { OrgPattern } from './org-chart.types';
+import type { WorkflowState } from './workflow-state.types';
 
 export interface TeamAgentLoopJob {
   teamAgentId: string;
@@ -19,6 +24,8 @@ export interface TeamAgentLoopJob {
   role: string;
   systemPrompt: string;
   capabilities: string[];
+  stepId?: string;
+  stepContext?: { name: string; task: string };
 }
 
 @Injectable()
@@ -27,10 +34,12 @@ export class TeamDeploymentService {
 
   constructor(
     private readonly teamRepo: TeamDeploymentRepo,
+    private readonly templateRepo: TeamTemplateRepo,
     private readonly userRepo: UserRepo,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly workspaceService: WorkspaceService,
     private readonly spaceMemberService: SpaceMemberService,
+    private readonly workflowExecutor: WorkflowExecutorService,
     @InjectQueue(QueueName.GENERAL_QUEUE)
     private readonly generalQueue: Queue,
   ) {}
@@ -247,5 +256,171 @@ export class TeamDeploymentService {
     );
 
     return claimed;
+  }
+
+  /**
+   * Deploy a team from an OrgPattern (org-chart compiler output).
+   * Compiles the pattern, creates deployment + agents with reporting chains.
+   */
+  async deployFromOrgPattern(
+    workspaceId: string,
+    spaceId: string,
+    orgPattern: OrgPattern,
+    deployedBy: string,
+    opts?: { projectId?: string },
+  ) {
+    const executionPlan = compileOrgPattern(orgPattern);
+
+    // Create the deployment record
+    const deployment = await this.teamRepo.createDeployment({
+      workspaceId,
+      spaceId,
+      projectId: opts?.projectId,
+      templateName: orgPattern.name,
+      config: orgPattern as any,
+      deployedBy,
+      orgPattern: orgPattern as any,
+      executionPlan: executionPlan as any,
+    });
+
+    const agents = [];
+    const agentsByRole: Record<string, any> = {};
+
+    // Create agent instances per role
+    for (const [roleId, roleDef] of Object.entries(executionPlan.roles)) {
+      const count = roleDef.minInstances;
+
+      for (let i = 1; i <= count; i++) {
+        const agentName =
+          count > 1
+            ? `${orgPattern.name} - ${roleDef.name} #${i}`
+            : `${orgPattern.name} - ${roleDef.name}`;
+
+        const agentEmail = `team-${deployment.id.slice(0, 8)}-${roleId}-${i}@agents.internal`;
+        const agentUser = await this.userRepo.insertAgentUser({
+          agentId: `team-agent-${deployment.id.slice(0, 8)}-${roleId}-${i}`,
+          name: agentName,
+          email: agentEmail,
+          workspaceId,
+        });
+
+        await this.workspaceService.addUserToWorkspace(
+          agentUser.id,
+          workspaceId,
+        );
+        await this.spaceMemberService.addUserToSpace(
+          agentUser.id,
+          spaceId,
+          SpaceRole.WRITER,
+          workspaceId,
+        );
+
+        const systemPrompt = [
+          `You are "${roleDef.name}", part of the "${orgPattern.name}" team.`,
+          orgPattern.structure.roles[roleId]?.description || '',
+          `Your capabilities: ${roleDef.capabilities.join(', ')}`,
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+        const agent = await this.teamRepo.createAgent({
+          deploymentId: deployment.id,
+          workspaceId,
+          userId: agentUser.id,
+          role: roleId,
+          instanceNumber: i,
+          systemPrompt,
+          capabilities: roleDef.capabilities,
+        });
+
+        agents.push({ ...agent, userName: agentName });
+
+        if (!agentsByRole[roleId]) agentsByRole[roleId] = [];
+        agentsByRole[roleId].push(agent);
+      }
+    }
+
+    // Set reportsTo chains
+    for (const [roleId, roleDef] of Object.entries(executionPlan.roles)) {
+      if (!roleDef.reportsTo || !agentsByRole[roleDef.reportsTo]) continue;
+
+      const parentAgent = agentsByRole[roleDef.reportsTo][0];
+      const childAgents = agentsByRole[roleId] || [];
+
+      for (const child of childAgents) {
+        await this.teamRepo.updateAgentReportsTo(child.id, parentAgent.id);
+      }
+    }
+
+    // Initialize workflow state
+    const initialState: WorkflowState = {
+      currentPhase: 'idle',
+      stepStates: {},
+      coordinatorInvocations: 0,
+    };
+    await this.teamRepo.updateWorkflowState(
+      deployment.id,
+      initialState as any,
+    );
+
+    this.logger.log(
+      `Deployed org-pattern "${orgPattern.name}" with ${agents.length} agents to space ${spaceId}`,
+    );
+
+    return { deployment, agents, executionPlan };
+  }
+
+  /**
+   * Start the workflow for a deployment — sets phase to 'running' and advances.
+   */
+  async startWorkflow(deploymentId: string) {
+    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
+    if (!stateRow) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    const state = (stateRow.workflowState || {}) as unknown as WorkflowState;
+    state.currentPhase = 'running';
+    state.startedAt = new Date().toISOString();
+    state.coordinatorInvocations = state.coordinatorInvocations || 0;
+    state.stepStates = state.stepStates || {};
+
+    await this.teamRepo.updateWorkflowState(deploymentId, state as any);
+
+    await this.workflowExecutor.advance(deploymentId, {
+      reason: 'workflow_started',
+    });
+
+    return { started: true, deploymentId };
+  }
+
+  /**
+   * Deploy a team from a template ID stored in team_templates table.
+   * Looks up the template, extracts the OrgPattern, and delegates to deployFromOrgPattern().
+   */
+  async deployFromTemplateId(
+    workspaceId: string,
+    spaceId: string,
+    templateId: string,
+    deployedBy: string,
+    opts?: { projectId?: string },
+  ) {
+    const template = await this.templateRepo.findById(templateId);
+    if (!template) {
+      throw new NotFoundException(`Team template not found: ${templateId}`);
+    }
+
+    const orgPattern =
+      typeof template.orgPattern === 'string'
+        ? JSON.parse(template.orgPattern)
+        : template.orgPattern;
+
+    return this.deployFromOrgPattern(
+      workspaceId,
+      spaceId,
+      orgPattern as OrgPattern,
+      deployedBy,
+      opts,
+    );
   }
 }

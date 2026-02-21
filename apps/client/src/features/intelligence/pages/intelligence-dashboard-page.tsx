@@ -25,6 +25,7 @@ import {
   IconFlask,
   IconQuestionMark,
   IconRobot,
+  IconSitemap,
 } from "@tabler/icons-react";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { HypothesisScoreboard } from "../components/hypothesis-scoreboard";
@@ -39,6 +40,7 @@ import { CreateExperimentModal } from "../components/create-experiment-modal";
 import { CreateOpenQuestionModal } from "../components/create-open-question-modal";
 import { LaunchSwarmModal } from "../components/launch-swarm-modal";
 import { SwarmExecutionsPanel } from "../components/swarm-executions-panel";
+import { SpaceDeploymentsPanel, DeployTeamModal } from "@/features/teams";
 import {
   useIntelligenceStats,
   INTELLIGENCE_KEYS,
@@ -72,6 +74,8 @@ export default function IntelligenceDashboardPage() {
   const [questionOpened, { open: openQuestion, close: closeQuestion }] =
     useDisclosure(false);
   const [swarmOpened, { open: openSwarm, close: closeSwarm }] =
+    useDisclosure(false);
+  const [deployTeamOpened, { open: openDeployTeam, close: closeDeployTeam }] =
     useDisclosure(false);
   const [swarmExperimentId, setSwarmExperimentId] = useState<
     string | undefined
@@ -171,6 +175,12 @@ export default function IntelligenceDashboardPage() {
                 >
                   Launch Agent
                 </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconSitemap size={14} />}
+                  onClick={openDeployTeam}
+                >
+                  Deploy Team
+                </Menu.Item>
               </Menu.Dropdown>
             </Menu>
             <ActionIcon
@@ -197,6 +207,7 @@ export default function IntelligenceDashboardPage() {
             <Tabs.Tab value="graph">Domain Graph</Tabs.Tab>
             <Tabs.Tab value="patterns">Patterns</Tabs.Tab>
             <Tabs.Tab value="agents">Agents</Tabs.Tab>
+            <Tabs.Tab value="teams">Teams</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="overview" pt="md">
@@ -243,6 +254,10 @@ export default function IntelligenceDashboardPage() {
           <Tabs.Panel value="agents" pt="md">
             <SwarmExecutionsPanel spaceId={spaceId} />
           </Tabs.Panel>
+
+          <Tabs.Panel value="teams" pt="md">
+            <SpaceDeploymentsPanel spaceId={spaceId} />
+          </Tabs.Panel>
         </Tabs>
       </Stack>
 
@@ -268,6 +283,11 @@ export default function IntelligenceDashboardPage() {
         spaceId={spaceId}
         experimentId={swarmExperimentId}
         experimentTitle={swarmExperimentTitle}
+      />
+      <DeployTeamModal
+        opened={deployTeamOpened}
+        onClose={closeDeployTeam}
+        spaceId={spaceId}
       />
     </Container>
   );

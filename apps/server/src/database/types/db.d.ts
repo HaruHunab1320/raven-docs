@@ -582,6 +582,21 @@ export interface Workspaces {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface TeamTemplates {
+  id: Generated<string>;
+  workspaceId: string | null;
+  name: string;
+  description: string | null;
+  version: Generated<string>;
+  isSystem: Generated<boolean>;
+  orgPattern: Json;
+  metadata: Generated<Json>;
+  createdBy: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
 export interface TeamDeployments {
   id: Generated<string>;
   workspaceId: string;
@@ -591,6 +606,9 @@ export interface TeamDeployments {
   status: Generated<string>;
   config: Generated<Json>;
   deployedBy: string | null;
+  orgPattern: Json | null;
+  executionPlan: Json | null;
+  workflowState: Generated<Json>;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
   tornDownAt: Timestamp | null;
@@ -606,6 +624,8 @@ export interface TeamAgents {
   status: Generated<string>;
   systemPrompt: string;
   capabilities: Generated<string[]>;
+  currentStepId: string | null;
+  reportsToAgentId: string | null;
   lastRunAt: Timestamp | null;
   lastRunSummary: string | null;
   totalActions: Generated<number>;
@@ -719,6 +739,7 @@ export interface DB {
   patternDetections: PatternDetections;
   teamAgents: TeamAgents;
   teamDeployments: TeamDeployments;
+  teamTemplates: TeamTemplates;
   terminalSessionLogs: TerminalSessionLogs;
   terminalSessions: TerminalSessions;
   users: Users;

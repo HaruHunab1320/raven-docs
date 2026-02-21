@@ -65,12 +65,14 @@ export class IntelligenceContextHandler {
           title: p.title,
           pageType: p.pageType,
           metadata: p.metadata,
+          content: p.content,
         })),
         relatedWork: bundle.relatedWork.map((p) => ({
           id: p.id,
           title: p.title,
           pageType: p.pageType,
           metadata: p.metadata,
+          content: p.content,
         })),
         timeline: bundle.timeline.slice(0, 20),
         currentState: {
@@ -89,11 +91,13 @@ export class IntelligenceContextHandler {
           id: p.id,
           title: p.title,
           metadata: p.metadata,
+          content: p.content,
         })),
         papers: bundle.papers.map((p) => ({
           id: p.id,
           title: p.title,
           metadata: p.metadata,
+          content: p.content,
         })),
       };
     } catch (error: any) {

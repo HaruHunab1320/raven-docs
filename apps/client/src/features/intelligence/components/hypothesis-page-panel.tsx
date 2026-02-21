@@ -10,6 +10,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from "react";
 import { usePageQuery } from "@/features/page/queries/page-query";
 import { useUpdatePageMetadataMutation } from "@/features/page/queries/page-query";
 import classes from "@/features/project/components/task-page-panel.module.css";
@@ -40,11 +41,34 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
   const { data: page } = usePageQuery({ pageId });
   const updateMetadata = useUpdatePageMetadataMutation();
 
-  if (!page || page.pageType !== "hypothesis" || !page.metadata) {
+  const metadata = page?.metadata;
+
+  // Local state for text fields — syncs from server, persists on blur
+  const [formalStatement, setFormalStatement] = useState("");
+  const [successCriteria, setSuccessCriteria] = useState("");
+
+  useEffect(() => {
+    setFormalStatement(metadata?.formalStatement || "");
+  }, [metadata?.formalStatement]);
+
+  useEffect(() => {
+    setSuccessCriteria(metadata?.successCriteria || "");
+  }, [metadata?.successCriteria]);
+
+  const persistMetadata = useCallback(
+    (key: string, value: any) => {
+      if (!metadata) return;
+      updateMetadata.mutate({
+        pageId,
+        metadata: { ...metadata, [key]: value },
+      });
+    },
+    [pageId, metadata, updateMetadata],
+  );
+
+  if (!page || page.pageType !== "hypothesis" || !metadata) {
     return null;
   }
-
-  const metadata = page.metadata;
 
   const propertyLabelWidth = 96;
   const propertyRowStyle = {
@@ -63,13 +87,6 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
   const inputClassNames = { input: classes.inlineInput };
   const dropdownStyles = { dropdown: { border: controlBorder } };
 
-  const handleChange = (key: string, value: any) => {
-    updateMetadata.mutate({
-      pageId,
-      metadata: { ...metadata, [key]: value },
-    });
-  };
-
   return (
     <Box mt="sm" mb="lg">
       <Stack gap="md">
@@ -85,7 +102,7 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
             <Select
               data={STATUS_OPTIONS}
               value={metadata.status || "proposed"}
-              onChange={(value) => handleChange("status", value)}
+              onChange={(value) => persistMetadata("status", value)}
               size="sm"
               classNames={inputClassNames}
               styles={dropdownStyles}
@@ -100,7 +117,7 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
             <Select
               data={PRIORITY_OPTIONS}
               value={metadata.priority || "medium"}
-              onChange={(value) => handleChange("priority", value)}
+              onChange={(value) => persistMetadata("priority", value)}
               size="sm"
               classNames={inputClassNames}
               styles={dropdownStyles}
@@ -113,8 +130,9 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
               {t("Statement")}
             </Text>
             <Textarea
-              value={metadata.formalStatement || ""}
-              onChange={(e) => handleChange("formalStatement", e.currentTarget.value)}
+              value={formalStatement}
+              onChange={(e) => setFormalStatement(e.currentTarget.value)}
+              onBlur={() => persistMetadata("formalStatement", formalStatement)}
               placeholder={t("Formal statement...")}
               minRows={2}
               size="sm"
@@ -129,7 +147,7 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
             </Text>
             <TagsInput
               value={metadata.domainTags || []}
-              onChange={(value) => handleChange("domainTags", value)}
+              onChange={(value) => persistMetadata("domainTags", value)}
               placeholder={t("Add tags...")}
               size="sm"
               classNames={inputClassNames}
@@ -143,8 +161,9 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
             </Text>
             <TagsInput
               value={metadata.predictions || []}
-              onChange={(value) => handleChange("predictions", value)}
+              onChange={(value) => persistMetadata("predictions", value)}
               placeholder={t("Add predictions...")}
+              splitChars={[]}
               size="sm"
               classNames={inputClassNames}
               style={propertyControlStyle}
@@ -153,11 +172,12 @@ export function HypothesisPagePanel({ pageId }: HypothesisPagePanelProps) {
 
           <Box style={{ ...propertyRowStyle, alignItems: "flex-start" }}>
             <Text fw={500} size="sm" c="dimmed" style={{ width: propertyLabelWidth, paddingTop: 6 }}>
-              {t("Criteria")}
+              {t("Success Criteria")}
             </Text>
             <Textarea
-              value={metadata.successCriteria || ""}
-              onChange={(e) => handleChange("successCriteria", e.currentTarget.value)}
+              value={successCriteria}
+              onChange={(e) => setSuccessCriteria(e.currentTarget.value)}
+              onBlur={() => persistMetadata("successCriteria", successCriteria)}
               placeholder={t("Success criteria...")}
               minRows={2}
               size="sm"

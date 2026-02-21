@@ -2,7 +2,11 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TeamDeploymentService } from './team-deployment.service';
 import { RoleAwareLoopService } from './role-aware-loop.service';
 import { TeamAgentLoopProcessor } from './team-agent-loop.processor';
+import { WorkflowExecutorService } from './workflow-executor.service';
+import { TeamCoordinatorListener } from './team-coordinator.listener';
+import { TeamController } from './team.controller';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
+import { TeamTemplateRepo } from '../../database/repos/team/team-template.repo';
 import { DatabaseModule } from '../../database/database.module';
 import { WorkspaceModule } from '../workspace/workspace.module';
 import { SpaceModule } from '../space/space.module';
@@ -21,12 +25,16 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
     ContextAssemblyModule,
     forwardRef(() => MCPModule),
   ],
+  controllers: [TeamController],
   providers: [
     TeamDeploymentService,
     RoleAwareLoopService,
     TeamAgentLoopProcessor,
+    WorkflowExecutorService,
+    TeamCoordinatorListener,
     TeamDeploymentRepo,
+    TeamTemplateRepo,
   ],
-  exports: [TeamDeploymentService, RoleAwareLoopService],
+  exports: [TeamDeploymentService, RoleAwareLoopService, WorkflowExecutorService],
 })
 export class TeamModule {}

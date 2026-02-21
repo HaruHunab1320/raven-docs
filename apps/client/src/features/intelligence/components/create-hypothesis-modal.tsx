@@ -9,10 +9,11 @@ import {
   TagsInput,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useNavigate } from "react-router-dom";
+import { useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePageMutation } from "@/features/page/queries/page-query";
 import { INTELLIGENCE_KEYS } from "../hooks/use-intelligence-queries";
+import { notifications } from "@mantine/notifications";
 
 interface Props {
   opened: boolean;
@@ -36,9 +37,9 @@ const PRIORITY_OPTIONS = [
 ];
 
 export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createPageMutation = useCreatePageMutation();
+  const addAnotherRef = useRef(false);
 
   const form = useForm({
     initialValues: {
@@ -55,6 +56,19 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
       formalStatement: (v) => (v.trim() ? null : "Formal statement is required"),
     },
   });
+
+  const invalidateQueries = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.stats(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.timeline(spaceId),
+      }),
+    ]);
 
   const handleSubmit = form.onSubmit(async (values) => {
     try {
@@ -76,17 +90,16 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
       } as any);
 
       if (page) {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: INTELLIGENCE_KEYS.stats(spaceId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
-          }),
-        ]);
+        await invalidateQueries();
+        notifications.show({
+          message: `Hypothesis "${values.title}" created`,
+          color: "green",
+        });
         form.reset();
-        onClose();
-        navigate(`/p/${page.slugId}`);
+        if (!addAnotherRef.current) {
+          onClose();
+        }
+        addAnotherRef.current = false;
       }
     } catch {
       // Error handled by mutation
@@ -139,6 +152,7 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
           <TagsInput
             label="Predictions"
             placeholder="Add testable predictions and press Enter"
+            splitChars={[]}
             {...form.getInputProps("predictions")}
           />
 
@@ -152,6 +166,16 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose}>
               Cancel
+            </Button>
+            <Button
+              variant="light"
+              type="submit"
+              loading={createPageMutation.isPending}
+              onClick={() => {
+                addAnotherRef.current = true;
+              }}
+            >
+              Create & Add Another
             </Button>
             <Button type="submit" loading={createPageMutation.isPending}>
               Create Hypothesis

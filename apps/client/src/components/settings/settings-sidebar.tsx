@@ -11,6 +11,7 @@ import {
   IconApi,
   IconChartDots,
   IconRobot,
+  IconSitemap,
   IconBug,
 } from "@tabler/icons-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -95,6 +96,12 @@ const groupedData: DataGroup[] = [
         label: "Agents",
         icon: IconRobot,
         path: "/settings/agents",
+        isAdmin: true,
+      },
+      {
+        label: "Teams",
+        icon: IconSitemap,
+        path: "/settings/teams",
         isAdmin: true,
       },
     ],

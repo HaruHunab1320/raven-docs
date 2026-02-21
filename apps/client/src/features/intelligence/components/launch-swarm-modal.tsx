@@ -58,7 +58,6 @@ export function LaunchSwarmModal({
     validate: {
       taskDescription: (v) =>
         v.trim() ? null : "Task description is required",
-      repoUrl: (v) => (v.trim() ? null : "Repository URL is required"),
     },
   });
 
@@ -67,11 +66,11 @@ export function LaunchSwarmModal({
 
     try {
       await executeMutation.mutateAsync({
-        repoUrl: values.repoUrl,
+        repoUrl: values.repoUrl || undefined,
         taskDescription: values.taskDescription,
         agentType: values.agentType,
-        baseBranch: values.baseBranch || "main",
-        branchName: values.branchName || undefined,
+        baseBranch: values.repoUrl ? values.baseBranch || "main" : undefined,
+        branchName: values.repoUrl ? values.branchName || undefined : undefined,
         experimentId: values.experimentId || undefined,
         spaceId,
       });
@@ -105,8 +104,8 @@ export function LaunchSwarmModal({
           />
 
           <TextInput
-            required
             label="Repository URL"
+            description="Leave empty for research-only agents that don't need a codebase"
             placeholder="https://github.com/org/repo.git"
             {...form.getInputProps("repoUrl")}
           />
@@ -117,17 +116,21 @@ export function LaunchSwarmModal({
             {...form.getInputProps("agentType")}
           />
 
-          <TextInput
-            label="Base Branch"
-            placeholder="main"
-            {...form.getInputProps("baseBranch")}
-          />
+          {form.values.repoUrl && (
+            <>
+              <TextInput
+                label="Base Branch"
+                placeholder="main"
+                {...form.getInputProps("baseBranch")}
+              />
 
-          <TextInput
-            label="Branch Name"
-            placeholder="Auto-generated if empty"
-            {...form.getInputProps("branchName")}
-          />
+              <TextInput
+                label="Branch Name"
+                placeholder="Auto-generated if empty"
+                {...form.getInputProps("branchName")}
+              />
+            </>
+          )}
 
           <Select
             label="Experiment"

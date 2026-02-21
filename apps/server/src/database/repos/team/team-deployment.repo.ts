@@ -16,6 +16,8 @@ export class TeamDeploymentRepo {
       templateName: string;
       config: Record<string, any>;
       deployedBy: string;
+      orgPattern?: Record<string, any>;
+      executionPlan?: Record<string, any>;
     },
     trx?: KyselyTransaction,
   ) {
@@ -30,6 +32,12 @@ export class TeamDeploymentRepo {
         config: JSON.stringify(data.config),
         deployedBy: data.deployedBy,
         status: 'active',
+        orgPattern: data.orgPattern
+          ? JSON.stringify(data.orgPattern)
+          : null,
+        executionPlan: data.executionPlan
+          ? JSON.stringify(data.executionPlan)
+          : null,
       })
       .returningAll()
       .executeTakeFirst();
@@ -212,5 +220,55 @@ export class TeamDeploymentRepo {
       .executeTakeFirst();
 
     return result || null;
+  }
+
+  // --- Workflow State ---
+
+  async updateWorkflowState(id: string, state: Record<string, any>) {
+    return this.db
+      .updateTable('teamDeployments')
+      .set({
+        workflowState: JSON.stringify(state),
+        updatedAt: new Date(),
+      })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  async getWorkflowState(id: string) {
+    const row = await this.db
+      .selectFrom('teamDeployments')
+      .select(['workflowState', 'executionPlan', 'orgPattern'])
+      .where('id', '=', id)
+      .executeTakeFirst();
+    return row || null;
+  }
+
+  async findActiveDeploymentsInWorkspace(workspaceId: string) {
+    return this.db
+      .selectFrom('teamDeployments')
+      .selectAll()
+      .where('workspaceId', '=', workspaceId)
+      .where('status', '=', 'active')
+      .execute();
+  }
+
+  async updateAgentCurrentStep(agentId: string, stepId: string | null) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({ currentStepId: stepId, updatedAt: new Date() })
+      .where('id', '=', agentId)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  async updateAgentReportsTo(agentId: string, reportsToAgentId: string | null) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({ reportsToAgentId, updatedAt: new Date() })
+      .where('id', '=', agentId)
+      .returningAll()
+      .executeTakeFirst();
   }
 }

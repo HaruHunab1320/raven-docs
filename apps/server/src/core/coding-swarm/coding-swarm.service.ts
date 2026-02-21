@@ -11,6 +11,9 @@ import { WorkspacePreparationService } from './workspace-preparation.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { KyselyDB } from '../../database/types/kysely.types';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
+import { mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 @Injectable()
 export class CodingSwarmService {
@@ -35,7 +38,7 @@ export class CodingSwarmService {
     workspaceId: string;
     experimentId?: string;
     spaceId?: string;
-    repoUrl: string;
+    repoUrl?: string;
     taskDescription: string;
     agentType?: string;
     baseBranch?: string;
@@ -52,7 +55,7 @@ export class CodingSwarmService {
       taskContext: params.taskContext,
       config: {
         ...params.config,
-        repoUrl: params.repoUrl,
+        repoUrl: params.repoUrl || null,
         baseBranch: params.baseBranch || 'main',
       },
       triggeredBy: params.triggeredBy,
@@ -86,20 +89,32 @@ export class CodingSwarmService {
     const config = execution.config as any;
 
     try {
-      // Step 1: Provision git workspace
-      await this.swarmExecRepo.updateStatus(executionId, 'provisioning');
-      this.emitStatusChanged(execution.workspaceId, executionId, 'provisioning');
+      let workdir: string;
+      let codingWorkspaceId: string | null = null;
 
-      const gitWorkspace = await this.gitWorkspaceService.provision({
-        workspaceId: execution.workspaceId,
-        repoUrl: config.repoUrl,
-        experimentId: execution.experimentId || undefined,
-        spaceId: execution.spaceId || undefined,
-        baseBranch: config.baseBranch || 'main',
-      });
+      if (config.repoUrl) {
+        // Step 1: Provision git workspace
+        await this.swarmExecRepo.updateStatus(executionId, 'provisioning');
+        this.emitStatusChanged(execution.workspaceId, executionId, 'provisioning');
+
+        const gitWorkspace = await this.gitWorkspaceService.provision({
+          workspaceId: execution.workspaceId,
+          repoUrl: config.repoUrl,
+          experimentId: execution.experimentId || undefined,
+          spaceId: execution.spaceId || undefined,
+          baseBranch: config.baseBranch || 'main',
+        });
+
+        workdir = gitWorkspace.path;
+        codingWorkspaceId = gitWorkspace.id;
+      } else {
+        // No repo — create a temporary workspace for research-only agents
+        workdir = mkdtempSync(join(tmpdir(), `raven-swarm-${executionId.slice(0, 8)}-`));
+        this.logger.log(`Created temp workspace for execution ${executionId}: ${workdir}`);
+      }
 
       await this.swarmExecRepo.updateStatus(executionId, 'spawning', {
-        codingWorkspaceId: gitWorkspace.id,
+        codingWorkspaceId,
       });
       this.emitStatusChanged(execution.workspaceId, executionId, 'spawning');
 
@@ -111,7 +126,7 @@ export class CodingSwarmService {
       // Step 3: Prepare workspace — MCP API key, memory file, approval config, env vars
       const prepResult =
         await this.workspacePreparationService.prepareWorkspace({
-          workspacePath: gitWorkspace.path,
+          workspacePath: workdir,
           workspaceId: execution.workspaceId,
           executionId,
           agentType: execution.agentType,
@@ -128,7 +143,7 @@ export class CodingSwarmService {
         {
           type: execution.agentType,
           name: `swarm-${executionId.slice(0, 8)}`,
-          workdir: gitWorkspace.path,
+          workdir,
           env: fullEnv,
           adapterConfig: prepResult.adapterConfig,
         },

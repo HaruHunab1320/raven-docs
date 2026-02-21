@@ -16,6 +16,8 @@ interface RoleLoopInput {
   role: string;
   systemPrompt: string;
   capabilities: string[];
+  stepId?: string;
+  stepContext?: { name: string; task: string };
 }
 
 interface RoleLoopResult {
@@ -77,6 +79,7 @@ export class RoleAwareLoopService {
       systemPrompt,
       capabilities,
       roleContext,
+      input.stepContext,
     );
 
     // Call AI to plan actions
@@ -285,12 +288,22 @@ export class RoleAwareLoopService {
     systemPrompt: string,
     capabilities: string[],
     roleContext: string,
+    stepContext?: { name: string; task: string },
   ): string {
-    return [
+    const parts = [
       systemPrompt,
       '',
       `Your role: ${role}`,
       `Available actions (MCP methods you can call): ${capabilities.join(', ')}`,
+    ];
+
+    if (stepContext) {
+      parts.push('');
+      parts.push(`Current workflow step: ${stepContext.name}`);
+      parts.push(`Task: ${stepContext.task}`);
+    }
+
+    parts.push(
       '',
       roleContext ? `Current state:\n${roleContext}` : '',
       '',
@@ -298,9 +311,9 @@ export class RoleAwareLoopService {
       `Return ONLY JSON: { "summary": "...", "actions": [{ "method": "...", "params": {...}, "rationale": "..." }] }`,
       `Only include up to 3 actions that are safe, helpful, and within your capabilities.`,
       `If there's nothing useful to do right now, return { "summary": "No actions needed", "actions": [] }`,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    );
+
+    return parts.filter(Boolean).join('\n');
   }
 
   private extractJson(text: string): any {

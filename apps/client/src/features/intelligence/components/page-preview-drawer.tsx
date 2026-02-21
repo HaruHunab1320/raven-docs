@@ -9,16 +9,29 @@ import {
   Tooltip,
   Loader,
   Center,
+  Menu,
   useMantineTheme,
   useMantineColorScheme,
 } from "@mantine/core";
-import { IconChevronRight, IconExternalLink } from "@tabler/icons-react";
+import {
+  IconChevronRight,
+  IconExternalLink,
+  IconDotsVertical,
+  IconLink,
+  IconTrash,
+  IconCopy,
+  IconArrowRight,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageQuery } from "@/features/page/queries/page-query";
+import { useDeletePageMutation } from "@/features/page/queries/page-query";
+import { INTELLIGENCE_KEYS } from "../hooks/use-intelligence-queries";
 import { HypothesisPagePanel } from "./hypothesis-page-panel";
 import { ExperimentPagePanel } from "./experiment-page-panel";
 import PageEditor from "@/features/editor/page-editor";
+import { notifications } from "@mantine/notifications";
 
 interface PagePreviewDrawerProps {
   pageId: string | null;
@@ -37,14 +50,47 @@ export function PagePreviewDrawer({
   const navigate = useNavigate();
   const theme = useMantineTheme();
   const { colorScheme } = useMantineColorScheme();
+  const queryClient = useQueryClient();
   const { data: page, isLoading } = usePageQuery({
     pageId: pageId || "",
   });
+  const deletePageMutation = useDeletePageMutation();
 
   const handleOpenFullPage = () => {
     if (!pageId) return;
     onClose();
     navigate(`/p/${page?.slugId || pageId}`);
+  };
+
+  const handleCopyLink = () => {
+    if (!page) return;
+    const url = `${window.location.origin}/p/${page.slugId || page.id}`;
+    navigator.clipboard.writeText(url);
+    notifications.show({
+      message: t("Link copied to clipboard"),
+      color: "green",
+    });
+  };
+
+  const handleDelete = () => {
+    if (!page) return;
+    deletePageMutation.mutate(page.id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: INTELLIGENCE_KEYS.timeline(spaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: INTELLIGENCE_KEYS.stats(spaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: INTELLIGENCE_KEYS.experiments(spaceId),
+        });
+        onClose();
+      },
+    });
   };
 
   return (
@@ -76,6 +122,45 @@ export function PagePreviewDrawer({
                 <IconExternalLink size={18} />
               </ActionIcon>
             </Tooltip>
+          </Group>
+          <Group gap="xs">
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <Tooltip label={t("More options")}>
+                  <ActionIcon variant="subtle" aria-label="More options">
+                    <IconDotsVertical size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconExternalLink size={16} />}
+                  onClick={handleOpenFullPage}
+                >
+                  {t("Open full page")}
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconLink size={16} />}
+                  onClick={handleCopyLink}
+                >
+                  {t("Copy link")}
+                </Menu.Item>
+                <Menu.Item leftSection={<IconCopy size={16} />}>
+                  {t("Duplicate")}
+                </Menu.Item>
+                <Menu.Item leftSection={<IconArrowRight size={16} />}>
+                  {t("Move to")}
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={handleDelete}
+                >
+                  {t("Move to trash")}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           </Group>
         </Box>
       }

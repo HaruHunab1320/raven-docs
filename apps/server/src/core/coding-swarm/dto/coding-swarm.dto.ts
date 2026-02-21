@@ -3,7 +3,8 @@ import { Type } from 'class-transformer';
 
 export class ExecuteSwarmDto {
   @IsString()
-  repoUrl: string;
+  @IsOptional()
+  repoUrl?: string;
 
   @IsString()
   taskDescription: string;
