@@ -7,7 +7,7 @@ import { TeamAgentLoopJob } from './team-deployment.service';
 import { RoleAwareLoopService } from './role-aware-loop.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 
-@Processor(QueueName.GENERAL_QUEUE)
+@Processor(QueueName.TEAM_QUEUE)
 export class TeamAgentLoopProcessor extends WorkerHost {
   private readonly logger = new Logger(TeamAgentLoopProcessor.name);
 

@@ -40,8 +40,8 @@ export class TeamDeploymentService {
     private readonly workspaceService: WorkspaceService,
     private readonly spaceMemberService: SpaceMemberService,
     private readonly workflowExecutor: WorkflowExecutorService,
-    @InjectQueue(QueueName.GENERAL_QUEUE)
-    private readonly generalQueue: Queue,
+    @InjectQueue(QueueName.TEAM_QUEUE)
+    private readonly teamQueue: Queue,
   ) {}
 
   /**
@@ -186,7 +186,7 @@ export class TeamDeploymentService {
         capabilities: agent.capabilities as string[],
       };
 
-      const job = await this.generalQueue.add(
+      const job = await this.teamQueue.add(
         QueueJob.TEAM_AGENT_LOOP,
         jobData,
         {
@@ -230,6 +230,18 @@ export class TeamDeploymentService {
     }
 
     await this.teamRepo.updateStatus(deploymentId, 'torn_down');
+
+    // Also mark workflow as torn_down so the UI phase badge updates
+    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
+    if (stateRow?.workflowState) {
+      const state =
+        typeof stateRow.workflowState === 'string'
+          ? JSON.parse(stateRow.workflowState)
+          : stateRow.workflowState;
+      state.currentPhase = 'torn_down';
+      state.tornDownAt = new Date().toISOString();
+      await this.teamRepo.updateWorkflowState(deploymentId, state);
+    }
 
     this.logger.log(`Tore down team deployment ${deploymentId}`);
 

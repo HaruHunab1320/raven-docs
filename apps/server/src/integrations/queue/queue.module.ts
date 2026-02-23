@@ -48,6 +48,9 @@ import { DatabaseModule } from '../../database/database.module';
     BullModule.registerQueue({
       name: QueueName.GENERAL_QUEUE,
     }),
+    BullModule.registerQueue({
+      name: QueueName.TEAM_QUEUE,
+    }),
   ],
   exports: [BullModule],
   providers: [BacklinksProcessor],

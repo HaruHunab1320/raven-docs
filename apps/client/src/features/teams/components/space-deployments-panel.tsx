@@ -121,61 +121,61 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
                   >
                     {d.status}
                   </Badge>
-                  {workflowState && (
-                    <Badge size="sm" variant="outline">
-                      {workflowState.currentPhase}
-                    </Badge>
-                  )}
+                  {workflowState &&
+                    d.status !== "torn_down" && (
+                      <Badge size="sm" variant="outline">
+                        {workflowState.currentPhase}
+                      </Badge>
+                    )}
                 </Group>
-                <Menu shadow="md" width={140} position="bottom-end">
-                  <Menu.Target>
-                    <ActionIcon
-                      variant="subtle"
-                      size="sm"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <IconDots size={16} />
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    {d.status === "active" ? (
-                      <Menu.Item
-                        leftSection={<IconPlayerPause size={14} />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          pauseMutation.mutate(d.id);
-                        }}
-                      >
-                        Pause
-                      </Menu.Item>
-                    ) : d.status === "paused" ? (
-                      <Menu.Item
-                        leftSection={<IconPlayerPlay size={14} />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          resumeMutation.mutate(d.id);
-                        }}
-                      >
-                        Resume
-                      </Menu.Item>
-                    ) : null}
-                    {d.status !== "torn_down" && (
-                      <>
-                        <Menu.Divider />
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <Menu shadow="md" width={160} withinPortal zIndex={1000}>
+                    <Menu.Target>
+                      <ActionIcon variant="subtle" size="sm">
+                        <IconDots size={16} />
+                      </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      {d.status === "active" && (
+                        <Menu.Item
+                          leftSection={<IconPlayerPause size={14} />}
+                          onClick={() => pauseMutation.mutate(d.id)}
+                        >
+                          Pause
+                        </Menu.Item>
+                      )}
+                      {d.status === "paused" && (
+                        <Menu.Item
+                          leftSection={<IconPlayerPlay size={14} />}
+                          onClick={() => resumeMutation.mutate(d.id)}
+                        >
+                          Resume
+                        </Menu.Item>
+                      )}
+                      {d.status !== "torn_down" && (
                         <Menu.Item
                           leftSection={<IconTrash size={14} />}
                           color="red"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            teardownMutation.mutate(d.id);
-                          }}
+                          onClick={() => teardownMutation.mutate(d.id)}
                         >
                           Teardown
                         </Menu.Item>
-                      </>
-                    )}
-                  </Menu.Dropdown>
-                </Menu>
+                      )}
+                      {d.status === "torn_down" && (
+                        <Menu.Item
+                          leftSection={<IconTrash size={14} />}
+                          color="dimmed"
+                          disabled
+                        >
+                          Torn down
+                        </Menu.Item>
+                      )}
+                    </Menu.Dropdown>
+                  </Menu>
+                </div>
               </Group>
 
               {workflowState &&

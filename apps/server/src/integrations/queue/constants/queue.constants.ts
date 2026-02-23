@@ -2,6 +2,7 @@ export enum QueueName {
   EMAIL_QUEUE = '{email-queue}',
   ATTACHMENT_QUEUE = '{attachment-queue}',
   GENERAL_QUEUE = '{general-queue}',
+  TEAM_QUEUE = '{team-queue}',
 }
 
 export enum QueueJob {

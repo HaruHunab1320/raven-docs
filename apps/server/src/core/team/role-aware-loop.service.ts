@@ -71,6 +71,7 @@ export class RoleAwareLoopService {
       role,
       workspaceId,
       spaceId,
+      user,
     );
 
     // Build the full prompt
@@ -214,6 +215,7 @@ export class RoleAwareLoopService {
     role: string,
     workspaceId: string,
     spaceId: string,
+    user: User,
   ): Promise<string> {
     const sections: string[] = [];
 
@@ -226,12 +228,12 @@ export class RoleAwareLoopService {
           params: {
             spaceId,
             workspaceId,
-            status: 'todo',
+            status: ['todo'],
             limit: 10,
           },
           id: Date.now(),
         },
-        { id: 'system' } as any,
+        user,
       );
 
       if (tasks.result?.tasks?.length) {

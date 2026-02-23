@@ -181,6 +181,11 @@ export function compileOrgPattern(pattern: OrgPattern): RavenExecutionPlan {
     buildStepPlan(step, `step_${i}`),
   );
 
+  // Resolve aggregate source references: templates specify role names
+  // (e.g. ['worker']) but the executor needs actual step IDs
+  // (e.g. ['step_1_0', 'step_1_1', 'step_1_2']).
+  resolveAggregateSourceIds(steps);
+
   return {
     patternName: pattern.name,
     version: pattern.version || '1.0.0',
@@ -189,4 +194,50 @@ export function compileOrgPattern(pattern: OrgPattern): RavenExecutionPlan {
     escalation: pattern.structure.escalation,
     steps,
   };
+}
+
+/**
+ * Walk through compiled steps and resolve aggregate sourceStepIds.
+ * Templates use role names as sources; we resolve them to the actual
+ * step IDs of preceding dispatch_agent_loop steps that target those roles.
+ */
+function resolveAggregateSourceIds(steps: RavenStepPlan[]): void {
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    if (step.operation.kind === 'aggregate_results') {
+      const roleNames = step.operation.sourceStepIds;
+      const resolvedIds: string[] = [];
+
+      // Look back through preceding steps for agent dispatches matching the roles
+      for (let j = 0; j < i; j++) {
+        collectStepIdsForRoles(steps[j], roleNames, resolvedIds);
+      }
+
+      if (resolvedIds.length > 0) {
+        step.operation.sourceStepIds = resolvedIds;
+      }
+    }
+  }
+}
+
+/**
+ * Recursively collect step IDs from steps that dispatch agents
+ * whose role matches one of the given role names.
+ */
+function collectStepIdsForRoles(
+  step: RavenStepPlan,
+  roles: string[],
+  collected: string[],
+): void {
+  if (
+    step.operation.kind === 'dispatch_agent_loop' &&
+    roles.includes(step.operation.role)
+  ) {
+    collected.push(step.stepId);
+  }
+  if (step.children) {
+    for (const child of step.children) {
+      collectStepIdsForRoles(child, roles, collected);
+    }
+  }
 }

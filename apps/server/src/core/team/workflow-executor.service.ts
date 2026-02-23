@@ -20,8 +20,8 @@ export class WorkflowExecutorService {
     private readonly aiService: AIService,
     private readonly memoryService: AgentMemoryService,
     private readonly eventEmitter: EventEmitter2,
-    @InjectQueue(QueueName.GENERAL_QUEUE)
-    private readonly generalQueue: Queue,
+    @InjectQueue(QueueName.TEAM_QUEUE)
+    private readonly teamQueue: Queue,
   ) {}
 
   /**
@@ -62,9 +62,18 @@ export class WorkflowExecutorService {
 
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
 
-    // Find and dispatch ready steps
+    // Top-level steps are treated as sequential: only dispatch the first
+    // non-completed step, then stop.  This prevents later steps from
+    // firing before earlier ones finish.
     for (const step of plan.steps) {
+      const stepState = state.stepStates[step.stepId];
+      if (stepState?.status === 'completed') continue; // already done
+
+      // Dispatch this step (may be pending, or a container with pending children)
       await this.dispatchIfReady(step, state, plan, agents, deployment);
+
+      // If it's still not completed after dispatch, stop — don't look at later steps
+      if (state.stepStates[step.stepId]?.status !== 'completed') break;
     }
 
     state.lastAdvancedAt = new Date().toISOString();
@@ -270,6 +279,13 @@ export class WorkflowExecutorService {
 
     await this.teamRepo.updateAgentCurrentStep(agent.id, step.stepId);
 
+    // Update state BEFORE enqueuing — the worker may complete the job
+    // before doAdvance() saves, causing completeStep() to read stale state.
+    state.stepStates[step.stepId].status = 'running';
+    state.stepStates[step.stepId].startedAt = new Date().toISOString();
+    state.stepStates[step.stepId].assignedAgentId = agent.id;
+    await this.teamRepo.updateWorkflowState(deployment.id, state as any);
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: agent.id,
       deploymentId: deployment.id,
@@ -286,15 +302,11 @@ export class WorkflowExecutorService {
       },
     };
 
-    await this.generalQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
+    await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
       attempts: 1,
       removeOnComplete: { count: 50 },
       removeOnFail: { count: 20 },
     });
-
-    state.stepStates[step.stepId].status = 'running';
-    state.stepStates[step.stepId].startedAt = new Date().toISOString();
-    state.stepStates[step.stepId].assignedAgentId = agent.id;
   }
 
   private async dispatchCoordinator(
@@ -314,6 +326,12 @@ export class WorkflowExecutorService {
 
     await this.teamRepo.updateAgentCurrentStep(lead.id, step.stepId);
 
+    // Update state BEFORE enqueuing — same race-condition guard as dispatchAgentLoop.
+    state.stepStates[step.stepId].status = 'running';
+    state.stepStates[step.stepId].startedAt = new Date().toISOString();
+    state.stepStates[step.stepId].assignedAgentId = lead.id;
+    await this.teamRepo.updateWorkflowState(deployment.id, state as any);
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: lead.id,
       deploymentId: deployment.id,
@@ -330,15 +348,11 @@ export class WorkflowExecutorService {
       },
     };
 
-    await this.generalQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
+    await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
       attempts: 1,
       removeOnComplete: { count: 50 },
       removeOnFail: { count: 20 },
     });
-
-    state.stepStates[step.stepId].status = 'running';
-    state.stepStates[step.stepId].startedAt = new Date().toISOString();
-    state.stepStates[step.stepId].assignedAgentId = lead.id;
   }
 
   private async dispatchAggregate(

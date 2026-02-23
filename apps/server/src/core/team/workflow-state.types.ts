@@ -1,7 +1,7 @@
 import type { RoutingRule, EscalationConfig } from './org-chart.types';
 
 export interface WorkflowState {
-  currentPhase: 'idle' | 'running' | 'paused' | 'completed' | 'failed';
+  currentPhase: 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'torn_down';
   stepStates: Record<string, StepState>;
   startedAt?: string;
   completedAt?: string;
