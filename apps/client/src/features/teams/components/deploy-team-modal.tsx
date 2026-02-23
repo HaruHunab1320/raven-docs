@@ -4,6 +4,7 @@ import {
   Select,
   Stack,
   Text,
+  TextInput,
 } from "@mantine/core";
 import { useState } from "react";
 import { useTeamTemplates, useDeployTeamMutation } from "../hooks/use-team-queries";
@@ -26,6 +27,7 @@ export function DeployTeamModal({
   const [templateId, setTemplateId] = useState<string | null>(
     preselectedTemplateId || null,
   );
+  const [teamName, setTeamName] = useState("");
 
   const templateOptions = (templates || []).map((t) => ({
     value: t.id,
@@ -37,9 +39,11 @@ export function DeployTeamModal({
     await deployMutation.mutateAsync({
       templateId,
       spaceId,
+      teamName: teamName.trim() || undefined,
     });
     onClose();
     setTemplateId(null);
+    setTeamName("");
   };
 
   return (
@@ -56,6 +60,13 @@ export function DeployTeamModal({
           value={templateId}
           onChange={setTemplateId}
           searchable
+        />
+
+        <TextInput
+          label="Team Name"
+          placeholder="Optional human-friendly team name"
+          value={teamName}
+          onChange={(e) => setTeamName(e.currentTarget.value)}
         />
 
         <Button

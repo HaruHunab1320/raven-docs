@@ -35,19 +35,38 @@ export function useTeamTemplate(id: string) {
 
 // ─── Deployment Queries ─────────────────────────────────────────────────────
 
-export function useTeamDeployments(workspaceId: string) {
+export function useTeamDeployments(
+  workspaceId: string,
+  opts?: { includeTornDown?: boolean },
+) {
   return useQuery({
-    queryKey: TEAM_KEYS.deployments(workspaceId),
-    queryFn: () => teamService.listDeployments({}),
+    queryKey: [
+      ...TEAM_KEYS.deployments(workspaceId),
+      opts?.includeTornDown ? "with-torn-down" : "active-only",
+    ],
+    queryFn: () =>
+      teamService.listDeployments({
+        includeTornDown: opts?.includeTornDown,
+      }),
     enabled: !!workspaceId,
     staleTime: 15_000,
   });
 }
 
-export function useSpaceDeployments(spaceId: string) {
+export function useSpaceDeployments(
+  spaceId: string,
+  opts?: { includeTornDown?: boolean },
+) {
   return useQuery({
-    queryKey: TEAM_KEYS.spaceDeployments(spaceId),
-    queryFn: () => teamService.listDeployments({ spaceId }),
+    queryKey: [
+      ...TEAM_KEYS.spaceDeployments(spaceId),
+      opts?.includeTornDown ? "with-torn-down" : "active-only",
+    ],
+    queryFn: () =>
+      teamService.listDeployments({
+        spaceId,
+        includeTornDown: opts?.includeTornDown,
+      }),
     enabled: !!spaceId,
     staleTime: 15_000,
   });
@@ -189,6 +208,7 @@ export function useDeployTeamMutation() {
       templateId: string;
       spaceId: string;
       projectId?: string;
+      teamName?: string;
     }) => teamService.deployTeam(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
@@ -310,6 +330,58 @@ export function useStartWorkflowMutation() {
         title: "Error",
         message:
           error.response?.data?.message || "Failed to start workflow",
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useRedeployTeamMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      sourceDeploymentId: string;
+      spaceId?: string;
+      projectId?: string;
+      memoryPolicy?: "none" | "carry_all";
+      teamName?: string;
+    }) => teamService.redeployTeam(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      notifications.show({
+        title: "Team Redeployed",
+        message: "A new deployment has been created",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to redeploy team",
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useRenameDeploymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { deploymentId: string; teamName: string }) =>
+      teamService.renameDeployment(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      queryClient.invalidateQueries({ queryKey: ["team-deployment-status"] });
+      notifications.show({
+        title: "Team Renamed",
+        message: "Deployment name updated",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to rename team",
         color: "red",
       });
     },

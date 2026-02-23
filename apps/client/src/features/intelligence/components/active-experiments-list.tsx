@@ -8,7 +8,7 @@ import {
   Loader,
   ActionIcon,
 } from "@mantine/core";
-import { IconPlus, IconPlayerPlay } from "@tabler/icons-react";
+import { IconPlus, IconPlayerPlay, IconUsersGroup } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActiveExperiments } from "../hooks/use-intelligence-queries";
@@ -89,6 +89,14 @@ export function ActiveExperimentsList({ spaceId, onNewExperiment, onLaunchSwarm 
                         <Text size="xs" c="dimmed">
                           Tests hypothesis
                         </Text>
+                      )}
+                      {exp.activeTeam && (
+                        <Group gap={6}>
+                          <IconUsersGroup size={12} />
+                          <Text size="xs" c="dimmed">
+                            Team: {exp.activeTeam.teamName}
+                          </Text>
+                        </Group>
                       )}
                     </Stack>
                     <Group gap="xs">

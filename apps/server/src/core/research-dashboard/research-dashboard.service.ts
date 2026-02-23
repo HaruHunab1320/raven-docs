@@ -258,6 +258,92 @@ export class ResearchDashboardService {
       .limit(50)
       .execute();
 
+    const experimentIds = rows.map((r) => r.id);
+    const activeStatuses = [
+      'pending',
+      'provisioning',
+      'spawning',
+      'running',
+      'capturing',
+      'finalizing',
+    ];
+
+    const activeSwarmRows =
+      experimentIds.length > 0
+        ? await this.db
+            .selectFrom('swarmExecutions')
+            .select([
+              'swarmExecutions.id',
+              'swarmExecutions.experimentId',
+              'swarmExecutions.triggeredBy',
+              'swarmExecutions.status',
+              'swarmExecutions.createdAt',
+            ])
+            .where('swarmExecutions.workspaceId', '=', workspaceId)
+            .where('swarmExecutions.experimentId', 'in', experimentIds)
+            .where('swarmExecutions.status', 'in', activeStatuses)
+            .orderBy('swarmExecutions.createdAt', 'desc')
+            .execute()
+        : [];
+
+    const latestByExperiment = new Map<string, (typeof activeSwarmRows)[number]>();
+    for (const row of activeSwarmRows) {
+      if (!row.experimentId || latestByExperiment.has(row.experimentId)) continue;
+      latestByExperiment.set(row.experimentId, row);
+    }
+
+    const activeTeamByExperiment = new Map<
+      string,
+      {
+        deploymentId: string;
+        teamName: string;
+        status: string;
+        swarmExecutionId: string;
+        swarmStatus: string;
+      }
+    >();
+
+    for (const [experimentId, swarm] of latestByExperiment.entries()) {
+      if (!swarm.triggeredBy) continue;
+
+      const team = await this.db
+        .selectFrom('teamAgents')
+        .innerJoin(
+          'teamDeployments',
+          'teamDeployments.id',
+          'teamAgents.deploymentId',
+        )
+        .select([
+          'teamDeployments.id as deploymentId',
+          'teamDeployments.templateName as templateName',
+          'teamDeployments.status as deploymentStatus',
+          'teamDeployments.config as deploymentConfig',
+          'teamDeployments.createdAt as deploymentCreatedAt',
+        ])
+        .where('teamAgents.workspaceId', '=', workspaceId)
+        .where('teamAgents.userId', '=', swarm.triggeredBy)
+        .where('teamDeployments.workspaceId', '=', workspaceId)
+        .$if(!!spaceId, (qb) => qb.where('teamDeployments.spaceId', '=', spaceId!))
+        .where('teamDeployments.createdAt', '<=', swarm.createdAt as any)
+        .orderBy('teamDeployments.createdAt', 'desc')
+        .executeTakeFirst();
+
+      if (!team) continue;
+      const config =
+        typeof team.deploymentConfig === 'string'
+          ? JSON.parse(team.deploymentConfig)
+          : (team.deploymentConfig as any);
+      const teamName = config?.teamName || team.templateName;
+
+      activeTeamByExperiment.set(experimentId, {
+        deploymentId: team.deploymentId as string,
+        teamName,
+        status: team.deploymentStatus as string,
+        swarmExecutionId: swarm.id,
+        swarmStatus: swarm.status as string,
+      });
+    }
+
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -265,6 +351,7 @@ export class ResearchDashboardService {
       metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata,
       slugId: r.slugId,
       updatedAt: r.updatedAt,
+      activeTeam: activeTeamByExperiment.get(r.id) || null,
     }));
   }
 

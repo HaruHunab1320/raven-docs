@@ -174,6 +174,11 @@ export class CodingSwarmService {
         completedAt: new Date(),
       });
       this.emitStatusChanged(execution.workspaceId, executionId, 'failed');
+
+      await this.workspacePreparationService.cleanupApiKey(
+        executionId,
+        execution.triggeredBy || 'system',
+      );
       throw error;
     }
   }
@@ -205,6 +210,18 @@ export class CodingSwarmService {
       this.logger.error(
         `Failed to send task to agent ${agentId}: ${error.message}`,
       );
+      await this.swarmExecRepo.updateStatus(execution.id, 'failed', {
+        errorMessage: `Failed to deliver task to agent: ${error.message}`,
+        completedAt: new Date(),
+      });
+      this.emitStatusChanged(execution.workspaceId, execution.id, 'failed');
+      await this.workspacePreparationService.cleanupApiKey(
+        execution.id,
+        execution.triggeredBy || 'system',
+      );
+      if (execution.codingWorkspaceId) {
+        this.scheduleCleanup(execution.codingWorkspaceId, 5 * 60 * 1000);
+      }
     }
   }
 
@@ -218,6 +235,7 @@ export class CodingSwarmService {
     try {
       // Step 6: Capture results
       await this.swarmExecRepo.updateStatus(execution.id, 'capturing');
+      this.emitStatusChanged(execution.workspaceId, execution.id, 'capturing');
 
       await this.swarmExecRepo.updateResults(execution.id, {
         outputSummary: data.reason || 'Agent completed',
@@ -364,6 +382,11 @@ export class CodingSwarmService {
       completedAt: new Date(),
     });
     this.emitStatusChanged(execution.workspaceId, executionId, 'cancelled');
+
+    await this.workspacePreparationService.cleanupApiKey(
+      execution.id,
+      execution.triggeredBy || 'system',
+    );
 
     // Cleanup workspace
     if (execution.codingWorkspaceId) {

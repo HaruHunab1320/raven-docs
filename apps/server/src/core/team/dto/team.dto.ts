@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsUUID,
   IsObject,
+  IsBoolean,
+  IsIn,
 } from 'class-validator';
 
 // ─── Template DTOs ───────────────────────────────────────────────────────────
@@ -85,6 +87,10 @@ export class DeployTeamDto {
   @IsUUID()
   @IsOptional()
   projectId?: string;
+
+  @IsString()
+  @IsOptional()
+  teamName?: string;
 }
 
 export class DeployOrgPatternDto {
@@ -97,6 +103,10 @@ export class DeployOrgPatternDto {
   @IsUUID()
   @IsOptional()
   projectId?: string;
+
+  @IsString()
+  @IsOptional()
+  teamName?: string;
 }
 
 export class TeamDeploymentIdDto {
@@ -112,4 +122,37 @@ export class ListDeploymentsDto {
   @IsString()
   @IsOptional()
   status?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  includeTornDown?: boolean;
+}
+
+export class RedeployTeamDto {
+  @IsUUID()
+  sourceDeploymentId: string;
+
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  projectId?: string;
+
+  @IsIn(['none', 'carry_all'])
+  @IsOptional()
+  memoryPolicy?: 'none' | 'carry_all';
+
+  @IsString()
+  @IsOptional()
+  teamName?: string;
+}
+
+export class RenameTeamDto {
+  @IsUUID()
+  deploymentId: string;
+
+  @IsString()
+  teamName: string;
 }

@@ -77,6 +77,7 @@ export async function deployTeam(params: {
   templateId: string;
   spaceId: string;
   projectId?: string;
+  teamName?: string;
 }): Promise<DeploymentDetail> {
   const req = await api.post<DeploymentDetail>(`${ENDPOINT}/deploy`, params);
   return req.data;
@@ -85,9 +86,35 @@ export async function deployTeam(params: {
 export async function listDeployments(params: {
   spaceId?: string;
   status?: string;
+  includeTornDown?: boolean;
 }): Promise<TeamDeployment[]> {
   const req = await api.post<TeamDeployment[]>(
     `${ENDPOINT}/deployments/list`,
+    params,
+  );
+  return req.data;
+}
+
+export async function redeployTeam(params: {
+  sourceDeploymentId: string;
+  spaceId?: string;
+  projectId?: string;
+  memoryPolicy?: "none" | "carry_all";
+  teamName?: string;
+}): Promise<DeploymentDetail> {
+  const req = await api.post<DeploymentDetail>(
+    `${ENDPOINT}/deployments/redeploy`,
+    params,
+  );
+  return req.data;
+}
+
+export async function renameDeployment(params: {
+  deploymentId: string;
+  teamName: string;
+}): Promise<TeamDeployment> {
+  const req = await api.post<TeamDeployment>(
+    `${ENDPOINT}/deployments/rename`,
     params,
   );
   return req.data;

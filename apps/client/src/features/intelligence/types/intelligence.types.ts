@@ -47,6 +47,13 @@ export interface TypedPageSummary {
   metadata: Record<string, any> | null;
   slugId?: string;
   updatedAt: string;
+  activeTeam?: {
+    deploymentId: string;
+    teamName: string;
+    status: string;
+    swarmExecutionId: string;
+    swarmStatus: string;
+  } | null;
 }
 
 export interface GraphNode {

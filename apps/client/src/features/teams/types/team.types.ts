@@ -136,7 +136,13 @@ export interface StepState {
 }
 
 export interface WorkflowState {
-  currentPhase: "idle" | "running" | "completed" | "failed" | "paused";
+  currentPhase:
+    | "idle"
+    | "running"
+    | "completed"
+    | "failed"
+    | "paused"
+    | "torn_down";
   stepStates: Record<string, StepState>;
   coordinatorInvocations: number;
   startedAt?: string;

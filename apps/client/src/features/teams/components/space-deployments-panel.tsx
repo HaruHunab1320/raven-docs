@@ -8,6 +8,7 @@ import {
   Loader,
   Menu,
   ActionIcon,
+  Switch,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
@@ -17,12 +18,16 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconTrash,
+  IconRotateClockwise,
+  IconPencil,
 } from "@tabler/icons-react";
 import {
   useSpaceDeployments,
   usePauseDeploymentMutation,
   useResumeDeploymentMutation,
   useTeardownDeploymentMutation,
+  useRedeployTeamMutation,
+  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
 import { DeployTeamModal } from "./deploy-team-modal";
 import { DeploymentDetailView } from "./deployment-detail-view";
@@ -46,11 +51,28 @@ function statusColor(status: string) {
   }
 }
 
+function getTeamName(deployment: TeamDeployment): string {
+  try {
+    const cfg =
+      typeof deployment.config === "string"
+        ? JSON.parse(deployment.config)
+        : deployment.config;
+    return cfg?.teamName || deployment.templateName;
+  } catch {
+    return deployment.templateName;
+  }
+}
+
 export function SpaceDeploymentsPanel({ spaceId }: Props) {
-  const { data: deployments, isLoading } = useSpaceDeployments(spaceId);
+  const [showTornDown, setShowTornDown] = useState(false);
+  const { data: deployments, isLoading } = useSpaceDeployments(spaceId, {
+    includeTornDown: showTornDown,
+  });
   const pauseMutation = usePauseDeploymentMutation();
   const resumeMutation = useResumeDeploymentMutation();
   const teardownMutation = useTeardownDeploymentMutation();
+  const redeployMutation = useRedeployTeamMutation();
+  const renameMutation = useRenameDeploymentMutation();
 
   const [deployOpened, { open: openDeploy, close: closeDeploy }] =
     useDisclosure(false);
@@ -78,15 +100,19 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          {(deployments || []).length} deployment
-          {(deployments || []).length !== 1 ? "s" : ""} in this space
-        </Text>
-        <Button
-          size="xs"
-          leftSection={<IconPlus size={14} />}
-          onClick={openDeploy}
-        >
+        <Group gap="md">
+          <Text size="sm" c="dimmed">
+            {(deployments || []).length} deployment
+            {(deployments || []).length !== 1 ? "s" : ""} in this space
+          </Text>
+          <Switch
+            size="xs"
+            label="Show torn down"
+            checked={showTornDown}
+            onChange={(e) => setShowTornDown(e.currentTarget.checked)}
+          />
+        </Group>
+        <Button size="xs" leftSection={<IconPlus size={14} />} onClick={openDeploy}>
           Deploy Team
         </Button>
       </Group>
@@ -112,7 +138,7 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
               <Group justify="space-between">
                 <Group gap="sm">
                   <Text fw={600} size="sm">
-                    {d.templateName}
+                    {getTeamName(d)}
                   </Text>
                   <Badge
                     size="sm"
@@ -155,6 +181,20 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
                           Resume
                         </Menu.Item>
                       )}
+                      <Menu.Item
+                        leftSection={<IconPencil size={14} />}
+                        onClick={() => {
+                          const currentName = getTeamName(d);
+                          const next = window.prompt("Rename team", currentName);
+                          if (!next || next.trim() === "" || next.trim() === currentName) return;
+                          renameMutation.mutate({
+                            deploymentId: d.id,
+                            teamName: next.trim(),
+                          });
+                        }}
+                      >
+                        Rename
+                      </Menu.Item>
                       {d.status !== "torn_down" && (
                         <Menu.Item
                           leftSection={<IconTrash size={14} />}
@@ -165,13 +205,32 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
                         </Menu.Item>
                       )}
                       {d.status === "torn_down" && (
-                        <Menu.Item
-                          leftSection={<IconTrash size={14} />}
-                          color="dimmed"
-                          disabled
-                        >
-                          Torn down
-                        </Menu.Item>
+                        <>
+                          <Menu.Item
+                            leftSection={<IconRotateClockwise size={14} />}
+                            onClick={() =>
+                              redeployMutation.mutate({
+                                sourceDeploymentId: d.id,
+                                spaceId,
+                                memoryPolicy: "none",
+                              })
+                            }
+                          >
+                            Redeploy fresh
+                          </Menu.Item>
+                          <Menu.Item
+                            leftSection={<IconRotateClockwise size={14} />}
+                            onClick={() =>
+                              redeployMutation.mutate({
+                                sourceDeploymentId: d.id,
+                                spaceId,
+                                memoryPolicy: "carry_all",
+                              })
+                            }
+                          >
+                            Redeploy w/ memory
+                          </Menu.Item>
+                        </>
                       )}
                     </Menu.Dropdown>
                   </Menu>

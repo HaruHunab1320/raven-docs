@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
@@ -27,6 +32,8 @@ export interface TeamAgentLoopJob {
   stepId?: string;
   stepContext?: { name: string; task: string };
 }
+
+export type TeamMemoryPolicy = 'none' | 'carry_all';
 
 @Injectable()
 export class TeamDeploymentService {
@@ -155,9 +162,84 @@ export class TeamDeploymentService {
    */
   async listDeployments(
     workspaceId: string,
-    opts?: { spaceId?: string; status?: string },
+    opts?: { spaceId?: string; status?: string; includeTornDown?: boolean },
   ) {
     return this.teamRepo.listByWorkspace(workspaceId, opts);
+  }
+
+  /**
+   * Redeploy an existing team deployment.
+   * - memoryPolicy=none: fresh pseudo-agent users
+   * - memoryPolicy=carry_all: reuse source deployment agent users by role+instance
+   */
+  async redeployDeployment(
+    workspaceId: string,
+    sourceDeploymentId: string,
+    redeployedBy: string,
+    opts?: {
+      spaceId?: string;
+      projectId?: string;
+      memoryPolicy?: TeamMemoryPolicy;
+      teamName?: string;
+    },
+  ) {
+    const sourceDeployment = await this.teamRepo.findById(sourceDeploymentId);
+    if (!sourceDeployment) {
+      throw new NotFoundException('Source deployment not found');
+    }
+    if (sourceDeployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Source deployment not found in workspace');
+    }
+
+    const orgPattern = this.parseDeploymentOrgPattern(sourceDeployment);
+    if (!orgPattern) {
+      throw new BadRequestException(
+        'Source deployment does not contain an org pattern; redeploy is unavailable',
+      );
+    }
+
+    const targetSpaceId = opts?.spaceId || sourceDeployment.spaceId;
+    const targetProjectId =
+      opts?.projectId !== undefined
+        ? opts.projectId
+        : sourceDeployment.projectId || undefined;
+    const memoryPolicy = opts?.memoryPolicy || 'none';
+    const sourceConfig = this.parseJsonSafe(sourceDeployment.config) || {};
+    const sourceTeamName =
+      sourceConfig.teamName || sourceDeployment.templateName || orgPattern.name;
+
+    const sourceAgents =
+      memoryPolicy === 'carry_all'
+        ? await this.teamRepo.getAgentsByDeployment(sourceDeploymentId)
+        : [];
+    const sourceAgentUsers = new Map<string, string>();
+    for (const agent of sourceAgents) {
+      if (!agent.userId) continue;
+      sourceAgentUsers.set(
+        this.buildRoleInstanceKey(agent.role, agent.instanceNumber),
+        agent.userId,
+      );
+    }
+
+    const result = await this.deployFromOrgPatternInternal(
+      workspaceId,
+      targetSpaceId,
+      orgPattern,
+      redeployedBy,
+      {
+        projectId: targetProjectId,
+        memoryPolicy,
+        sourceDeploymentId,
+        sourceAgentUsers,
+        teamName: opts?.teamName || sourceTeamName,
+      },
+    );
+
+    this.logger.log(
+      `Redeployed team from ${sourceDeploymentId} -> ${result.deployment.id} (policy=${memoryPolicy})`,
+    );
+
+    return result;
   }
 
   /**
@@ -279,9 +361,33 @@ export class TeamDeploymentService {
     spaceId: string,
     orgPattern: OrgPattern,
     deployedBy: string,
-    opts?: { projectId?: string },
+    opts?: { projectId?: string; teamName?: string },
+  ) {
+    return this.deployFromOrgPatternInternal(
+      workspaceId,
+      spaceId,
+      orgPattern,
+      deployedBy,
+      opts,
+    );
+  }
+
+  private async deployFromOrgPatternInternal(
+    workspaceId: string,
+    spaceId: string,
+    orgPattern: OrgPattern,
+    deployedBy: string,
+    opts?: {
+      projectId?: string;
+      memoryPolicy?: TeamMemoryPolicy;
+      sourceDeploymentId?: string;
+      sourceAgentUsers?: Map<string, string>;
+      teamName?: string;
+    },
   ) {
     const executionPlan = compileOrgPattern(orgPattern);
+    const memoryPolicy = opts?.memoryPolicy || 'none';
+    const sourceAgentUsers = opts?.sourceAgentUsers || new Map<string, string>();
 
     // Create the deployment record
     const deployment = await this.teamRepo.createDeployment({
@@ -289,7 +395,17 @@ export class TeamDeploymentService {
       spaceId,
       projectId: opts?.projectId,
       templateName: orgPattern.name,
-      config: orgPattern as any,
+      config: {
+        ...(orgPattern as any),
+        teamName: opts?.teamName || orgPattern.name,
+        redeploy: opts?.sourceDeploymentId
+          ? {
+              sourceDeploymentId: opts.sourceDeploymentId,
+              memoryPolicy,
+              redeployedAt: new Date().toISOString(),
+            }
+          : undefined,
+      } as any,
       deployedBy,
       orgPattern: orgPattern as any,
       executionPlan: executionPlan as any,
@@ -308,24 +424,41 @@ export class TeamDeploymentService {
             ? `${orgPattern.name} - ${roleDef.name} #${i}`
             : `${orgPattern.name} - ${roleDef.name}`;
 
-        const agentEmail = `team-${deployment.id.slice(0, 8)}-${roleId}-${i}@agents.internal`;
-        const agentUser = await this.userRepo.insertAgentUser({
-          agentId: `team-agent-${deployment.id.slice(0, 8)}-${roleId}-${i}`,
-          name: agentName,
-          email: agentEmail,
-          workspaceId,
-        });
+        const key = this.buildRoleInstanceKey(roleId, i);
+        const reusedUserId =
+          memoryPolicy === 'carry_all'
+            ? sourceAgentUsers.get(key)
+            : undefined;
 
-        await this.workspaceService.addUserToWorkspace(
-          agentUser.id,
-          workspaceId,
-        );
-        await this.spaceMemberService.addUserToSpace(
-          agentUser.id,
-          spaceId,
-          SpaceRole.WRITER,
-          workspaceId,
-        );
+        let agentUserId: string;
+        if (reusedUserId) {
+          agentUserId = reusedUserId;
+          await this.ensureAgentUserInSpace(
+            agentUserId,
+            spaceId,
+            workspaceId,
+          );
+        } else {
+          const agentEmail = `team-${deployment.id.slice(0, 8)}-${roleId}-${i}@agents.internal`;
+          const agentUser = await this.userRepo.insertAgentUser({
+            agentId: `team-agent-${deployment.id.slice(0, 8)}-${roleId}-${i}`,
+            name: agentName,
+            email: agentEmail,
+            workspaceId,
+          });
+
+          await this.workspaceService.addUserToWorkspace(
+            agentUser.id,
+            workspaceId,
+          );
+          await this.spaceMemberService.addUserToSpace(
+            agentUser.id,
+            spaceId,
+            SpaceRole.WRITER,
+            workspaceId,
+          );
+          agentUserId = agentUser.id;
+        }
 
         const systemPrompt = [
           `You are "${roleDef.name}", part of the "${orgPattern.name}" team.`,
@@ -338,7 +471,7 @@ export class TeamDeploymentService {
         const agent = await this.teamRepo.createAgent({
           deploymentId: deployment.id,
           workspaceId,
-          userId: agentUser.id,
+          userId: agentUserId,
           role: roleId,
           instanceNumber: i,
           systemPrompt,
@@ -376,7 +509,7 @@ export class TeamDeploymentService {
     );
 
     this.logger.log(
-      `Deployed org-pattern "${orgPattern.name}" with ${agents.length} agents to space ${spaceId}`,
+      `Deployed org-pattern "${orgPattern.name}" with ${agents.length} agents to space ${spaceId} (memoryPolicy=${memoryPolicy})`,
     );
 
     return { deployment, agents, executionPlan };
@@ -391,7 +524,10 @@ export class TeamDeploymentService {
       throw new NotFoundException('Deployment not found');
     }
 
-    const state = (stateRow.workflowState || {}) as unknown as WorkflowState;
+    const state =
+      typeof stateRow.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow.workflowState || {}) as unknown as WorkflowState);
     state.currentPhase = 'running';
     state.startedAt = new Date().toISOString();
     state.coordinatorInvocations = state.coordinatorInvocations || 0;
@@ -415,7 +551,7 @@ export class TeamDeploymentService {
     spaceId: string,
     templateId: string,
     deployedBy: string,
-    opts?: { projectId?: string },
+    opts?: { projectId?: string; teamName?: string },
   ) {
     const template = await this.templateRepo.findById(templateId);
     if (!template) {
@@ -434,5 +570,71 @@ export class TeamDeploymentService {
       deployedBy,
       opts,
     );
+  }
+
+  async renameDeployment(
+    workspaceId: string,
+    deploymentId: string,
+    teamName: string,
+  ) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    const trimmed = teamName.trim();
+    if (!trimmed) {
+      throw new BadRequestException('teamName cannot be empty');
+    }
+
+    const config = this.parseJsonSafe(deployment.config) || {};
+    const updated = await this.teamRepo.updateConfig(deploymentId, {
+      ...config,
+      teamName: trimmed,
+    });
+    return updated;
+  }
+
+  private buildRoleInstanceKey(role: string, instanceNumber: number) {
+    return `${role}#${instanceNumber}`;
+  }
+
+  private parseDeploymentOrgPattern(deployment: any): OrgPattern | null {
+    const raw = deployment.orgPattern || deployment.config;
+    if (!raw) return null;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!parsed?.structure || !parsed?.workflow) return null;
+    return parsed as OrgPattern;
+  }
+
+  private parseJsonSafe(value: unknown): any {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    }
+    return value;
+  }
+
+  private async ensureAgentUserInSpace(
+    userId: string,
+    spaceId: string,
+    workspaceId: string,
+  ) {
+    try {
+      await this.spaceMemberService.addUserToSpace(
+        userId,
+        spaceId,
+        SpaceRole.WRITER,
+        workspaceId,
+      );
+    } catch (error: any) {
+      this.logger.debug(
+        `Skipping duplicate space membership for agent user ${userId}: ${error?.message || 'unknown error'}`,
+      );
+    }
   }
 }

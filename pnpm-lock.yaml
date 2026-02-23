@@ -154,8 +154,8 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2
       coding-agent-adapters:
-        specifier: 0.7.1
-        version: 0.7.1(pty-manager@1.6.0)
+        specifier: 0.7.5
+        version: 0.7.5(pty-manager@1.7.2)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -193,8 +193,8 @@ importers:
         specifier: ^13.0.0
         version: 13.1.3
       pty-manager:
-        specifier: 1.6.0
-        version: 1.6.0
+        specifier: 1.7.2
+        version: 1.7.2
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -625,8 +625,8 @@ importers:
         specifier: ^0.14.1
         version: 0.14.3
       coding-agent-adapters:
-        specifier: 0.7.0
-        version: 0.7.0(pty-manager@1.6.0)
+        specifier: 0.7.5
+        version: 0.7.5(pty-manager@1.7.2)
       cookie:
         specifier: ^1.0.2
         version: 1.1.1
@@ -640,8 +640,8 @@ importers:
         specifier: ^11.3.0
         version: 11.3.3
       git-workspace-service:
-        specifier: ^0.4.0
-        version: 0.4.0(@octokit/rest@22.0.1)
+        specifier: 0.4.3
+        version: 0.4.3(@octokit/rest@22.0.1)
       happy-dom:
         specifier: ^15.11.6
         version: 15.11.7
@@ -691,8 +691,8 @@ importers:
         specifier: ^4.0.5
         version: 4.0.5
       pty-manager:
-        specifier: 1.6.0
-        version: 1.6.0
+        specifier: 1.7.2
+        version: 1.7.2
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -6533,22 +6533,12 @@ packages:
       agent-adapter-monitor:
         optional: true
 
-  coding-agent-adapters@0.7.0:
-    resolution: {integrity: sha512-Bvg7H6p0X2fb/6RVYEgdJ7BnFcOUPASdMUIoEnIuSv4zoG++X6eh1DcobOPSpDFi1h+wBaXVXoQYQBPJEv3zGA==}
+  coding-agent-adapters@0.7.5:
+    resolution: {integrity: sha512-LxXZdw5xWnuiXsMS2o8YItoZCU71GdrMBqN3xlg0Hp58fdU8dk9FHBQCSkj1GNw2hPYXoHtTTIsQydGzDrycyw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       agent-adapter-monitor: ^0.3.0
-      pty-manager: ^1.6.0
-    peerDependenciesMeta:
-      agent-adapter-monitor:
-        optional: true
-
-  coding-agent-adapters@0.7.1:
-    resolution: {integrity: sha512-WuttW2GZV/JyXKpzHPKpBSlCSX8y7esCHv8QIC/ObJRUMEn/dSE2RMc52MdMBZaBykOrKvPMI09k5LTj0lwdFQ==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      agent-adapter-monitor: ^0.3.0
-      pty-manager: ^1.6.0
+      pty-manager: ^1.7.2
     peerDependenciesMeta:
       agent-adapter-monitor:
         optional: true
@@ -8013,8 +8003,8 @@ packages:
       '@octokit/rest':
         optional: true
 
-  git-workspace-service@0.4.0:
-    resolution: {integrity: sha512-SQ6W7oz7UYb+i5VQ5Qy839H859MAL2JzIBbpCTh4n1lTplD2u+hDhcbLPENtDAQ3yhjwfdVVATheDH4nKWPghQ==}
+  git-workspace-service@0.4.3:
+    resolution: {integrity: sha512-QgFdGyaXC4pawUx1Ou+UHYsd9O/qEeiI3iN88lRuyk7ICJBZ2tsxzr7jGXpPAb03l1iSSOMjUBZZvN4gxlAzig==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@octokit/auth-app': '>=6.0.0'
@@ -10900,8 +10890,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  pty-manager@1.6.0:
-    resolution: {integrity: sha512-T+gsTAqNPE2yGBSjoQeJvwELh2stgxJzuX2Ld3iE7WjOD7Ys85hcGUcZQ0iRYXNG7f0hEtm4b/70gKjFRlcrqA==}
+  pty-manager@1.7.2:
+    resolution: {integrity: sha512-XiL8dAXlS9Z8psNdio4/qqUllB95eRCAEauDMcFdbnqhFHf0KWMgzPTJQ8/SZVriSr5T6MAoDGRWPdQ7QU2ShA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20780,13 +20770,9 @@ snapshots:
     dependencies:
       pty-manager: 1.3.1
 
-  coding-agent-adapters@0.7.0(pty-manager@1.6.0):
+  coding-agent-adapters@0.7.5(pty-manager@1.7.2):
     dependencies:
-      pty-manager: 1.6.0
-
-  coding-agent-adapters@0.7.1(pty-manager@1.6.0):
-    dependencies:
-      pty-manager: 1.6.0
+      pty-manager: 1.7.2
 
   collapse-white-space@2.1.0: {}
 
@@ -22594,7 +22580,7 @@ snapshots:
     optionalDependencies:
       '@octokit/rest': 22.0.1
 
-  git-workspace-service@0.4.0(@octokit/rest@22.0.1):
+  git-workspace-service@0.4.3(@octokit/rest@22.0.1):
     optionalDependencies:
       '@octokit/rest': 22.0.1
 
@@ -26240,7 +26226,7 @@ snapshots:
     dependencies:
       node-pty: 1.1.0
 
-  pty-manager@1.6.0:
+  pty-manager@1.7.2:
     dependencies:
       node-pty: 1.1.0
 

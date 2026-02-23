@@ -25,6 +25,8 @@ import {
   DeployOrgPatternDto,
   TeamDeploymentIdDto,
   ListDeploymentsDto,
+  RedeployTeamDto,
+  RenameTeamDto,
 } from './dto/team.dto';
 import { OrgPattern } from './org-chart.types';
 
@@ -144,7 +146,7 @@ export class TeamController {
       dto.spaceId,
       dto.templateId,
       user.id,
-      { projectId: dto.projectId },
+      { projectId: dto.projectId, teamName: dto.teamName },
     );
   }
 
@@ -160,7 +162,7 @@ export class TeamController {
       dto.spaceId,
       dto.orgPattern as unknown as OrgPattern,
       user.id,
-      { projectId: dto.projectId },
+      { projectId: dto.projectId, teamName: dto.teamName },
     );
   }
 
@@ -173,7 +175,41 @@ export class TeamController {
     return this.deploymentService.listDeployments(workspace.id, {
       spaceId: dto.spaceId,
       status: dto.status,
+      includeTornDown: dto.includeTornDown,
     });
+  }
+
+  @Post('deployments/redeploy')
+  @HttpCode(HttpStatus.OK)
+  async redeploy(
+    @Body() dto: RedeployTeamDto,
+    @AuthWorkspace() workspace: Workspace,
+    @AuthUser() user: User,
+  ) {
+    return this.deploymentService.redeployDeployment(
+      workspace.id,
+      dto.sourceDeploymentId,
+      user.id,
+      {
+        spaceId: dto.spaceId,
+        projectId: dto.projectId,
+        memoryPolicy: dto.memoryPolicy,
+        teamName: dto.teamName,
+      },
+    );
+  }
+
+  @Post('deployments/rename')
+  @HttpCode(HttpStatus.OK)
+  async renameDeployment(
+    @Body() dto: RenameTeamDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.renameDeployment(
+      workspace.id,
+      dto.deploymentId,
+      dto.teamName,
+    );
   }
 
   @Post('deployments/status')

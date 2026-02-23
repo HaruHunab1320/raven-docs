@@ -7,6 +7,7 @@ import {
   Loader,
   Menu,
   Stack,
+  Switch,
 } from "@mantine/core";
 import {
   IconPlayerPause,
@@ -14,14 +15,19 @@ import {
   IconTrash,
   IconDots,
   IconEye,
+  IconRotateClockwise,
+  IconPencil,
 } from "@tabler/icons-react";
 import {
   useTeamDeployments,
   usePauseDeploymentMutation,
   useResumeDeploymentMutation,
   useTeardownDeploymentMutation,
+  useRedeployTeamMutation,
+  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
 import type { TeamDeployment, WorkflowState } from "../types/team.types";
+import { useState } from "react";
 
 interface Props {
   workspaceId: string;
@@ -47,14 +53,31 @@ function workflowPhaseLabel(deployment: TeamDeployment): string {
   return state.currentPhase || "idle";
 }
 
+function getTeamName(deployment: TeamDeployment): string {
+  try {
+    const cfg =
+      typeof deployment.config === "string"
+        ? JSON.parse(deployment.config)
+        : deployment.config;
+    return cfg?.teamName || deployment.templateName;
+  } catch {
+    return deployment.templateName;
+  }
+}
+
 export function ActiveDeploymentsTable({
   workspaceId,
   onViewDeployment,
 }: Props) {
-  const { data: deployments, isLoading } = useTeamDeployments(workspaceId);
+  const [showTornDown, setShowTornDown] = useState(false);
+  const { data: deployments, isLoading } = useTeamDeployments(workspaceId, {
+    includeTornDown: showTornDown,
+  });
   const pauseMutation = usePauseDeploymentMutation();
   const resumeMutation = useResumeDeploymentMutation();
   const teardownMutation = useTeardownDeploymentMutation();
+  const redeployMutation = useRedeployTeamMutation();
+  const renameMutation = useRenameDeploymentMutation();
 
   if (isLoading) {
     return (
@@ -74,6 +97,18 @@ export function ActiveDeploymentsTable({
 
   return (
     <Stack gap="md">
+      <Group justify="space-between">
+        <Text size="sm" c="dimmed">
+          {deployments.length} deployment{deployments.length !== 1 ? "s" : ""}
+        </Text>
+        <Switch
+          size="xs"
+          label="Show torn down"
+          checked={showTornDown}
+          onChange={(e) => setShowTornDown(e.currentTarget.checked)}
+        />
+      </Group>
+
       <Table highlightOnHover>
         <Table.Thead>
           <Table.Tr>
@@ -89,7 +124,7 @@ export function ActiveDeploymentsTable({
             <Table.Tr key={d.id}>
               <Table.Td>
                 <Text size="sm" fw={500}>
-                  {d.templateName}
+                  {getTeamName(d)}
                 </Text>
               </Table.Td>
               <Table.Td>
@@ -138,6 +173,20 @@ export function ActiveDeploymentsTable({
                         Resume
                       </Menu.Item>
                     ) : null}
+                    <Menu.Item
+                      leftSection={<IconPencil size={14} />}
+                      onClick={() => {
+                        const currentName = getTeamName(d);
+                        const next = window.prompt("Rename team", currentName);
+                        if (!next || next.trim() === "" || next.trim() === currentName) return;
+                        renameMutation.mutate({
+                          deploymentId: d.id,
+                          teamName: next.trim(),
+                        });
+                      }}
+                    >
+                      Rename
+                    </Menu.Item>
                     {d.status !== "torn_down" && (
                       <>
                         <Menu.Divider />
@@ -147,6 +196,33 @@ export function ActiveDeploymentsTable({
                           onClick={() => teardownMutation.mutate(d.id)}
                         >
                           Teardown
+                        </Menu.Item>
+                      </>
+                    )}
+                    {d.status === "torn_down" && (
+                      <>
+                        <Menu.Divider />
+                        <Menu.Item
+                          leftSection={<IconRotateClockwise size={14} />}
+                          onClick={() =>
+                            redeployMutation.mutate({
+                              sourceDeploymentId: d.id,
+                              memoryPolicy: "none",
+                            })
+                          }
+                        >
+                          Redeploy fresh
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<IconRotateClockwise size={14} />}
+                          onClick={() =>
+                            redeployMutation.mutate({
+                              sourceDeploymentId: d.id,
+                              memoryPolicy: "carry_all",
+                            })
+                          }
+                        >
+                          Redeploy w/ memory
                         </Menu.Item>
                       </>
                     )}

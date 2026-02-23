@@ -21,6 +21,8 @@ import {
   useResumeDeploymentMutation,
   useStartWorkflowMutation,
   useTeardownDeploymentMutation,
+  useRedeployTeamMutation,
+  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
 import { WorkflowProgressBar } from "./workflow-progress-bar";
 import { OrgChartMermaidPreview } from "./org-chart-mermaid-preview";
@@ -51,12 +53,26 @@ function statusColor(status: string) {
   }
 }
 
+function getTeamName(config: unknown, templateName: string): string {
+  try {
+    const cfg =
+      typeof config === "string"
+        ? JSON.parse(config)
+        : (config as Record<string, any> | null);
+    return cfg?.teamName || templateName;
+  } catch {
+    return templateName;
+  }
+}
+
 export function DeploymentDetailView({ deploymentId, onBack }: Props) {
   const { data, isLoading } = useDeploymentStatus(deploymentId);
   const pauseMutation = usePauseDeploymentMutation();
   const resumeMutation = useResumeDeploymentMutation();
   const startMutation = useStartWorkflowMutation();
   const teardownMutation = useTeardownDeploymentMutation();
+  const redeployMutation = useRedeployTeamMutation();
+  const renameMutation = useRenameDeploymentMutation();
 
   if (isLoading || !data) {
     return (
@@ -88,7 +104,9 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
         <Stack gap="sm">
           <Group justify="space-between">
             <Group gap="sm">
-              <Text fw={600}>{deployment.templateName}</Text>
+              <Text fw={600}>
+                {getTeamName(deployment.config, deployment.templateName)}
+              </Text>
               <Badge color={statusColor(deployment.status)} variant="light">
                 {deployment.status}
               </Badge>
@@ -107,6 +125,25 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
                   Start Workflow
                 </Button>
               )}
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => {
+                  const currentName = getTeamName(
+                    deployment.config,
+                    deployment.templateName,
+                  );
+                  const next = window.prompt("Rename team", currentName);
+                  if (!next || next.trim() === "" || next.trim() === currentName) return;
+                  renameMutation.mutate({
+                    deploymentId: deployment.id,
+                    teamName: next.trim(),
+                  });
+                }}
+                loading={renameMutation.isPending}
+              >
+                Rename
+              </Button>
               {deployment.status === "active" && (
                 <>
                   <Button
@@ -144,6 +181,40 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
                 >
                   Resume
                 </Button>
+              )}
+              {deployment.status === "torn_down" && (
+                <>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() =>
+                      redeployMutation.mutate({
+                        sourceDeploymentId: deployment.id,
+                        spaceId: deployment.spaceId,
+                        projectId: deployment.projectId || undefined,
+                        memoryPolicy: "none",
+                      })
+                    }
+                    loading={redeployMutation.isPending}
+                  >
+                    Redeploy Fresh
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() =>
+                      redeployMutation.mutate({
+                        sourceDeploymentId: deployment.id,
+                        spaceId: deployment.spaceId,
+                        projectId: deployment.projectId || undefined,
+                        memoryPolicy: "carry_all",
+                      })
+                    }
+                    loading={redeployMutation.isPending}
+                  >
+                    Redeploy With Memory
+                  </Button>
+                </>
               )}
             </Group>
           </Group>

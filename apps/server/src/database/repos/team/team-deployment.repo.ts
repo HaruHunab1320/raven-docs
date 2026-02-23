@@ -54,7 +54,7 @@ export class TeamDeploymentRepo {
 
   async listByWorkspace(
     workspaceId: string,
-    opts?: { spaceId?: string; status?: string },
+    opts?: { spaceId?: string; status?: string; includeTornDown?: boolean },
   ) {
     let query = this.db
       .selectFrom('teamDeployments')
@@ -66,6 +66,9 @@ export class TeamDeploymentRepo {
     }
     if (opts?.status) {
       query = query.where('status', '=', opts.status);
+    }
+    if (!opts?.status && !opts?.includeTornDown) {
+      query = query.where('status', '!=', 'torn_down');
     }
 
     return query.orderBy('createdAt', 'desc').execute();
@@ -80,6 +83,18 @@ export class TeamDeploymentRepo {
     return db
       .updateTable('teamDeployments')
       .set(updateData)
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  async updateConfig(id: string, config: Record<string, any>) {
+    return this.db
+      .updateTable('teamDeployments')
+      .set({
+        config: JSON.stringify(config),
+        updatedAt: new Date(),
+      })
       .where('id', '=', id)
       .returningAll()
       .executeTakeFirst();

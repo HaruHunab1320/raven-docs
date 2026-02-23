@@ -55,10 +55,23 @@ export class WorkflowExecutorService {
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
     if (!stateRow?.executionPlan) return;
 
-    const plan = stateRow.executionPlan as unknown as RavenExecutionPlan;
-    const state = (stateRow.workflowState || {}) as unknown as WorkflowState;
+    const plan = this.parseJsonField<RavenExecutionPlan>(
+      stateRow.executionPlan,
+      {} as RavenExecutionPlan,
+    );
+    const state = this.parseJsonField<WorkflowState>(
+      stateRow.workflowState,
+      {
+        currentPhase: 'idle',
+        stepStates: {},
+        coordinatorInvocations: 0,
+      },
+    );
+    if (!state.stepStates) state.stepStates = {};
 
     if (state.currentPhase !== 'running') return;
+
+    this.resolveWaitingStepsOnTrigger(plan.steps || [], state, trigger);
 
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
 
@@ -93,8 +106,18 @@ export class WorkflowExecutorService {
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
     if (!stateRow?.executionPlan) return;
 
-    const plan = stateRow.executionPlan as unknown as RavenExecutionPlan;
-    const state = (stateRow.workflowState || {}) as unknown as WorkflowState;
+    const plan = this.parseJsonField<RavenExecutionPlan>(
+      stateRow.executionPlan,
+      {} as RavenExecutionPlan,
+    );
+    const state = this.parseJsonField<WorkflowState>(
+      stateRow.workflowState,
+      {
+        currentPhase: 'idle',
+        stepStates: {},
+        coordinatorInvocations: 0,
+      },
+    );
 
     if (!state.stepStates) state.stepStates = {};
 
@@ -141,8 +164,18 @@ export class WorkflowExecutorService {
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
     if (!stateRow?.executionPlan) return;
 
-    const plan = stateRow.executionPlan as unknown as RavenExecutionPlan;
-    const state = (stateRow.workflowState || {}) as unknown as WorkflowState;
+    const plan = this.parseJsonField<RavenExecutionPlan>(
+      stateRow.executionPlan,
+      {} as RavenExecutionPlan,
+    );
+    const state = this.parseJsonField<WorkflowState>(
+      stateRow.workflowState,
+      {
+        currentPhase: 'idle',
+        stepStates: {},
+        coordinatorInvocations: 0,
+      },
+    );
 
     if (!state.stepStates) state.stepStates = {};
 
@@ -528,5 +561,78 @@ export class WorkflowExecutorService {
     _stateRow: any,
   ): Promise<void> {
     await this.teamRepo.updateWorkflowState(deploymentId, state as any);
+  }
+
+  private parseJsonField<T>(value: unknown, fallback: T): T {
+    if (!value) return fallback;
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        return fallback;
+      }
+    }
+    return value as T;
+  }
+
+  private resolveWaitingStepsOnTrigger(
+    steps: RavenStepPlan[],
+    state: WorkflowState,
+    trigger: { reason: string; context?: Record<string, any> },
+  ): void {
+    const eventName =
+      trigger.reason === 'mcp_event'
+        ? String(trigger.context?.eventType || '')
+        : trigger.reason === 'coding_swarm_completed'
+          ? 'coding_swarm.completed'
+          : trigger.reason;
+    if (!eventName) return;
+
+    const waitingStep = this.findMatchingWaitingStep(steps, state, eventName);
+    if (!waitingStep) return;
+
+    const ss = state.stepStates[waitingStep.stepId];
+    ss.status = 'completed';
+    ss.completedAt = new Date().toISOString();
+    ss.result = {
+      event: eventName,
+      context: trigger.context || {},
+    };
+
+    this.handleParentCompletion(waitingStep.stepId, state, steps);
+  }
+
+  private findMatchingWaitingStep(
+    steps: RavenStepPlan[],
+    state: WorkflowState,
+    eventName: string,
+  ): RavenStepPlan | null {
+    for (const step of steps) {
+      const stepState = state.stepStates[step.stepId];
+      if (
+        step.operation.kind === 'await_event' &&
+        stepState?.status === 'waiting' &&
+        this.eventMatches(step.operation.eventPattern, eventName)
+      ) {
+        return step;
+      }
+
+      if (step.children?.length) {
+        const match = this.findMatchingWaitingStep(
+          step.children,
+          state,
+          eventName,
+        );
+        if (match) return match;
+      }
+    }
+    return null;
+  }
+
+  private eventMatches(pattern: string, eventName: string): boolean {
+    if (!pattern || pattern === '*') return true;
+    if (pattern === eventName) return true;
+    if (eventName.includes(pattern) || pattern.includes(eventName)) return true;
+    return false;
   }
 }

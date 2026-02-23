@@ -72,7 +72,10 @@ export class TeamCoordinatorListener {
       );
 
       for (const deployment of deployments) {
-        const plan = deployment.executionPlan as unknown as RavenExecutionPlan;
+        const plan =
+          typeof deployment.executionPlan === 'string'
+            ? (JSON.parse(deployment.executionPlan) as RavenExecutionPlan)
+            : (deployment.executionPlan as unknown as RavenExecutionPlan);
         if (!plan?.routing) continue;
 
         const matched = plan.routing.some((rule: RoutingRule) => {
@@ -107,7 +110,10 @@ export class TeamCoordinatorListener {
 
       for (const deployment of deployments) {
         const stateRow = await this.teamRepo.getWorkflowState(deployment.id);
-        const state = stateRow?.workflowState as any;
+        const state =
+          typeof stateRow?.workflowState === 'string'
+            ? JSON.parse(stateRow.workflowState)
+            : (stateRow?.workflowState as any);
         if (!state?.stepStates) continue;
 
         // Find 'wait' steps waiting for swarm events
