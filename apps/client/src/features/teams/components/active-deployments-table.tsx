@@ -24,10 +24,10 @@ import {
   useResumeDeploymentMutation,
   useTeardownDeploymentMutation,
   useRedeployTeamMutation,
-  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
 import type { TeamDeployment, WorkflowState } from "../types/team.types";
 import { useState } from "react";
+import { RenameTeamModal } from "./rename-team-modal";
 
 interface Props {
   workspaceId: string;
@@ -77,7 +77,11 @@ export function ActiveDeploymentsTable({
   const resumeMutation = useResumeDeploymentMutation();
   const teardownMutation = useTeardownDeploymentMutation();
   const redeployMutation = useRedeployTeamMutation();
-  const renameMutation = useRenameDeploymentMutation();
+  const [renameOpened, setRenameOpened] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{
+    deploymentId: string;
+    currentName: string;
+  } | null>(null);
 
   if (isLoading) {
     return (
@@ -176,13 +180,11 @@ export function ActiveDeploymentsTable({
                     <Menu.Item
                       leftSection={<IconPencil size={14} />}
                       onClick={() => {
-                        const currentName = getTeamName(d);
-                        const next = window.prompt("Rename team", currentName);
-                        if (!next || next.trim() === "" || next.trim() === currentName) return;
-                        renameMutation.mutate({
+                        setRenameTarget({
                           deploymentId: d.id,
-                          teamName: next.trim(),
+                          currentName: getTeamName(d),
                         });
+                        setRenameOpened(true);
                       }}
                     >
                       Rename
@@ -233,6 +235,15 @@ export function ActiveDeploymentsTable({
           ))}
         </Table.Tbody>
       </Table>
+      <RenameTeamModal
+        opened={renameOpened}
+        onClose={() => {
+          setRenameOpened(false);
+          setRenameTarget(null);
+        }}
+        deploymentId={renameTarget?.deploymentId}
+        currentName={renameTarget?.currentName}
+      />
     </Stack>
   );
 }

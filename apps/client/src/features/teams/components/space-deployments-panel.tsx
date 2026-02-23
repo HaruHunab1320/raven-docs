@@ -27,10 +27,10 @@ import {
   useResumeDeploymentMutation,
   useTeardownDeploymentMutation,
   useRedeployTeamMutation,
-  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
 import { DeployTeamModal } from "./deploy-team-modal";
 import { DeploymentDetailView } from "./deployment-detail-view";
+import { RenameTeamModal } from "./rename-team-modal";
 import { WorkflowProgressBar } from "./workflow-progress-bar";
 import type { TeamDeployment, WorkflowState } from "../types/team.types";
 
@@ -72,13 +72,18 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
   const resumeMutation = useResumeDeploymentMutation();
   const teardownMutation = useTeardownDeploymentMutation();
   const redeployMutation = useRedeployTeamMutation();
-  const renameMutation = useRenameDeploymentMutation();
 
   const [deployOpened, { open: openDeploy, close: closeDeploy }] =
+    useDisclosure(false);
+  const [renameOpened, { open: openRename, close: closeRename }] =
     useDisclosure(false);
   const [selectedDeployment, setSelectedDeployment] = useState<string | null>(
     null,
   );
+  const [renameTarget, setRenameTarget] = useState<{
+    deploymentId: string;
+    currentName: string;
+  } | null>(null);
 
   if (selectedDeployment) {
     return (
@@ -184,13 +189,11 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
                       <Menu.Item
                         leftSection={<IconPencil size={14} />}
                         onClick={() => {
-                          const currentName = getTeamName(d);
-                          const next = window.prompt("Rename team", currentName);
-                          if (!next || next.trim() === "" || next.trim() === currentName) return;
-                          renameMutation.mutate({
+                          setRenameTarget({
                             deploymentId: d.id,
-                            teamName: next.trim(),
+                            currentName: getTeamName(d),
                           });
+                          openRename();
                         }}
                       >
                         Rename
@@ -254,6 +257,12 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
         opened={deployOpened}
         onClose={closeDeploy}
         spaceId={spaceId}
+      />
+      <RenameTeamModal
+        opened={renameOpened}
+        onClose={closeRename}
+        deploymentId={renameTarget?.deploymentId}
+        currentName={renameTarget?.currentName}
       />
     </Stack>
   );

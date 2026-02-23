@@ -22,10 +22,11 @@ import {
   useStartWorkflowMutation,
   useTeardownDeploymentMutation,
   useRedeployTeamMutation,
-  useRenameDeploymentMutation,
 } from "../hooks/use-team-queries";
+import { useDisclosure } from "@mantine/hooks";
 import { WorkflowProgressBar } from "./workflow-progress-bar";
 import { OrgChartMermaidPreview } from "./org-chart-mermaid-preview";
+import { RenameTeamModal } from "./rename-team-modal";
 import type { WorkflowState, OrgPattern } from "../types/team.types";
 
 interface Props {
@@ -72,7 +73,8 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
   const startMutation = useStartWorkflowMutation();
   const teardownMutation = useTeardownDeploymentMutation();
   const redeployMutation = useRedeployTeamMutation();
-  const renameMutation = useRenameDeploymentMutation();
+  const [renameOpened, { open: openRename, close: closeRename }] =
+    useDisclosure(false);
 
   if (isLoading || !data) {
     return (
@@ -128,19 +130,7 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
               <Button
                 size="xs"
                 variant="subtle"
-                onClick={() => {
-                  const currentName = getTeamName(
-                    deployment.config,
-                    deployment.templateName,
-                  );
-                  const next = window.prompt("Rename team", currentName);
-                  if (!next || next.trim() === "" || next.trim() === currentName) return;
-                  renameMutation.mutate({
-                    deploymentId: deployment.id,
-                    teamName: next.trim(),
-                  });
-                }}
-                loading={renameMutation.isPending}
+                onClick={openRename}
               >
                 Rename
               </Button>
@@ -297,6 +287,13 @@ export function DeploymentDetailView({ deploymentId, onBack }: Props) {
           </Stack>
         </Card>
       )}
+
+      <RenameTeamModal
+        opened={renameOpened}
+        onClose={closeRename}
+        deploymentId={deployment.id}
+        currentName={getTeamName(deployment.config, deployment.templateName)}
+      />
     </Stack>
   );
 }
