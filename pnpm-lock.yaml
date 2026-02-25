@@ -155,7 +155,7 @@ importers:
         version: 3.1.2
       coding-agent-adapters:
         specifier: 0.7.5
-        version: 0.7.5(pty-manager@1.7.2)
+        version: 0.7.5(pty-manager@1.8.0)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -193,8 +193,8 @@ importers:
         specifier: ^13.0.0
         version: 13.1.3
       pty-manager:
-        specifier: 1.7.2
-        version: 1.7.2
+        specifier: 1.8.0
+        version: 1.8.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -626,7 +626,7 @@ importers:
         version: 0.14.3
       coding-agent-adapters:
         specifier: 0.7.5
-        version: 0.7.5(pty-manager@1.7.2)
+        version: 0.7.5(pty-manager@1.8.0)
       cookie:
         specifier: ^1.0.2
         version: 1.1.1
@@ -691,8 +691,8 @@ importers:
         specifier: ^4.0.5
         version: 4.0.5
       pty-manager:
-        specifier: 1.7.2
-        version: 1.7.2
+        specifier: 1.8.0
+        version: 1.8.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -10890,8 +10890,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  pty-manager@1.7.2:
-    resolution: {integrity: sha512-XiL8dAXlS9Z8psNdio4/qqUllB95eRCAEauDMcFdbnqhFHf0KWMgzPTJQ8/SZVriSr5T6MAoDGRWPdQ7QU2ShA==}
+  pty-manager@1.8.0:
+    resolution: {integrity: sha512-N8129+je8UYgakq8x0NgMA5yxbPCz0MBs5q8kRZjjCVRRzf5xOeq69LofkkNTfEmz1JRKa5pbA/m6nRCnxT9Cw==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20770,9 +20770,9 @@ snapshots:
     dependencies:
       pty-manager: 1.3.1
 
-  coding-agent-adapters@0.7.5(pty-manager@1.7.2):
+  coding-agent-adapters@0.7.5(pty-manager@1.8.0):
     dependencies:
-      pty-manager: 1.7.2
+      pty-manager: 1.8.0
 
   collapse-white-space@2.1.0: {}
 
@@ -26226,7 +26226,7 @@ snapshots:
     dependencies:
       node-pty: 1.1.0
 
-  pty-manager@1.7.2:
+  pty-manager@1.8.0:
     dependencies:
       node-pty: 1.1.0
 

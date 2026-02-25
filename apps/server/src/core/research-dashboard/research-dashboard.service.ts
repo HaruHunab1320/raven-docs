@@ -112,7 +112,14 @@ export class ResearchDashboardService {
       const contradictions = await this.researchGraph.findContradictions(
         workspaceId,
       );
-      contradictionCount = contradictions.length;
+      if (spaceId) {
+        const scopedPageIds = await this.getPageIdsInSpace(workspaceId, spaceId);
+        contradictionCount = contradictions.filter(
+          (edge) => scopedPageIds.has(edge.from) && scopedPageIds.has(edge.to),
+        ).length;
+      } else {
+        contradictionCount = contradictions.length;
+      }
     } catch {
       // Graph may not be available
     }
@@ -221,19 +228,22 @@ export class ResearchDashboardService {
         .selectFrom('pages')
         .select(['pages.id', 'pages.title', 'pages.pageType'])
         .where('pages.id', 'in', pageIds)
+        .$if(!!spaceId, (qb) => qb.where('pages.spaceId', '=', spaceId!))
         .execute();
 
       const pageMap = new Map(pages.map((p) => [p.id, p] as const));
 
-      return edges.map((e: any) => ({
-        from: e.from,
-        to: e.to,
-        type: e.type,
-        fromTitle: pageMap.get(e.from)?.title || 'Unknown',
-        fromType: pageMap.get(e.from)?.pageType || null,
-        toTitle: pageMap.get(e.to)?.title || 'Unknown',
-        toType: pageMap.get(e.to)?.pageType || null,
-      }));
+      return edges
+        .filter((e: any) => pageMap.has(e.from) && pageMap.has(e.to))
+        .map((e: any) => ({
+          from: e.from,
+          to: e.to,
+          type: e.type,
+          fromTitle: pageMap.get(e.from)?.title || 'Unknown',
+          fromType: pageMap.get(e.from)?.pageType || null,
+          toTitle: pageMap.get(e.to)?.title || 'Unknown',
+          toType: pageMap.get(e.to)?.pageType || null,
+        }));
     } catch {
       return [];
     }
@@ -298,8 +308,8 @@ export class ResearchDashboardService {
         deploymentId: string;
         teamName: string;
         status: string;
-        swarmExecutionId: string;
-        swarmStatus: string;
+        swarmExecutionId?: string;
+        swarmStatus?: string;
       }
     >();
 
@@ -344,6 +354,59 @@ export class ResearchDashboardService {
       });
     }
 
+    const assignedTeamRows =
+      experimentIds.length > 0
+        ? await this.db
+            .selectFrom('teamDeployments')
+            .select([
+              'teamDeployments.id as deploymentId',
+              'teamDeployments.templateName as templateName',
+              'teamDeployments.status as deploymentStatus',
+              'teamDeployments.config as deploymentConfig',
+              'teamDeployments.createdAt as deploymentCreatedAt',
+            ])
+            .where('teamDeployments.workspaceId', '=', workspaceId)
+            .$if(!!spaceId, (qb) => qb.where('teamDeployments.spaceId', '=', spaceId!))
+            .where('teamDeployments.status', '=', 'active')
+            .orderBy('teamDeployments.createdAt', 'desc')
+            .execute()
+        : [];
+
+    const assignedByExperiment = new Map<
+      string,
+      {
+        deploymentId: string;
+        teamName: string;
+        status: string;
+      }
+    >();
+
+    for (const row of assignedTeamRows) {
+      let config: any = null;
+      try {
+        config =
+          typeof row.deploymentConfig === 'string'
+            ? JSON.parse(row.deploymentConfig)
+            : row.deploymentConfig;
+      } catch {
+        config = null;
+      }
+      const targetExperimentId = config?.targetExperimentId as string | undefined;
+      if (!targetExperimentId || !experimentIds.includes(targetExperimentId)) continue;
+      if (assignedByExperiment.has(targetExperimentId)) continue;
+
+      assignedByExperiment.set(targetExperimentId, {
+        deploymentId: row.deploymentId as string,
+        teamName: (config?.teamName || row.templateName) as string,
+        status: row.deploymentStatus as string,
+      });
+    }
+
+    for (const [experimentId, team] of assignedByExperiment.entries()) {
+      if (activeTeamByExperiment.has(experimentId)) continue;
+      activeTeamByExperiment.set(experimentId, team);
+    }
+
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -384,12 +447,38 @@ export class ResearchDashboardService {
     }));
   }
 
-  async getDomainGraph(workspaceId: string, domainTags: string[]) {
+  async getDomainGraph(
+    workspaceId: string,
+    spaceId?: string,
+    domainTags: string[] = [],
+  ) {
     try {
-      return await this.researchGraph.getDomainGraph(workspaceId, domainTags);
+      const graph = await this.researchGraph.getDomainGraph(workspaceId, domainTags);
+      if (!spaceId) return graph;
+
+      const scopedPageIds = await this.getPageIdsInSpace(workspaceId, spaceId);
+      const nodes = graph.nodes.filter((node: any) => scopedPageIds.has(node.id));
+      const allowedNodeIds = new Set(nodes.map((node: any) => node.id));
+      const edges = graph.edges.filter(
+        (edge: any) =>
+          allowedNodeIds.has(edge.from) && allowedNodeIds.has(edge.to),
+      );
+
+      return { nodes, edges };
     } catch {
       return { nodes: [], edges: [] };
     }
+  }
+
+  private async getPageIdsInSpace(workspaceId: string, spaceId: string) {
+    const pageRows = await this.db
+      .selectFrom('pages')
+      .select('id')
+      .where('workspaceId', '=', workspaceId)
+      .where('spaceId', '=', spaceId)
+      .where('deletedAt', 'is', null)
+      .execute();
+    return new Set(pageRows.map((row) => row.id));
   }
 
   async getPatterns(

@@ -17,6 +17,7 @@ import {
   ListSwarmDto,
   StopSwarmDto,
   SwarmLogsDto,
+  ResetSwarmDto,
 } from './dto/coding-swarm.dto';
 
 @Controller('coding-swarm')
@@ -46,8 +47,11 @@ export class CodingSwarmController {
 
   @Post('status')
   @HttpCode(HttpStatus.OK)
-  async getStatus(@Body() dto: SwarmStatusDto) {
-    return this.codingSwarmService.getStatus(dto.executionId);
+  async getStatus(
+    @Body() dto: SwarmStatusDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.codingSwarmService.getStatus(workspace.id, dto.executionId);
   }
 
   @Post('list')
@@ -58,6 +62,7 @@ export class CodingSwarmController {
   ) {
     return this.codingSwarmService.list(workspace.id, {
       status: dto.status,
+      spaceId: dto.spaceId,
       experimentId: dto.experimentId,
       limit: dto.limit,
     });
@@ -65,13 +70,30 @@ export class CodingSwarmController {
 
   @Post('stop')
   @HttpCode(HttpStatus.OK)
-  async stop(@Body() dto: StopSwarmDto) {
-    return this.codingSwarmService.stop(dto.executionId);
+  async stop(@Body() dto: StopSwarmDto, @AuthWorkspace() workspace: Workspace) {
+    return this.codingSwarmService.stop(workspace.id, dto.executionId);
+  }
+
+  @Post('reset')
+  @HttpCode(HttpStatus.OK)
+  async reset(
+    @Body() dto: ResetSwarmDto,
+    @AuthWorkspace() workspace: Workspace,
+    @AuthUser() user: User,
+  ) {
+    return this.codingSwarmService.reset(dto.executionId, workspace.id, user.id);
   }
 
   @Post('logs')
   @HttpCode(HttpStatus.OK)
-  async getLogs(@Body() dto: SwarmLogsDto) {
-    return this.codingSwarmService.getLogs(dto.executionId, dto.limit);
+  async getLogs(
+    @Body() dto: SwarmLogsDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.codingSwarmService.getLogs(
+      workspace.id,
+      dto.executionId,
+      dto.limit,
+    );
   }
 }

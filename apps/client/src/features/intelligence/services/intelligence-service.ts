@@ -67,6 +67,14 @@ export async function getHypotheses(params: {
   return req.data;
 }
 
+export async function getDomainGraph(params: {
+  spaceId?: string;
+  domainTags?: string[];
+}): Promise<DomainGraphData> {
+  const req = await api.post<DomainGraphData>(`${ENDPOINT}/domain-graph`, params);
+  return req.data;
+}
+
 export async function getPatterns(params: {
   spaceId?: string;
   status?: string;

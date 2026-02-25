@@ -63,6 +63,7 @@ export async function getSwarmStatus(
 
 export async function listSwarmExecutions(params: {
   status?: string;
+  spaceId?: string;
   experimentId?: string;
   limit?: number;
 }): Promise<SwarmListResult> {

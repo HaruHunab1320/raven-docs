@@ -244,11 +244,15 @@ export class ContextAssemblyService {
           eb.or([
             sql<SqlBool>`LOWER(task_labels.name) = 'open-question'`,
             sql<SqlBool>`LOWER(task_labels.name) = 'open question'`,
-            sql<SqlBool>`tasks.tsv @@ plainto_tsquery('english', ${query})`,
+            sql<SqlBool>`"tasks"."tsv" @@ plainto_tsquery('english', ${query})`,
           ]),
         )
         .$if(!!spaceId, (qb) => qb.where('tasks.spaceId', '=', spaceId!))
         .where('tasks.status', '!=', 'done')
+        .orderBy(
+          sql<number>`ts_rank("tasks"."tsv", plainto_tsquery('english', ${query}))`,
+          'desc',
+        )
         .limit(10)
         .execute();
 

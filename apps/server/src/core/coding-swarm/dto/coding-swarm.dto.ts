@@ -46,6 +46,10 @@ export class ListSwarmDto {
 
   @IsUUID()
   @IsOptional()
+  spaceId?: string;
+
+  @IsUUID()
+  @IsOptional()
   experimentId?: string;
 
   @IsNumber()
@@ -55,6 +59,11 @@ export class ListSwarmDto {
 }
 
 export class StopSwarmDto {
+  @IsUUID()
+  executionId: string;
+}
+
+export class ResetSwarmDto {
   @IsUUID()
   executionId: string;
 }

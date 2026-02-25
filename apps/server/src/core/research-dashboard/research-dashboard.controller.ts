@@ -17,6 +17,7 @@ import {
   ContradictionsDto,
   ActiveExperimentsDto,
   HypothesesDto,
+  DomainGraphDto,
   PatternListDto,
   PatternActionDto,
 } from './dto/dashboard.dto';
@@ -91,6 +92,19 @@ export class ResearchDashboardController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.dashboardService.getHypotheses(workspace.id, dto.spaceId);
+  }
+
+  @Post('domain-graph')
+  @HttpCode(HttpStatus.OK)
+  async getDomainGraph(
+    @Body() dto: DomainGraphDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.dashboardService.getDomainGraph(
+      workspace.id,
+      dto.spaceId,
+      dto.domainTags || [],
+    );
   }
 
   @Post('patterns')

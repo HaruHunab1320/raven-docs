@@ -362,6 +362,7 @@ export class MCPWebSocketGateway
         event.resourceId,
       );
       const roomSize = this.getRoomSize(roomName);
+      let targetedRecipientCount = roomSize;
       this.logger.debug(
         `[MCP-WebSocket] Broadcasting to ${roomSize} clients in room: ${roomName}`,
       );
@@ -372,6 +373,7 @@ export class MCPWebSocketGateway
       if (event.workspaceId) {
         const workspaceRoom = this.getWorkspaceRoomName(event.workspaceId);
         const workspaceRoomSize = this.getRoomSize(workspaceRoom);
+        targetedRecipientCount += workspaceRoomSize;
         this.logger.debug(
           `[MCP-WebSocket] Broadcasting to ${workspaceRoomSize} clients in workspace room: ${workspaceRoom}`,
         );
@@ -383,6 +385,7 @@ export class MCPWebSocketGateway
       if (event.userId) {
         const userRoom = this.getUserRoomName(event.userId);
         const userRoomSize = this.getRoomSize(userRoom);
+        targetedRecipientCount += userRoomSize;
         this.logger.debug(
           `[MCP-WebSocket] Broadcasting to ${userRoomSize} clients in user room: ${userRoom}`,
         );
@@ -393,6 +396,7 @@ export class MCPWebSocketGateway
         if (event.type === MCPEventType.TOOL_EXECUTED) {
           const watchRoom = this.getWatchRoomName(event.userId);
           const watchRoomSize = this.getRoomSize(watchRoom);
+          targetedRecipientCount += watchRoomSize;
           if (watchRoomSize > 0) {
             this.logger.debug(
               `[MCP-WebSocket] Broadcasting to ${watchRoomSize} watchers in room: ${watchRoom}`,
@@ -403,7 +407,7 @@ export class MCPWebSocketGateway
       }
 
       // For debugging, let's see if we have any connected clients at all
-      const totalClients = this.server?.sockets?.sockets?.size ?? 0;
+      const totalClients = this.getConnectedClientCount();
       this.logger.debug(
         `[MCP-WebSocket] Total connected clients: ${totalClients}`,
       );
@@ -416,17 +420,19 @@ export class MCPWebSocketGateway
             `[MCP-WebSocket] Client ${clientId}: workspaceId=${details.workspaceId}, userId=${details.userId}`,
           );
         });
-      } else {
+      } else if (targetedRecipientCount === 0) {
         this.logger.warn(
           '[MCP-WebSocket] No clients connected to receive events!',
         );
       }
 
-      // Emit to all clients to ensure events are received during testing
-      this.logger.debug(
-        `[MCP-WebSocket] Broadcasting to all clients for testing`,
-      );
-      this.server.emit('mcp:event', event);
+      // Optional test broadcast. Disabled by default to avoid duplicate events.
+      if (process.env.MCP_WS_BROADCAST_ALL_FOR_TESTING === 'true') {
+        this.logger.debug(
+          `[MCP-WebSocket] Broadcasting to all clients for testing`,
+        );
+        this.server.emit('mcp:event', event);
+      }
     } catch (error) {
       const err = error as Error;
       this.logger.error(
@@ -454,6 +460,17 @@ export class MCPWebSocketGateway
         `Could not determine room size for ${roomName}: ${error}`,
       );
       return 0;
+    }
+  }
+
+  private getConnectedClientCount(): number {
+    try {
+      if (!this.server) return 0;
+      const namespaceCount = (this.server as any)?.sockets?.size;
+      if (typeof namespaceCount === 'number') return namespaceCount;
+      return this.connectedClients.size;
+    } catch {
+      return this.connectedClients.size;
     }
   }
 

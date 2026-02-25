@@ -30,6 +30,7 @@ import {
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { HypothesisScoreboard } from "../components/hypothesis-scoreboard";
 import { ActiveExperimentsList } from "../components/active-experiments-list";
+import { HypothesesList } from "../components/hypotheses-list";
 import { OpenQuestionsQueue } from "../components/open-questions-queue";
 import { RecentFindingsTimeline } from "../components/recent-findings-timeline";
 import { ContradictionAlerts } from "../components/contradiction-alerts";
@@ -43,6 +44,7 @@ import { SwarmExecutionsPanel } from "../components/swarm-executions-panel";
 import { SpaceDeploymentsPanel, DeployTeamModal } from "@/features/teams";
 import {
   useIntelligenceStats,
+  useDomainGraph,
   INTELLIGENCE_KEYS,
 } from "../hooks/use-intelligence-queries";
 import { useSwarmSocket } from "../hooks/use-swarm-socket";
@@ -51,6 +53,8 @@ export default function IntelligenceDashboardPage() {
   const { spaceId = "" } = useParams();
   const { data: space } = useSpaceQuery(spaceId);
   const { data: stats } = useIntelligenceStats(spaceId);
+  const { data: domainGraph, isLoading: isDomainGraphLoading } =
+    useDomainGraph(spaceId);
   const [activeTab, setActiveTab] = useState<string | null>("overview");
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -118,6 +122,9 @@ export default function IntelligenceDashboardPage() {
       }),
       queryClient.invalidateQueries({
         queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.domainGraph(spaceId),
       }),
       queryClient.invalidateQueries({
         queryKey: INTELLIGENCE_KEYS.patterns(spaceId),
@@ -202,6 +209,7 @@ export default function IntelligenceDashboardPage() {
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
             <Tabs.Tab value="overview">Overview</Tabs.Tab>
+            <Tabs.Tab value="hypotheses">Hypotheses</Tabs.Tab>
             <Tabs.Tab value="experiments">Experiments</Tabs.Tab>
             <Tabs.Tab value="questions">Open Questions</Tabs.Tab>
             <Tabs.Tab value="graph">Domain Graph</Tabs.Tab>
@@ -228,6 +236,13 @@ export default function IntelligenceDashboardPage() {
             />
           </Tabs.Panel>
 
+          <Tabs.Panel value="hypotheses" pt="md">
+            <HypothesesList
+              spaceId={spaceId}
+              onNewHypothesis={openHypothesis}
+            />
+          </Tabs.Panel>
+
           <Tabs.Panel value="questions" pt="md">
             <OpenQuestionsQueue
               spaceId={spaceId}
@@ -237,9 +252,9 @@ export default function IntelligenceDashboardPage() {
 
           <Tabs.Panel value="graph" pt="md">
             <DomainGraphVisualization
-              nodes={[]}
-              edges={[]}
-              isLoading={false}
+              nodes={domainGraph?.nodes || []}
+              edges={domainGraph?.edges || []}
+              isLoading={isDomainGraphLoading}
             />
             <Text size="xs" c="dimmed" mt="xs">
               Graph visualization will populate as typed pages and

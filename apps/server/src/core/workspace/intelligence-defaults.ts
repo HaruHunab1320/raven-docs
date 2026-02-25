@@ -166,12 +166,13 @@ export const defaultResearchProfile: IntelligenceSettings = {
 - Design experiments and review experiment designs
 - Synthesize findings across multiple experiments
 - Identify gaps, contradictions, and opportunities in the knowledge graph
-Use context.query to understand what's known before proposing anything new.`,
+Use intelligence.query to understand what's known before proposing anything new.`,
           capabilities: [
             'hypothesis.create',
             'hypothesis.update',
-            'experiment.design',
-            'context.query',
+            'experiment.register',
+            'experiment.update',
+            'intelligence.query',
             'task.create',
             'task.update',
             'page.create',
@@ -188,7 +189,7 @@ Use context.query to understand what's known before proposing anything new.`,
 - Flag unexpected observations as open questions
 - Propose follow-up experiments based on findings`,
           capabilities: [
-            'context.query',
+            'intelligence.query',
             'research.create',
             'page.create',
             'task.update',
@@ -204,7 +205,7 @@ Use context.query to understand what's known before proposing anything new.`,
 - Stale open questions that need attention
 Write synthesis reports as pages, update hypothesis statuses, and flag cross-domain connections.`,
           capabilities: [
-            'context.query',
+            'intelligence.query',
             'page.create',
             'task.create',
             'task.update',

@@ -84,7 +84,7 @@
     "nestjs-pino": "^4.4.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
-    "pty-manager": "1.7.2",
+    "pty-manager": "1.8.0",
     "uuid": "^11.1.0",
     "y-indexeddb": "^9.0.12",
     "y-prosemirror": "^1.2.11",

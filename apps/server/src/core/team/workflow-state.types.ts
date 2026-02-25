@@ -3,6 +3,7 @@ import type { RoutingRule, EscalationConfig } from './org-chart.types';
 export interface WorkflowState {
   currentPhase: 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'torn_down';
   stepStates: Record<string, StepState>;
+  runLogs?: TeamRunLogEntry[];
   startedAt?: string;
   completedAt?: string;
   lastAdvancedAt?: string;
@@ -18,6 +19,25 @@ export interface StepState {
   error?: string;
   retryCount: number;
   escalationCount: number;
+}
+
+export interface TeamRunLogAction {
+  method: string;
+  status: 'executed' | 'failed' | 'skipped';
+  error?: string;
+}
+
+export interface TeamRunLogEntry {
+  id: string;
+  timestamp: string;
+  deploymentId: string;
+  teamAgentId: string;
+  role: string;
+  stepId?: string;
+  summary: string;
+  actionsExecuted: number;
+  errorsEncountered: number;
+  actions: TeamRunLogAction[];
 }
 
 export type RavenOperation =

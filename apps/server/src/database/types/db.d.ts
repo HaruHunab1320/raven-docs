@@ -478,6 +478,7 @@ export interface Tasks {
   spaceId: string;
   status: Generated<TaskStatus>;
   title: string;
+  tsv: string | null;
   updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
@@ -621,6 +622,10 @@ export interface TeamAgents {
   userId: string | null;
   role: string;
   instanceNumber: number;
+  agentType: string | null;
+  workdir: string | null;
+  runtimeSessionId: string | null;
+  terminalSessionId: string | null;
   status: Generated<string>;
   systemPrompt: string;
   capabilities: Generated<string[]>;

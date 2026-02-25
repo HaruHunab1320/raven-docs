@@ -9,6 +9,7 @@ import {
   Menu,
   ActionIcon,
   Switch,
+  Collapse,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
@@ -28,6 +29,8 @@ import {
   useTeardownDeploymentMutation,
   useRedeployTeamMutation,
 } from "../hooks/use-team-queries";
+import { useTeamLiveUpdates } from "../hooks/use-team-live-updates";
+import { useActiveExperiments } from "@/features/intelligence/hooks/use-intelligence-queries";
 import { DeployTeamModal } from "./deploy-team-modal";
 import { DeploymentDetailView } from "./deployment-detail-view";
 import { RenameTeamModal } from "./rename-team-modal";
@@ -63,11 +66,37 @@ function getTeamName(deployment: TeamDeployment): string {
   }
 }
 
+function getTargetTaskId(deployment: TeamDeployment): string {
+  try {
+    const cfg =
+      typeof deployment.config === "string"
+        ? JSON.parse(deployment.config)
+        : deployment.config;
+    return cfg?.targetTaskId || "";
+  } catch {
+    return "";
+  }
+}
+
+function getTargetExperimentId(deployment: TeamDeployment): string {
+  try {
+    const cfg =
+      typeof deployment.config === "string"
+        ? JSON.parse(deployment.config)
+        : deployment.config;
+    return cfg?.targetExperimentId || "";
+  } catch {
+    return "";
+  }
+}
+
 export function SpaceDeploymentsPanel({ spaceId }: Props) {
+  useTeamLiveUpdates(spaceId);
   const [showTornDown, setShowTornDown] = useState(false);
   const { data: deployments, isLoading } = useSpaceDeployments(spaceId, {
     includeTornDown: showTornDown,
   });
+  const { data: experiments } = useActiveExperiments(spaceId);
   const pauseMutation = usePauseDeploymentMutation();
   const resumeMutation = useResumeDeploymentMutation();
   const teardownMutation = useTeardownDeploymentMutation();
@@ -77,22 +106,16 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
     useDisclosure(false);
   const [renameOpened, { open: openRename, close: closeRename }] =
     useDisclosure(false);
-  const [selectedDeployment, setSelectedDeployment] = useState<string | null>(
-    null,
-  );
+  const [expandedDeploymentId, setExpandedDeploymentId] = useState<
+    string | null
+  >(null);
   const [renameTarget, setRenameTarget] = useState<{
     deploymentId: string;
     currentName: string;
   } | null>(null);
-
-  if (selectedDeployment) {
-    return (
-      <DeploymentDetailView
-        deploymentId={selectedDeployment}
-        onBack={() => setSelectedDeployment(null)}
-      />
-    );
-  }
+  const experimentNameById = new Map(
+    (experiments || []).map((e) => [e.id, e.title || "Untitled experiment"]),
+  );
 
   if (isLoading) {
     return (
@@ -130,6 +153,10 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
 
       {(deployments || []).map((d: TeamDeployment) => {
         const workflowState = d.workflowState as WorkflowState | null;
+        const targetExperimentId = getTargetExperimentId(d);
+        const targetExperimentLabel = targetExperimentId
+          ? experimentNameById.get(targetExperimentId) || "Untitled experiment"
+          : "";
         return (
           <Card
             key={d.id}
@@ -137,7 +164,9 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
             radius="md"
             p="md"
             style={{ cursor: "pointer" }}
-            onClick={() => setSelectedDeployment(d.id)}
+            onClick={() =>
+              setExpandedDeploymentId((prev) => (prev === d.id ? null : d.id))
+            }
           >
             <Stack gap="sm">
               <Group justify="space-between">
@@ -158,6 +187,16 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
                         {workflowState.currentPhase}
                       </Badge>
                     )}
+                  {getTargetTaskId(d) && (
+                    <Badge size="sm" variant="outline" color="orange">
+                      task-scoped
+                    </Badge>
+                  )}
+                  {targetExperimentId && (
+                    <Badge size="sm" variant="outline" color="orange">
+                      experiment-scoped
+                    </Badge>
+                  )}
                 </Group>
                 <div
                   onClick={(e) => e.stopPropagation()}
@@ -248,6 +287,29 @@ export function SpaceDeploymentsPanel({ spaceId }: Props) {
               <Text size="xs" c="dimmed">
                 Deployed {new Date(d.createdAt).toLocaleString()}
               </Text>
+              {targetExperimentId && (
+                <Text size="xs" c="dimmed">
+                  Target experiment: {targetExperimentLabel} (
+                  {targetExperimentId})
+                </Text>
+              )}
+
+              <Collapse in={expandedDeploymentId === d.id}>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <Card
+                    withBorder
+                    radius="md"
+                    p="sm"
+                    mt="sm"
+                    style={{ cursor: "default" }}
+                  >
+                    <DeploymentDetailView deploymentId={d.id} compact />
+                  </Card>
+                </div>
+              </Collapse>
             </Stack>
           </Card>
         );

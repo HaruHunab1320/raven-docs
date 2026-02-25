@@ -181,7 +181,7 @@ export function PagePreviewDrawer({
         body: {
           padding: 0,
           backgroundColor:
-            colorScheme === "dark" ? theme.colors.dark[8] : theme.colors.gray[0],
+            colorScheme === "dark" ? theme.colors.dark[8] : theme.white,
         },
       }}
       closeButtonProps={{ display: "none" }}
@@ -210,6 +210,7 @@ export function PagePreviewDrawer({
                 pageId={page.id}
                 editable
                 content={page.content}
+                compact
               />
             </Box>
           </Stack>

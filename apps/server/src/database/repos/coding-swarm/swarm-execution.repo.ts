@@ -62,7 +62,7 @@ export class SwarmExecutionRepo {
 
   async findByWorkspace(
     workspaceId: string,
-    opts?: { status?: string; experimentId?: string; limit?: number },
+    opts?: { status?: string; spaceId?: string; experimentId?: string; limit?: number },
   ) {
     let query = this.db
       .selectFrom('swarmExecutions')
@@ -71,6 +71,9 @@ export class SwarmExecutionRepo {
 
     if (opts?.status) {
       query = query.where('status', '=', opts.status);
+    }
+    if (opts?.spaceId) {
+      query = query.where('spaceId', '=', opts.spaceId);
     }
     if (opts?.experimentId) {
       query = query.where('experimentId', '=', opts.experimentId);
@@ -90,6 +93,22 @@ export class SwarmExecutionRepo {
       .selectFrom('swarmExecutions')
       .selectAll()
       .where('workspaceId', '=', workspaceId)
+      .where('status', 'in', [
+        'pending',
+        'provisioning',
+        'spawning',
+        'running',
+        'capturing',
+        'finalizing',
+      ])
+      .orderBy('createdAt', 'desc')
+      .execute();
+  }
+
+  async findAllActive() {
+    return this.db
+      .selectFrom('swarmExecutions')
+      .selectAll()
       .where('status', 'in', [
         'pending',
         'provisioning',

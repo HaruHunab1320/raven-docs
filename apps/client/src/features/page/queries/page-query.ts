@@ -110,6 +110,26 @@ export function useUpdatePageMetadataMutation() {
       if (pageById) {
         queryClient.setQueryData(["pages", data.id], { ...pageById, ...data });
       }
+
+      if (data.spaceId) {
+        // Keep intelligence and team surfaces in sync when experiment/hypothesis
+        // metadata (like status) changes from the preview drawer.
+        queryClient.invalidateQueries({
+          queryKey: ["intelligence-experiments", data.spaceId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["intelligence-hypotheses", data.spaceId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["intelligence-timeline", data.spaceId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["intelligence-stats", data.spaceId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["team-deployments", "space", data.spaceId],
+        });
+      }
     },
   });
 }

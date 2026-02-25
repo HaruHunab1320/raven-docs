@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -16,7 +16,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 
 @Injectable()
-export class CodingSwarmService {
+export class CodingSwarmService implements OnModuleInit {
   private readonly logger = new Logger(CodingSwarmService.name);
 
   constructor(
@@ -30,6 +30,18 @@ export class CodingSwarmService {
     @InjectQueue(QueueName.GENERAL_QUEUE) private readonly generalQueue: Queue,
     @InjectKysely() private readonly db: KyselyDB,
   ) {}
+
+  async onModuleInit() {
+    // Recover active executions after server restarts.
+    setTimeout(() => {
+      this.recoverActiveExecutions().catch((error: any) => {
+        this.logger.error(
+          `Failed to recover active coding swarms: ${error.message}`,
+          error.stack,
+        );
+      });
+    }, 2000);
+  }
 
   /**
    * Entry point — create execution and enqueue processing job
@@ -62,15 +74,7 @@ export class CodingSwarmService {
     });
 
     // Enqueue for async processing
-    await this.generalQueue.add(
-      QueueJob.CODING_SWARM,
-      { executionId: execution.id },
-      {
-        attempts: 1,
-        removeOnComplete: { count: 50 },
-        removeOnFail: { count: 20 },
-      },
-    );
+    await this.enqueueExecution(execution.id);
 
     this.logger.log(
       `Coding swarm execution ${execution.id} enqueued for workspace ${params.workspaceId}`,
@@ -95,7 +99,12 @@ export class CodingSwarmService {
       if (config.repoUrl) {
         // Step 1: Provision git workspace
         await this.swarmExecRepo.updateStatus(executionId, 'provisioning');
-        this.emitStatusChanged(execution.workspaceId, executionId, 'provisioning');
+        this.emitStatusChanged(
+          execution.workspaceId,
+          executionId,
+          'provisioning',
+          execution.spaceId || undefined,
+        );
 
         const gitWorkspace = await this.gitWorkspaceService.provision({
           workspaceId: execution.workspaceId,
@@ -116,7 +125,12 @@ export class CodingSwarmService {
       await this.swarmExecRepo.updateStatus(executionId, 'spawning', {
         codingWorkspaceId,
       });
-      this.emitStatusChanged(execution.workspaceId, executionId, 'spawning');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        executionId,
+        'spawning',
+        execution.spaceId || undefined,
+      );
 
       // Step 2: Resolve API credentials for the agent
       const agentEnv = await this.resolveAgentCredentials(
@@ -173,7 +187,12 @@ export class CodingSwarmService {
         errorMessage: error.message,
         completedAt: new Date(),
       });
-      this.emitStatusChanged(execution.workspaceId, executionId, 'failed');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        executionId,
+        'failed',
+        execution.spaceId || undefined,
+      );
 
       await this.workspacePreparationService.cleanupApiKey(
         executionId,
@@ -195,7 +214,12 @@ export class CodingSwarmService {
       runtimeSessionId: data.runtimeSessionId,
       terminalSessionId: data.terminalSessionId,
     });
-    this.emitStatusChanged(execution.workspaceId, execution.id, 'running');
+    this.emitStatusChanged(
+      execution.workspaceId,
+      execution.id,
+      'running',
+      execution.spaceId || undefined,
+    );
 
     // Send the task to the agent via AgentExecutionService
     try {
@@ -214,7 +238,12 @@ export class CodingSwarmService {
         errorMessage: `Failed to deliver task to agent: ${error.message}`,
         completedAt: new Date(),
       });
-      this.emitStatusChanged(execution.workspaceId, execution.id, 'failed');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        execution.id,
+        'failed',
+        execution.spaceId || undefined,
+      );
       await this.workspacePreparationService.cleanupApiKey(
         execution.id,
         execution.triggeredBy || 'system',
@@ -235,7 +264,12 @@ export class CodingSwarmService {
     try {
       // Step 6: Capture results
       await this.swarmExecRepo.updateStatus(execution.id, 'capturing');
-      this.emitStatusChanged(execution.workspaceId, execution.id, 'capturing');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        execution.id,
+        'capturing',
+        execution.spaceId || undefined,
+      );
 
       await this.swarmExecRepo.updateResults(execution.id, {
         outputSummary: data.reason || 'Agent completed',
@@ -247,7 +281,12 @@ export class CodingSwarmService {
       // Step 7: Finalize — commit, push, PR
       if (execution.codingWorkspaceId) {
         await this.swarmExecRepo.updateStatus(execution.id, 'finalizing');
-        this.emitStatusChanged(execution.workspaceId, execution.id, 'finalizing');
+        this.emitStatusChanged(
+          execution.workspaceId,
+          execution.id,
+          'finalizing',
+          execution.spaceId || undefined,
+        );
 
         try {
           const finResult = await this.gitWorkspaceService.finalize(
@@ -285,10 +324,16 @@ export class CodingSwarmService {
       await this.swarmExecRepo.updateStatus(execution.id, 'completed', {
         completedAt: new Date(),
       });
-      this.emitStatusChanged(execution.workspaceId, execution.id, 'completed');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        execution.id,
+        'completed',
+        execution.spaceId || undefined,
+      );
 
       this.eventEmitter.emit('coding_swarm.completed', {
         workspaceId: execution.workspaceId,
+        spaceId: execution.spaceId,
         executionId: execution.id,
         experimentId: execution.experimentId,
       });
@@ -311,7 +356,12 @@ export class CodingSwarmService {
         errorMessage: error.message,
         completedAt: new Date(),
       });
-      this.emitStatusChanged(execution.workspaceId, execution.id, 'failed');
+      this.emitStatusChanged(
+        execution.workspaceId,
+        execution.id,
+        'failed',
+        execution.spaceId || undefined,
+      );
     }
   }
 
@@ -326,7 +376,12 @@ export class CodingSwarmService {
       errorMessage: data.error || 'Agent error',
       completedAt: new Date(),
     });
-    this.emitStatusChanged(execution.workspaceId, execution.id, 'failed');
+    this.emitStatusChanged(
+      execution.workspaceId,
+      execution.id,
+      'failed',
+      execution.spaceId || undefined,
+    );
 
     // Revoke the scoped MCP API key
     await this.workspacePreparationService.cleanupApiKey(
@@ -343,8 +398,12 @@ export class CodingSwarmService {
   /**
    * Get execution status
    */
-  async getStatus(executionId: string) {
-    return this.swarmExecRepo.findById(executionId);
+  async getStatus(workspaceId: string, executionId: string) {
+    const execution = await this.swarmExecRepo.findById(executionId);
+    if (!execution || execution.workspaceId !== workspaceId) {
+      throw new Error(`Execution ${executionId} not found`);
+    }
+    return execution;
   }
 
   /**
@@ -352,7 +411,7 @@ export class CodingSwarmService {
    */
   async list(
     workspaceId: string,
-    opts?: { status?: string; experimentId?: string; limit?: number },
+    opts?: { status?: string; spaceId?: string; experimentId?: string; limit?: number },
   ) {
     return this.swarmExecRepo.findByWorkspace(workspaceId, opts);
   }
@@ -360,9 +419,11 @@ export class CodingSwarmService {
   /**
    * Stop a running execution
    */
-  async stop(executionId: string) {
+  async stop(workspaceId: string, executionId: string) {
     const execution = await this.swarmExecRepo.findById(executionId);
-    if (!execution) throw new Error(`Execution ${executionId} not found`);
+    if (!execution || execution.workspaceId !== workspaceId) {
+      throw new Error(`Execution ${executionId} not found`);
+    }
 
     // Stop the agent via AgentExecutionService
     if (execution.agentId) {
@@ -381,7 +442,12 @@ export class CodingSwarmService {
     await this.swarmExecRepo.updateStatus(executionId, 'cancelled', {
       completedAt: new Date(),
     });
-    this.emitStatusChanged(execution.workspaceId, executionId, 'cancelled');
+    this.emitStatusChanged(
+      execution.workspaceId,
+      executionId,
+      'cancelled',
+      execution.spaceId || undefined,
+    );
 
     await this.workspacePreparationService.cleanupApiKey(
       execution.id,
@@ -397,11 +463,83 @@ export class CodingSwarmService {
   }
 
   /**
-   * Get terminal logs for an execution
+   * Reset an execution: stop/cancel current run (if active) and start a fresh run
+   * with the same parameters.
    */
-  async getLogs(executionId: string, limit?: number) {
+  async reset(executionId: string, workspaceId: string, requestedBy: string) {
     const execution = await this.swarmExecRepo.findById(executionId);
     if (!execution) throw new Error(`Execution ${executionId} not found`);
+    if (execution.workspaceId !== workspaceId) {
+      throw new Error('Execution not found in workspace');
+    }
+
+    const activeStatuses = new Set([
+      'pending',
+      'provisioning',
+      'spawning',
+      'running',
+      'capturing',
+      'finalizing',
+    ]);
+
+    if (activeStatuses.has(execution.status)) {
+      await this.stop(workspaceId, execution.id);
+    }
+
+    const cfg = this.parseJsonSafe(execution.config) || {};
+    const ctx = this.parseJsonSafe(execution.taskContext) || undefined;
+    const metadata = this.parseJsonSafe(execution.metadata) || {};
+
+    const restarted = await this.execute({
+      workspaceId: execution.workspaceId,
+      experimentId: execution.experimentId || undefined,
+      spaceId: execution.spaceId || undefined,
+      repoUrl: cfg.repoUrl || undefined,
+      taskDescription: execution.taskDescription,
+      agentType: execution.agentType || cfg.agentType || 'claude-code',
+      baseBranch: cfg.baseBranch || 'main',
+      taskContext: ctx,
+      triggeredBy: requestedBy || execution.triggeredBy || 'system',
+      config: {
+        ...cfg,
+        metadata: undefined,
+      },
+    });
+
+    // annotate recovery linkage on the fresh run
+    const restartedExecution = await this.swarmExecRepo.findById(
+      restarted.executionId,
+    );
+    if (restartedExecution) {
+      const restartedMetadata =
+        this.parseJsonSafe(restartedExecution.metadata) || {};
+      await this.swarmExecRepo.updateStatus(restarted.executionId, 'pending', {
+        metadata: JSON.stringify({
+          ...restartedMetadata,
+          resetFromExecutionId: execution.id,
+          resetRequestedBy: requestedBy,
+          resetAt: new Date().toISOString(),
+          previousMetadata: metadata || undefined,
+        }),
+      });
+    }
+
+    return {
+      success: true,
+      previousExecutionId: execution.id,
+      restartedExecutionId: restarted.executionId,
+      status: restarted.status,
+    };
+  }
+
+  /**
+   * Get terminal logs for an execution
+   */
+  async getLogs(workspaceId: string, executionId: string, limit?: number) {
+    const execution = await this.swarmExecRepo.findById(executionId);
+    if (!execution || execution.workspaceId !== workspaceId) {
+      throw new Error(`Execution ${executionId} not found`);
+    }
 
     // Try local PTY logs first if the agent is still tracked
     if (execution.agentId) {
@@ -541,9 +679,11 @@ export class CodingSwarmService {
     workspaceId: string,
     executionId: string,
     status: string,
+    spaceId?: string,
   ) {
     this.eventEmitter.emit('coding_swarm.status_changed', {
       workspaceId,
+      spaceId,
       executionId,
       status,
     });
@@ -560,5 +700,83 @@ export class CodingSwarmService {
         );
       }
     }, delayMs);
+  }
+
+  private async enqueueExecution(executionId: string) {
+    await this.generalQueue.add(
+      QueueJob.CODING_SWARM,
+      { executionId },
+      {
+        jobId: `coding-swarm:${executionId}`,
+        attempts: 1,
+        removeOnComplete: { count: 50 },
+        removeOnFail: { count: 20 },
+      },
+    );
+  }
+
+  private parseJsonSafe(value: unknown): any {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    }
+    return value;
+  }
+
+  private async recoverActiveExecutions() {
+    const active = await this.swarmExecRepo.findAllActive();
+    if (active.length === 0) return;
+
+    this.logger.warn(
+      `Recovering ${active.length} active coding swarm execution(s) after startup`,
+    );
+
+    for (const execution of active) {
+      try {
+        if (['pending', 'provisioning', 'spawning'].includes(execution.status)) {
+          await this.swarmExecRepo.updateStatus(execution.id, 'pending');
+          await this.enqueueExecution(execution.id);
+          this.emitStatusChanged(
+            execution.workspaceId,
+            execution.id,
+            'pending',
+            execution.spaceId || undefined,
+          );
+          continue;
+        }
+
+        // running/capturing/finalizing can't be resumed reliably; restart from same input
+        await this.swarmExecRepo.updateStatus(execution.id, 'failed', {
+          errorMessage:
+            'Execution interrupted by server restart; auto-restarting',
+          completedAt: new Date(),
+        });
+        this.emitStatusChanged(
+          execution.workspaceId,
+          execution.id,
+          'failed',
+          execution.spaceId || undefined,
+        );
+        await this.workspacePreparationService.cleanupApiKey(
+          execution.id,
+          execution.triggeredBy || 'system',
+        );
+
+        await this.reset(
+          execution.id,
+          execution.workspaceId,
+          execution.triggeredBy || 'system',
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to recover execution ${execution.id}: ${error.message}`,
+          error.stack,
+        );
+      }
+    }
   }
 }

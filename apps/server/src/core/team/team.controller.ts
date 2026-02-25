@@ -7,6 +7,7 @@ import {
   HttpStatus,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -27,8 +28,10 @@ import {
   ListDeploymentsDto,
   RedeployTeamDto,
   RenameTeamDto,
+  AssignTeamTaskDto,
 } from './dto/team.dto';
 import { OrgPattern } from './org-chart.types';
+import { TeamTemplateValidationService } from './team-template-validation.service';
 
 @Controller('teams')
 @UseGuards(JwtAuthGuard)
@@ -36,6 +39,7 @@ export class TeamController {
   constructor(
     private readonly deploymentService: TeamDeploymentService,
     private readonly templateRepo: TeamTemplateRepo,
+    private readonly templateValidation: TeamTemplateValidationService,
   ) {}
 
   // ─── Template Endpoints ──────────────────────────────────────────────────
@@ -66,6 +70,16 @@ export class TeamController {
     @AuthWorkspace() workspace: Workspace,
     @AuthUser() user: User,
   ) {
+    const validation = this.templateValidation.validateOrgPatternCapabilities(
+      dto.orgPattern,
+    );
+    if (!validation.valid) {
+      throw new BadRequestException({
+        message: 'Template contains invalid role capabilities',
+        invalidCapabilities: validation.invalidCapabilities,
+      });
+    }
+
     return this.templateRepo.create({
       workspaceId: workspace.id,
       name: dto.name,
@@ -89,6 +103,18 @@ export class TeamController {
     }
     if (existing.isSystem) {
       throw new ForbiddenException('Cannot modify system templates');
+    }
+
+    if (dto.orgPattern) {
+      const validation = this.templateValidation.validateOrgPatternCapabilities(
+        dto.orgPattern,
+      );
+      if (!validation.valid) {
+        throw new BadRequestException({
+          message: 'Template contains invalid role capabilities',
+          invalidCapabilities: validation.invalidCapabilities,
+        });
+      }
     }
 
     return this.templateRepo.update(dto.templateId, {
@@ -157,6 +183,16 @@ export class TeamController {
     @AuthWorkspace() workspace: Workspace,
     @AuthUser() user: User,
   ) {
+    const validation = this.templateValidation.validateOrgPatternCapabilities(
+      dto.orgPattern,
+    );
+    if (!validation.valid) {
+      throw new BadRequestException({
+        message: 'Org pattern contains invalid role capabilities',
+        invalidCapabilities: validation.invalidCapabilities,
+      });
+    }
+
     return this.deploymentService.deployFromOrgPattern(
       workspace.id,
       dto.spaceId,
@@ -212,39 +248,71 @@ export class TeamController {
     );
   }
 
+  @Post('deployments/assign-task')
+  @HttpCode(HttpStatus.OK)
+  async assignTask(
+    @Body() dto: AssignTeamTaskDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.assignTargetTask(
+      workspace.id,
+      dto.deploymentId,
+      dto.taskId,
+      dto.experimentId,
+    );
+  }
+
   @Post('deployments/status')
   @HttpCode(HttpStatus.OK)
-  async getDeploymentStatus(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.getDeployment(dto.deploymentId);
+  async getDeploymentStatus(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.getDeployment(workspace.id, dto.deploymentId);
   }
 
   @Post('deployments/trigger')
   @HttpCode(HttpStatus.OK)
-  async triggerRun(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.triggerTeamRun(dto.deploymentId);
+  async triggerRun(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.triggerTeamRun(workspace.id, dto.deploymentId);
   }
 
   @Post('deployments/pause')
   @HttpCode(HttpStatus.OK)
-  async pauseDeployment(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.pauseDeployment(dto.deploymentId);
+  async pauseDeployment(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.pauseDeployment(workspace.id, dto.deploymentId);
   }
 
   @Post('deployments/resume')
   @HttpCode(HttpStatus.OK)
-  async resumeDeployment(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.resumeDeployment(dto.deploymentId);
+  async resumeDeployment(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.resumeDeployment(workspace.id, dto.deploymentId);
   }
 
   @Post('deployments/teardown')
   @HttpCode(HttpStatus.OK)
-  async teardownDeployment(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.teardownTeam(dto.deploymentId);
+  async teardownDeployment(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.teardownTeam(workspace.id, dto.deploymentId);
   }
 
   @Post('deployments/workflow/start')
   @HttpCode(HttpStatus.OK)
-  async startWorkflow(@Body() dto: TeamDeploymentIdDto) {
-    return this.deploymentService.startWorkflow(dto.deploymentId);
+  async startWorkflow(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.startWorkflow(workspace.id, dto.deploymentId);
   }
 }

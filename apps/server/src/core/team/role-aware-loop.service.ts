@@ -18,6 +18,8 @@ interface RoleLoopInput {
   capabilities: string[];
   stepId?: string;
   stepContext?: { name: string; task: string };
+  targetTaskId?: string;
+  targetExperimentId?: string;
 }
 
 interface RoleLoopResult {
@@ -29,6 +31,42 @@ interface RoleLoopResult {
     status: 'executed' | 'failed' | 'skipped';
     error?: string;
   }>;
+}
+
+const MCP_METHOD_ALIASES: Record<string, string> = {
+  'context.query': 'intelligence.query',
+};
+
+function isValidMcpMethod(method: string): boolean {
+  const trimmed = method.trim();
+  // Must be exactly "resource.operation" using alphanumeric/underscore segments.
+  return /^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$/.test(trimmed);
+}
+
+function isValidCapability(capability: string): boolean {
+  const trimmed = capability.trim();
+  return trimmed === '*' || /^[a-zA-Z0-9_]+\.\*$/.test(trimmed) || isValidMcpMethod(trimmed);
+}
+
+function isWriteMethod(method: string): boolean {
+  const normalized = (MCP_METHOD_ALIASES[method] || method || '').trim();
+  if (!normalized.includes('.')) return false;
+  const operation = normalized.split('.')[1]?.toLowerCase() || '';
+  return [
+    'create',
+    'update',
+    'complete',
+    'assign',
+    'delete',
+    'move',
+    'register',
+    'restore',
+    'approve',
+    'teardown',
+    'deploy',
+    'trigger',
+    'start',
+  ].includes(operation);
 }
 
 @Injectable()
@@ -54,6 +92,9 @@ export class RoleAwareLoopService {
   async runRoleLoop(input: RoleLoopInput): Promise<RoleLoopResult> {
     const { workspaceId, spaceId, agentUserId, role, systemPrompt, capabilities } =
       input;
+    const toolCapabilities = (capabilities || []).filter((cap) =>
+      isValidCapability(cap),
+    );
 
     // Get the user entity for MCP calls
     const user = await this.userRepo.findById(agentUserId, workspaceId);
@@ -66,21 +107,51 @@ export class RoleAwareLoopService {
       };
     }
 
+    if (toolCapabilities.length === 0) {
+      return {
+        summary:
+          'No valid MCP capabilities configured for this agent role. Update team template capabilities.',
+        actionsExecuted: 0,
+        errorsEncountered: 1,
+        actions: [],
+      };
+    }
+
+    if (input.targetTaskId) {
+      const claimed = await this.teamRepo.claimTask(
+        input.targetTaskId,
+        agentUserId,
+        workspaceId,
+      );
+      if (!claimed) {
+        return {
+          summary: `Target task ${input.targetTaskId} is not claimable`,
+          actionsExecuted: 0,
+          errorsEncountered: 0,
+          actions: [],
+        };
+      }
+    }
+
     // Gather context relevant to the agent's role
     const roleContext = await this.buildRoleContext(
       role,
       workspaceId,
       spaceId,
       user,
+      input.targetTaskId,
+      input.targetExperimentId,
     );
 
     // Build the full prompt
     const prompt = this.buildPrompt(
       role,
       systemPrompt,
-      capabilities,
+      toolCapabilities,
       roleContext,
       input.stepContext,
+      input.targetTaskId,
+      input.targetExperimentId,
     );
 
     // Call AI to plan actions
@@ -127,27 +198,72 @@ export class RoleAwareLoopService {
     const actions = Array.isArray(plan.actions)
       ? plan.actions.slice(0, 3)
       : [];
+    const hasPlannedWrite = actions.some((a) =>
+      a?.method ? isWriteMethod(String(a.method)) : false,
+    );
+    if (
+      (input.targetTaskId || input.targetExperimentId) &&
+      !hasPlannedWrite
+    ) {
+      const fallbackAction = this.buildWriteFallbackAction(
+        role,
+        input.targetTaskId,
+        input.targetExperimentId,
+        toolCapabilities,
+      );
+      if (fallbackAction) {
+        actions.unshift(fallbackAction);
+      } else {
+        return {
+          summary:
+            'No write-capable action available for targeted run. Update team capabilities (e.g. experiment.update, task.create, page.create).',
+          actionsExecuted: 0,
+          errorsEncountered: 1,
+          actions: [
+            {
+              method: 'team.targeted_write_guard',
+              status: 'failed',
+              error:
+                'Targeted runs must include at least one write action, but this role has no write-capable methods configured.',
+            },
+          ],
+        };
+      }
+    }
     const results: RoleLoopResult['actions'] = [];
     let actionsExecuted = 0;
     let errorsEncountered = 0;
 
     for (const action of actions) {
       if (!action?.method) continue;
+      const rawMethod =
+        typeof action.method === 'string' ? action.method.trim() : '';
+      const method = MCP_METHOD_ALIASES[rawMethod] || rawMethod;
+
+      if (!isValidMcpMethod(method)) {
+        results.push({
+          method: rawMethod || 'unknown',
+          status: 'skipped',
+          error: 'Invalid method format (expected "resource.operation")',
+        });
+        continue;
+      }
 
       // Validate capability
-      const resource = action.method.split('.')[0];
-      const hasCapability = capabilities.some(
+      const resource = method.split('.')[0];
+      const hasCapability = toolCapabilities.some(
         (cap) =>
           cap === action.method ||
+          cap === method ||
           cap === `${resource}.*` ||
           cap === '*',
       );
 
       if (!hasCapability) {
         results.push({
-          method: action.method,
+          method,
           status: 'skipped',
-          error: `Not in agent capabilities: ${capabilities.join(', ')}`,
+          error: `Not in agent capabilities: ${toolCapabilities.join(', ')}`,
         });
         continue;
       }
@@ -162,18 +278,18 @@ export class RoleAwareLoopService {
         await this.mcpService.processRequest(
           {
             jsonrpc: '2.0',
-            method: action.method,
+            method,
             params,
             id: Date.now(),
           },
           user as User,
         );
 
-        results.push({ method: action.method, status: 'executed' });
+        results.push({ method, status: 'executed' });
         actionsExecuted++;
       } catch (error: any) {
         results.push({
-          method: action.method,
+          method,
           status: 'failed',
           error: error?.message || 'Unknown error',
         });
@@ -216,35 +332,43 @@ export class RoleAwareLoopService {
     workspaceId: string,
     spaceId: string,
     user: User,
+    targetTaskId?: string,
+    targetExperimentId?: string,
   ): Promise<string> {
     const sections: string[] = [];
 
     try {
-      // Get recent unassigned tasks for the space
-      const tasks = await this.mcpService.processRequest(
-        {
-          jsonrpc: '2.0',
-          method: 'task.list',
-          params: {
-            spaceId,
-            workspaceId,
-            status: ['todo'],
-            limit: 10,
+      if (targetTaskId) {
+        sections.push(`Target task ID: ${targetTaskId}`);
+      } else if (targetExperimentId) {
+        sections.push(`Target experiment ID: ${targetExperimentId}`);
+      } else {
+        // Get recent unassigned tasks for the space
+        const tasks = await this.mcpService.processRequest(
+          {
+            jsonrpc: '2.0',
+            method: 'task.list',
+            params: {
+              spaceId,
+              workspaceId,
+              status: ['todo'],
+              limit: 10,
+            },
+            id: Date.now(),
           },
-          id: Date.now(),
-        },
-        user,
-      );
-
-      if (tasks.result?.tasks?.length) {
-        sections.push(
-          `Open tasks:\n${tasks.result.tasks
-            .map(
-              (t: any) =>
-                `- [${t.status}] ${t.title}${t.assigneeId ? ' (assigned)' : ' (unassigned)'}`,
-            )
-            .join('\n')}`,
+          user,
         );
+
+        if (tasks.result?.tasks?.length) {
+          sections.push(
+            `Open tasks:\n${tasks.result.tasks
+              .map(
+                (t: any) =>
+                  `- [${t.status}] ${t.title}${t.assigneeId ? ' (assigned)' : ' (unassigned)'}`,
+              )
+              .join('\n')}`,
+          );
+        }
       }
     } catch {
       // Task listing may fail
@@ -291,6 +415,8 @@ export class RoleAwareLoopService {
     capabilities: string[],
     roleContext: string,
     stepContext?: { name: string; task: string },
+    targetTaskId?: string,
+    targetExperimentId?: string,
   ): string {
     const parts = [
       systemPrompt,
@@ -305,6 +431,26 @@ export class RoleAwareLoopService {
       parts.push(`Task: ${stepContext.task}`);
     }
 
+    if (targetTaskId) {
+      parts.push('');
+      parts.push(`You are assigned to task ID: ${targetTaskId}`);
+      parts.push(
+        `Only execute actions that directly advance this task. Do not branch to unrelated tasks.`,
+      );
+      parts.push(
+        `Include at least one WRITE action (e.g. task.update, page.create) unless impossible.`,
+      );
+    } else if (targetExperimentId) {
+      parts.push('');
+      parts.push(`You are assigned to experiment ID: ${targetExperimentId}`);
+      parts.push(
+        `Only execute actions that directly advance this experiment. Do not branch to unrelated tasks or experiments.`,
+      );
+      parts.push(
+        `Include at least one WRITE action (e.g. experiment.update, experiment.complete, task.create, page.create) unless impossible.`,
+      );
+    }
+
     parts.push(
       '',
       roleContext ? `Current state:\n${roleContext}` : '',
@@ -316,6 +462,59 @@ export class RoleAwareLoopService {
     );
 
     return parts.filter(Boolean).join('\n');
+  }
+
+  private buildWriteFallbackAction(
+    role: string,
+    targetTaskId: string | undefined,
+    targetExperimentId: string | undefined,
+    capabilities: string[],
+  ): { method: string; params: Record<string, any>; rationale: string } | null {
+    const canUse = (method: string) => {
+      const [resource] = method.split('.');
+      return capabilities.includes('*') ||
+        capabilities.includes(method) ||
+        capabilities.includes(`${resource}.*`);
+    };
+
+    if (targetExperimentId && canUse('experiment.update')) {
+      return {
+        method: 'experiment.update',
+        params: {
+          pageId: targetExperimentId,
+          status: 'running',
+        },
+        rationale: 'Record explicit progress heartbeat on the target experiment.',
+      };
+    }
+
+    if (targetTaskId && canUse('task.update')) {
+      return {
+        method: 'task.update',
+        params: {
+          taskId: targetTaskId,
+          status: 'in_progress',
+        },
+        rationale: 'Keep target task status aligned with active execution.',
+      };
+    }
+
+    if (canUse('task.create')) {
+      return {
+        method: 'task.create',
+        params: {
+          title: `${role}: follow-up checkpoint`,
+          description: targetExperimentId
+            ? `Auto-generated progress checkpoint for experiment ${targetExperimentId}.`
+            : targetTaskId
+              ? `Auto-generated progress checkpoint for task ${targetTaskId}.`
+              : 'Auto-generated progress checkpoint.',
+        },
+        rationale: 'Create a concrete follow-up artifact when no direct write action is proposed.',
+      };
+    }
+
+    return null;
   }
 
   private extractJson(text: string): any {

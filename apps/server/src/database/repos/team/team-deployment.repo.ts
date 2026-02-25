@@ -3,10 +3,32 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB, KyselyTransaction } from '../../types/kysely.types';
 import { dbOrTx } from '../../utils';
 import { sql } from 'kysely';
+import type { TeamRunLogEntry, WorkflowState } from '../../../core/team/workflow-state.types';
 
 @Injectable()
 export class TeamDeploymentRepo {
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
+
+  private parseJsonLike<T = any>(value: unknown): T | unknown {
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return value;
+    }
+  }
+
+  private normalizeDeploymentRow<T extends Record<string, any> | undefined>(
+    row: T,
+  ): T {
+    if (!row) return row;
+    const next = { ...row } as Record<string, any>;
+    next.config = this.parseJsonLike(next.config);
+    next.orgPattern = this.parseJsonLike(next.orgPattern);
+    next.executionPlan = this.parseJsonLike(next.executionPlan);
+    next.workflowState = this.parseJsonLike(next.workflowState);
+    return next as T;
+  }
 
   async createDeployment(
     data: {
@@ -29,18 +51,15 @@ export class TeamDeploymentRepo {
         spaceId: data.spaceId,
         projectId: data.projectId || null,
         templateName: data.templateName,
-        config: JSON.stringify(data.config),
+        config: data.config,
         deployedBy: data.deployedBy,
         status: 'active',
-        orgPattern: data.orgPattern
-          ? JSON.stringify(data.orgPattern)
-          : null,
-        executionPlan: data.executionPlan
-          ? JSON.stringify(data.executionPlan)
-          : null,
+        orgPattern: data.orgPattern || null,
+        executionPlan: data.executionPlan || null,
       })
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst()
+      .then((row) => this.normalizeDeploymentRow(row));
   }
 
   async findById(id: string, trx?: KyselyTransaction) {
@@ -49,7 +68,8 @@ export class TeamDeploymentRepo {
       .selectFrom('teamDeployments')
       .selectAll()
       .where('id', '=', id)
-      .executeTakeFirst();
+      .executeTakeFirst()
+      .then((row) => this.normalizeDeploymentRow(row));
   }
 
   async listByWorkspace(
@@ -71,7 +91,8 @@ export class TeamDeploymentRepo {
       query = query.where('status', '!=', 'torn_down');
     }
 
-    return query.orderBy('createdAt', 'desc').execute();
+    const rows = await query.orderBy('createdAt', 'desc').execute();
+    return rows.map((row) => this.normalizeDeploymentRow(row));
   }
 
   async updateStatus(id: string, status: string, trx?: KyselyTransaction) {
@@ -85,19 +106,21 @@ export class TeamDeploymentRepo {
       .set(updateData)
       .where('id', '=', id)
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst()
+      .then((row) => this.normalizeDeploymentRow(row));
   }
 
   async updateConfig(id: string, config: Record<string, any>) {
     return this.db
       .updateTable('teamDeployments')
       .set({
-        config: JSON.stringify(config),
+        config,
         updatedAt: new Date(),
       })
       .where('id', '=', id)
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst()
+      .then((row) => this.normalizeDeploymentRow(row));
   }
 
   // --- Team Agents ---
@@ -109,6 +132,8 @@ export class TeamDeploymentRepo {
       userId?: string;
       role: string;
       instanceNumber: number;
+      agentType?: string;
+      workdir?: string;
       systemPrompt: string;
       capabilities: string[];
     },
@@ -123,6 +148,8 @@ export class TeamDeploymentRepo {
         userId: data.userId || null,
         role: data.role,
         instanceNumber: data.instanceNumber,
+        agentType: data.agentType || null,
+        workdir: data.workdir || null,
         systemPrompt: data.systemPrompt,
         capabilities: data.capabilities,
         status: 'idle',
@@ -243,12 +270,13 @@ export class TeamDeploymentRepo {
     return this.db
       .updateTable('teamDeployments')
       .set({
-        workflowState: JSON.stringify(state),
+        workflowState: state,
         updatedAt: new Date(),
       })
       .where('id', '=', id)
       .returningAll()
-      .executeTakeFirst();
+      .executeTakeFirst()
+      .then((row) => this.normalizeDeploymentRow(row));
   }
 
   async getWorkflowState(id: string) {
@@ -257,22 +285,46 @@ export class TeamDeploymentRepo {
       .select(['workflowState', 'executionPlan', 'orgPattern'])
       .where('id', '=', id)
       .executeTakeFirst();
-    return row || null;
+    return this.normalizeDeploymentRow(row) || null;
   }
 
   async findActiveDeploymentsInWorkspace(workspaceId: string) {
-    return this.db
+    const rows = await this.db
       .selectFrom('teamDeployments')
       .selectAll()
       .where('workspaceId', '=', workspaceId)
       .where('status', '=', 'active')
       .execute();
+    return rows.map((row) => this.normalizeDeploymentRow(row));
   }
 
   async updateAgentCurrentStep(agentId: string, stepId: string | null) {
     return this.db
       .updateTable('teamAgents')
       .set({ currentStepId: stepId, updatedAt: new Date() })
+      .where('id', '=', agentId)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  async updateAgentRuntimeSession(
+    agentId: string,
+    data: {
+      agentType?: string | null;
+      workdir?: string | null;
+      runtimeSessionId?: string | null;
+      terminalSessionId?: string | null;
+    },
+  ) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({
+        agentType: data.agentType ?? null,
+        workdir: data.workdir ?? null,
+        runtimeSessionId: data.runtimeSessionId ?? null,
+        terminalSessionId: data.terminalSessionId ?? null,
+        updatedAt: new Date(),
+      })
       .where('id', '=', agentId)
       .returningAll()
       .executeTakeFirst();
@@ -285,5 +337,23 @@ export class TeamDeploymentRepo {
       .where('id', '=', agentId)
       .returningAll()
       .executeTakeFirst();
+  }
+
+  async appendRunLog(
+    deploymentId: string,
+    entry: TeamRunLogEntry,
+    maxEntries = 200,
+  ) {
+    const stateRow = await this.getWorkflowState(deploymentId);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
+
+    const runLogs = Array.isArray(state.runLogs) ? state.runLogs : [];
+    runLogs.push(entry);
+    state.runLogs = runLogs.slice(-maxEntries);
+
+    return this.updateWorkflowState(deploymentId, state as any);
   }
 }

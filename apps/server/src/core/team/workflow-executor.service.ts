@@ -6,6 +6,7 @@ import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.re
 import { AIService } from '../../integrations/ai/ai.service';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
+import { ensurePersistenceCapabilities } from './capability-guards';
 import type { WorkflowState, StepState, RavenStepPlan, RavenExecutionPlan } from './workflow-state.types';
 import type { TeamAgentLoopJob } from './team-deployment.service';
 
@@ -93,6 +94,22 @@ export class WorkflowExecutorService {
     state.coordinatorInvocations = (state.coordinatorInvocations || 0) + 1;
 
     await this.saveState(deploymentId, state, stateRow);
+    this.eventEmitter.emit('team.workflow.updated', {
+      deploymentId,
+      currentPhase: state.currentPhase,
+      triggerReason: trigger.reason,
+    });
+
+    const failedEntry = Object.entries(state.stepStates || {}).find(
+      ([, ss]) => ss?.status === 'failed',
+    );
+    if (failedEntry) {
+      this.eventEmitter.emit('team.workflow.failed', {
+        deploymentId,
+        stepId: failedEntry?.[0],
+        error: failedEntry?.[1]?.error,
+      });
+    }
   }
 
   /**
@@ -132,6 +149,11 @@ export class WorkflowExecutorService {
     this.handleParentCompletion(stepId, state, plan.steps);
 
     await this.saveState(deploymentId, state, stateRow);
+    this.eventEmitter.emit('team.workflow.updated', {
+      deploymentId,
+      currentPhase: state.currentPhase,
+      completedStepId: stepId,
+    });
 
     // Check if all top-level steps are complete
     const allDone = plan.steps.every(
@@ -143,6 +165,10 @@ export class WorkflowExecutorService {
       state.completedAt = new Date().toISOString();
       await this.saveState(deploymentId, state, stateRow);
       this.eventEmitter.emit('team.workflow.completed', { deploymentId });
+      this.eventEmitter.emit('team.workflow.updated', {
+        deploymentId,
+        currentPhase: state.currentPhase,
+      });
       return;
     }
 
@@ -217,6 +243,12 @@ export class WorkflowExecutorService {
     stepState.error = error;
     state.currentPhase = 'failed';
     await this.saveState(deploymentId, state, stateRow);
+    this.eventEmitter.emit('team.workflow.updated', {
+      deploymentId,
+      currentPhase: state.currentPhase,
+      failedStepId: stepId,
+      error,
+    });
 
     this.eventEmitter.emit('team.workflow.failed', {
       deploymentId,
@@ -270,8 +302,18 @@ export class WorkflowExecutorService {
         break;
 
       case 'noop':
+        if (state.stepStates[step.stepId].status === 'pending') {
+          state.stepStates[step.stepId].status = 'running';
+          state.stepStates[step.stepId].startedAt = new Date().toISOString();
+        }
+
         // Container step — dispatch children
         if (step.type === 'parallel' && step.children) {
+          if (step.children.length === 0) {
+            state.stepStates[step.stepId].status = 'completed';
+            state.stepStates[step.stepId].completedAt = new Date().toISOString();
+            break;
+          }
           for (const child of step.children) {
             await this.dispatchIfReady(child, state, plan, agents, deployment);
           }
@@ -285,6 +327,9 @@ export class WorkflowExecutorService {
             }
             if (childState.status !== 'completed') break;
           }
+        } else if (!step.children?.length) {
+          state.stepStates[step.stepId].status = 'completed';
+          state.stepStates[step.stepId].completedAt = new Date().toISOString();
         }
         break;
     }
@@ -304,9 +349,11 @@ export class WorkflowExecutorService {
     );
 
     if (!agent) {
-      this.logger.warn(
-        `No idle agent for role "${role}" in deployment ${deployment.id}`,
-      );
+      const error = `No idle agent for role "${role}" in deployment ${deployment.id}`;
+      this.logger.warn(error);
+      state.stepStates[step.stepId].status = 'failed';
+      state.stepStates[step.stepId].error = error;
+      state.currentPhase = 'failed';
       return;
     }
 
@@ -319,6 +366,11 @@ export class WorkflowExecutorService {
     state.stepStates[step.stepId].assignedAgentId = agent.id;
     await this.teamRepo.updateWorkflowState(deployment.id, state as any);
 
+    const deploymentConfig = this.parseJsonField<Record<string, any>>(
+      deployment.config,
+      {},
+    );
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: agent.id,
       deploymentId: deployment.id,
@@ -327,12 +379,14 @@ export class WorkflowExecutorService {
       agentUserId: agent.userId,
       role: agent.role,
       systemPrompt: agent.systemPrompt,
-      capabilities: agent.capabilities as string[],
+      capabilities: ensurePersistenceCapabilities(agent.capabilities as string[]),
       stepId: step.stepId,
       stepContext: {
         name: step.type,
         task: step.operation.task,
       },
+      targetTaskId: deploymentConfig.targetTaskId,
+      targetExperimentId: deploymentConfig.targetExperimentId,
     };
 
     await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
@@ -353,7 +407,11 @@ export class WorkflowExecutorService {
     // Find the lead agent (no reportsTo)
     const lead = agents.find((a) => !a.reportsToAgentId && a.userId);
     if (!lead) {
-      this.logger.warn(`No lead agent for deployment ${deployment.id}`);
+      const error = `No lead agent for deployment ${deployment.id}`;
+      this.logger.warn(error);
+      state.stepStates[step.stepId].status = 'failed';
+      state.stepStates[step.stepId].error = error;
+      state.currentPhase = 'failed';
       return;
     }
 
@@ -365,6 +423,11 @@ export class WorkflowExecutorService {
     state.stepStates[step.stepId].assignedAgentId = lead.id;
     await this.teamRepo.updateWorkflowState(deployment.id, state as any);
 
+    const deploymentConfig = this.parseJsonField<Record<string, any>>(
+      deployment.config,
+      {},
+    );
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: lead.id,
       deploymentId: deployment.id,
@@ -373,12 +436,14 @@ export class WorkflowExecutorService {
       agentUserId: lead.userId,
       role: lead.role,
       systemPrompt: lead.systemPrompt,
-      capabilities: lead.capabilities as string[],
+      capabilities: ensurePersistenceCapabilities(lead.capabilities as string[]),
       stepId: step.stepId,
       stepContext: {
         name: 'coordinator',
         task: step.operation.reason,
       },
+      targetTaskId: deploymentConfig.targetTaskId,
+      targetExperimentId: deploymentConfig.targetExperimentId,
     };
 
     await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {

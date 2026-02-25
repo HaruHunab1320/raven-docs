@@ -77,11 +77,15 @@ export class SwarmHandler {
   async status(params: any, userId: string) {
     this.logger.debug(`SwarmHandler.status called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.executionId) {
         throw createInvalidParamsError('executionId is required');
       }
 
       const execution = await this.codingSwarmService.getStatus(
+        params.workspaceId,
         params.executionId,
       );
 
@@ -131,6 +135,7 @@ export class SwarmHandler {
         params.workspaceId,
         {
           status: params.status,
+          spaceId: params.spaceId,
           experimentId: params.experimentId,
           limit: params.limit,
         },
@@ -168,11 +173,17 @@ export class SwarmHandler {
   async stop(params: any, userId: string) {
     this.logger.debug(`SwarmHandler.stop called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.executionId) {
         throw createInvalidParamsError('executionId is required');
       }
 
-      const result = await this.codingSwarmService.stop(params.executionId);
+      const result = await this.codingSwarmService.stop(
+        params.workspaceId,
+        params.executionId,
+      );
 
       return result;
     } catch (error: any) {
@@ -194,11 +205,15 @@ export class SwarmHandler {
   async logs(params: any, userId: string) {
     this.logger.debug(`SwarmHandler.logs called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.executionId) {
         throw createInvalidParamsError('executionId is required');
       }
 
       const result = await this.codingSwarmService.getLogs(
+        params.workspaceId,
         params.executionId,
         params.limit,
       );

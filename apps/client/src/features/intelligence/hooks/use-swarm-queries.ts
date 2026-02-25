@@ -10,7 +10,7 @@ export const SWARM_KEYS = {
 export function useSwarmExecutions(spaceId: string) {
   return useQuery({
     queryKey: SWARM_KEYS.executions(spaceId),
-    queryFn: () => swarmService.listSwarmExecutions({ limit: 50 }),
+    queryFn: () => swarmService.listSwarmExecutions({ spaceId, limit: 50 }),
     enabled: !!spaceId,
     staleTime: 15_000,
   });

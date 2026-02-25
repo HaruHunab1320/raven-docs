@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { InjectKysely } from 'nestjs-kysely';
 import {
   TerminalSessionRepo,
   TerminalSession,
@@ -7,6 +8,7 @@ import {
   TerminalSessionLog,
 } from '../../database/repos/terminal-session/terminal-session.repo';
 import { ParallaxAgentRepo } from '../../database/repos/parallax-agent/parallax-agent.repo';
+import { KyselyDB } from '../../database/types/kysely.types';
 
 @Injectable()
 export class TerminalSessionService {
@@ -16,6 +18,7 @@ export class TerminalSessionService {
     private readonly sessionRepo: TerminalSessionRepo,
     private readonly agentRepo: ParallaxAgentRepo,
     private readonly eventEmitter: EventEmitter2,
+    @InjectKysely() private readonly db: KyselyDB,
   ) {}
 
   /**
@@ -32,9 +35,20 @@ export class TerminalSessionService {
       runtimeEndpoint?: string;
     },
   ): Promise<TerminalSession> {
-    // Verify agent exists and belongs to workspace
-    const agent = await this.agentRepo.findByIdAndWorkspace(agentId, workspaceId);
-    if (!agent) {
+    // Verify agent exists and belongs to workspace.
+    // We support both Parallax agents and Team agents.
+    const parallaxAgent = await this.agentRepo.findByIdAndWorkspace(
+      agentId,
+      workspaceId,
+    );
+    const teamAgent = parallaxAgent
+      ? null
+      : await this.db
+          .selectFrom('teamAgents')
+          .select(['id', 'workspaceId', 'role', 'instanceNumber'])
+          .where('id', '=', agentId)
+          .executeTakeFirst();
+    if (!parallaxAgent && (!teamAgent || teamAgent.workspaceId !== workspaceId)) {
       throw new Error('Agent not found');
     }
 
@@ -49,7 +63,11 @@ export class TerminalSessionService {
       workspaceId,
       agentId,
       runtimeSessionId,
-      title: options?.title || `Terminal: ${agent.name}`,
+      title:
+        options?.title ||
+        (parallaxAgent
+          ? `Terminal: ${parallaxAgent.name}`
+          : `Team Agent Terminal: ${teamAgent?.role || 'agent'} #${teamAgent?.instanceNumber || 1}`),
       cols: options?.cols || 80,
       rows: options?.rows || 24,
       runtimeEndpoint: options?.runtimeEndpoint,

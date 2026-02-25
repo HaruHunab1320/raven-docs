@@ -41,6 +41,17 @@ export class ActiveExperimentsDto {
   spaceId?: string;
 }
 
+export class DomainGraphDto {
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  domainTags?: string[];
+}
+
 export class PatternListDto {
   @IsUUID()
   @IsOptional()

@@ -60,6 +60,7 @@ interface PageEditorProps {
   pageId: string;
   editable: boolean;
   content: any;
+  compact?: boolean;
 }
 
 export default function PageEditor(props: PageEditorProps) {
@@ -102,6 +103,7 @@ function PageEditorInner({
   pageId,
   editable,
   content,
+  compact = false,
 }: PageEditorProps) {
   const collaborationURL = useCollaborationUrl();
   const [currentUser] = useAtom(currentUserAtom);
@@ -463,7 +465,7 @@ function PageEditorInner({
 
       <div
         onClick={() => editor.commands.focus("end")}
-        style={{ paddingBottom: "20vh" }}
+        style={{ paddingBottom: compact ? "4rem" : "20vh" }}
       ></div>
     </div>
   );

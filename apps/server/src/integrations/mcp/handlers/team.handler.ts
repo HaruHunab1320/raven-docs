@@ -85,11 +85,17 @@ export class TeamHandler {
   async status(params: any, userId: string) {
     this.logger.debug(`TeamHandler.status called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.deploymentId) {
         throw createInvalidParamsError('deploymentId is required');
       }
 
-      const result = await this.teamService.getDeployment(params.deploymentId);
+      const result = await this.teamService.getDeployment(
+        params.workspaceId,
+        params.deploymentId,
+      );
 
       return {
         deployment: {
@@ -164,11 +170,15 @@ export class TeamHandler {
   async trigger(params: any, userId: string) {
     this.logger.debug(`TeamHandler.trigger called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.deploymentId) {
         throw createInvalidParamsError('deploymentId is required');
       }
 
       const result = await this.teamService.triggerTeamRun(
+        params.workspaceId,
         params.deploymentId,
       );
 
@@ -192,11 +202,17 @@ export class TeamHandler {
   async pause(params: any, userId: string) {
     this.logger.debug(`TeamHandler.pause called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.deploymentId) {
         throw createInvalidParamsError('deploymentId is required');
       }
 
-      await this.teamService.pauseDeployment(params.deploymentId);
+      await this.teamService.pauseDeployment(
+        params.workspaceId,
+        params.deploymentId,
+      );
 
       return { success: true, deploymentId: params.deploymentId, status: 'paused' };
     } catch (error: any) {
@@ -218,11 +234,17 @@ export class TeamHandler {
   async resume(params: any, userId: string) {
     this.logger.debug(`TeamHandler.resume called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.deploymentId) {
         throw createInvalidParamsError('deploymentId is required');
       }
 
-      await this.teamService.resumeDeployment(params.deploymentId);
+      await this.teamService.resumeDeployment(
+        params.workspaceId,
+        params.deploymentId,
+      );
 
       return { success: true, deploymentId: params.deploymentId, status: 'active' };
     } catch (error: any) {
@@ -244,11 +266,17 @@ export class TeamHandler {
   async teardown(params: any, userId: string) {
     this.logger.debug(`TeamHandler.teardown called by ${userId}`);
     try {
+      if (!params.workspaceId) {
+        throw createInvalidParamsError('workspaceId is required');
+      }
       if (!params.deploymentId) {
         throw createInvalidParamsError('deploymentId is required');
       }
 
-      const result = await this.teamService.teardownTeam(params.deploymentId);
+      const result = await this.teamService.teardownTeam(
+        params.workspaceId,
+        params.deploymentId,
+      );
 
       return result;
     } catch (error: any) {

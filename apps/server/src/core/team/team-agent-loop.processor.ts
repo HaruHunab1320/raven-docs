@@ -6,6 +6,8 @@ import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { TeamAgentLoopJob } from './team-deployment.service';
 import { RoleAwareLoopService } from './role-aware-loop.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
+import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
+import { TerminalSessionService } from '../terminal/terminal-session.service';
 
 @Processor(QueueName.TEAM_QUEUE)
 export class TeamAgentLoopProcessor extends WorkerHost {
@@ -15,6 +17,8 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     private readonly roleAwareLoop: RoleAwareLoopService,
     private readonly teamRepo: TeamDeploymentRepo,
     private readonly eventEmitter: EventEmitter2,
+    private readonly agentExecution: AgentExecutionService,
+    private readonly terminalSessionService: TerminalSessionService,
   ) {
     super();
   }
@@ -25,6 +29,7 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     }
 
     const data = job.data as TeamAgentLoopJob;
+    const startedAt = Date.now();
     this.logger.log(
       `Running team agent loop: ${data.role} (agent=${data.teamAgentId})`,
     );
@@ -32,6 +37,17 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     try {
       // Mark agent as running
       await this.teamRepo.updateAgentStatus(data.teamAgentId, 'running');
+      this.eventEmitter.emit('team.agent_loop.started', {
+        deploymentId: data.deploymentId,
+        teamAgentId: data.teamAgentId,
+        role: data.role,
+        stepId: data.stepId,
+      });
+
+      const runtimeSessionId = await this.ensureRuntimeSession(data);
+      if (runtimeSessionId) {
+        await this.dispatchRuntimeTask(runtimeSessionId, data);
+      }
 
       const result = await this.roleAwareLoop.runRoleLoop({
         teamAgentId: data.teamAgentId,
@@ -43,6 +59,8 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         capabilities: data.capabilities,
         stepId: data.stepId,
         stepContext: data.stepContext,
+        targetTaskId: data.targetTaskId,
+        targetExperimentId: data.targetExperimentId,
       });
 
       // Update agent run stats
@@ -53,23 +71,59 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         errorsEncountered: result.errorsEncountered,
       });
 
+      const loopFailed =
+        result.errorsEncountered > 0 && result.actionsExecuted === 0;
+      const failedActionReason =
+        result.actions.find(
+          (action) => action.status === 'failed' && !!action.error,
+        )?.error || result.summary || 'Agent loop reported errors';
+
       // Clear currentStepId and mark agent as idle
       if (data.stepId) {
         await this.teamRepo.updateAgentCurrentStep(data.teamAgentId, null);
       }
-      await this.teamRepo.updateAgentStatus(data.teamAgentId, 'idle');
+      await this.teamRepo.updateAgentStatus(
+        data.teamAgentId,
+        loopFailed ? 'error' : 'idle',
+      );
+
+      try {
+        await this.teamRepo.appendRunLog(data.deploymentId, {
+          id: `${Date.now()}-${data.teamAgentId}`,
+          timestamp: new Date().toISOString(),
+          deploymentId: data.deploymentId,
+          teamAgentId: data.teamAgentId,
+          role: data.role,
+          stepId: data.stepId,
+          summary: result.summary,
+          actionsExecuted: result.actionsExecuted,
+          errorsEncountered: result.errorsEncountered,
+          actions: result.actions,
+        });
+      } catch {
+        // Log persistence is best-effort and should not fail runs.
+      }
 
       this.logger.log(
         `Team agent loop completed: ${data.role} — ${result.summary}`,
       );
 
-      // Emit completion event for workflow advancement
-      this.eventEmitter.emit('team.agent_loop.completed', {
-        deploymentId: data.deploymentId,
-        teamAgentId: data.teamAgentId,
-        stepId: data.stepId,
-        result,
-      });
+      // Emit completion/failure event for workflow advancement.
+      if (loopFailed) {
+        this.eventEmitter.emit('team.agent_loop.failed', {
+          deploymentId: data.deploymentId,
+          teamAgentId: data.teamAgentId,
+          stepId: data.stepId,
+          error: failedActionReason,
+        });
+      } else {
+        this.eventEmitter.emit('team.agent_loop.completed', {
+          deploymentId: data.deploymentId,
+          teamAgentId: data.teamAgentId,
+          stepId: data.stepId,
+          result,
+        });
+      }
 
       return result;
     } catch (error: any) {
@@ -89,6 +143,28 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         actionsExecuted: 0,
         errorsEncountered: 1,
       });
+      try {
+        await this.teamRepo.appendRunLog(data.deploymentId, {
+          id: `${Date.now()}-${data.teamAgentId}`,
+          timestamp: new Date().toISOString(),
+          deploymentId: data.deploymentId,
+          teamAgentId: data.teamAgentId,
+          role: data.role,
+          stepId: data.stepId,
+          summary: `Loop failed after ${Date.now() - startedAt}ms`,
+          actionsExecuted: 0,
+          errorsEncountered: 1,
+          actions: [
+            {
+              method: data.stepId || 'team.agent_loop',
+              status: 'failed',
+              error: error?.message || 'Unknown error',
+            },
+          ],
+        });
+      } catch {
+        // Log persistence is best-effort and should not fail runs.
+      }
 
       // Emit failure event for workflow advancement
       this.eventEmitter.emit('team.agent_loop.failed', {
@@ -99,6 +175,106 @@ export class TeamAgentLoopProcessor extends WorkerHost {
       });
 
       throw error;
+    }
+  }
+
+  private async ensureRuntimeSession(
+    data: TeamAgentLoopJob,
+  ): Promise<string | null> {
+    const agent = await this.teamRepo.findAgentById(data.teamAgentId);
+    if (!agent) return null;
+    if (agent.runtimeSessionId) return agent.runtimeSessionId;
+
+    try {
+      const deployment = await this.teamRepo.findById(data.deploymentId);
+      const deploymentConfig =
+        deployment && typeof deployment.config === 'string'
+          ? JSON.parse(deployment.config)
+          : (deployment?.config as Record<string, any> | undefined);
+
+      const roleDef = Array.isArray(deploymentConfig?.roles)
+        ? deploymentConfig.roles.find((r: any) => r?.role === agent.role)
+        : null;
+
+      const agentType =
+        agent.agentType ||
+        roleDef?.agentType ||
+        deploymentConfig?.defaultAgentType ||
+        process.env.TEAM_AGENT_DEFAULT_TYPE ||
+        'claude-code';
+      const workdir =
+        agent.workdir ||
+        roleDef?.workdir ||
+        deploymentConfig?.workdir ||
+        process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
+        process.cwd();
+
+      const spawned = await this.agentExecution.spawn(
+        data.workspaceId,
+        {
+          type: agentType,
+          name: `team-${data.deploymentId.slice(0, 8)}-${agent.role}-${agent.instanceNumber}`,
+          workdir,
+        },
+        data.agentUserId,
+      );
+
+      const terminalSession = await this.terminalSessionService.createSession(
+        data.teamAgentId,
+        data.workspaceId,
+        spawned.id,
+        {
+          title: `Team ${agent.role} #${agent.instanceNumber}`,
+        },
+      );
+
+      await this.teamRepo.updateAgentRuntimeSession(data.teamAgentId, {
+        agentType,
+        workdir,
+        runtimeSessionId: spawned.id,
+        terminalSessionId: terminalSession.id,
+      });
+
+      this.logger.log(
+        `Bootstrapped team runtime session for ${data.teamAgentId}: runtime=${spawned.id} terminal=${terminalSession.id}`,
+      );
+      return spawned.id;
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to bootstrap runtime session for team agent ${data.teamAgentId}: ${error?.message || 'unknown error'}`,
+      );
+      return null;
+    }
+  }
+
+  private async dispatchRuntimeTask(
+    runtimeSessionId: string,
+    data: TeamAgentLoopJob,
+  ): Promise<void> {
+    const taskText = data.stepContext?.task || 'Continue assigned team workflow.';
+    const stepText = data.stepContext?.name || data.stepId || 'manual_run';
+    const targetText = data.targetExperimentId
+      ? `Target experiment: ${data.targetExperimentId}`
+      : data.targetTaskId
+        ? `Target task: ${data.targetTaskId}`
+        : 'No explicit target constraint.';
+    const prompt = [
+      `[Team Runtime] role=${data.role} step=${stepText}`,
+      targetText,
+      `Task: ${taskText}`,
+      'Work in this session and emit concise progress updates as you execute.',
+    ].join('\n');
+
+    try {
+      await this.agentExecution.send(
+        runtimeSessionId,
+        prompt,
+        data.workspaceId,
+      );
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to dispatch runtime task to session ${runtimeSessionId}: ${error?.message || 'unknown error'}`,
+      );
     }
   }
 }

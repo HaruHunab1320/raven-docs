@@ -51,8 +51,8 @@ export interface TypedPageSummary {
     deploymentId: string;
     teamName: string;
     status: string;
-    swarmExecutionId: string;
-    swarmStatus: string;
+    swarmExecutionId?: string;
+    swarmStatus?: string;
   } | null;
 }
 

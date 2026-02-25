@@ -50,6 +50,7 @@ export function useTeamDeployments(
       }),
     enabled: !!workspaceId,
     staleTime: 15_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -69,6 +70,7 @@ export function useSpaceDeployments(
       }),
     enabled: !!spaceId,
     staleTime: 15_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -316,6 +318,7 @@ export function useStartWorkflowMutation() {
     mutationFn: (deploymentId: string) =>
       teamService.startWorkflow(deploymentId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
       queryClient.invalidateQueries({
         queryKey: ["team-deployment-status"],
       });
@@ -382,6 +385,35 @@ export function useRenameDeploymentMutation() {
       notifications.show({
         title: "Error",
         message: error.response?.data?.message || "Failed to rename team",
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useAssignDeploymentTaskMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      deploymentId: string;
+      taskId?: string;
+      experimentId?: string;
+    }) =>
+      teamService.assignDeploymentTask(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      queryClient.invalidateQueries({ queryKey: ["team-deployment-status"] });
+      notifications.show({
+        title: "Task Assignment Updated",
+        message: "Target assignment updated for this team",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message:
+          error.response?.data?.message || "Failed to update target assignment",
         color: "red",
       });
     },

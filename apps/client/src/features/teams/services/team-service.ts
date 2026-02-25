@@ -120,6 +120,18 @@ export async function renameDeployment(params: {
   return req.data;
 }
 
+export async function assignDeploymentTask(params: {
+  deploymentId: string;
+  taskId?: string;
+  experimentId?: string;
+}): Promise<TeamDeployment> {
+  const req = await api.post<TeamDeployment>(
+    `${ENDPOINT}/deployments/assign-task`,
+    params,
+  );
+  return req.data;
+}
+
 export async function getDeploymentStatus(
   deploymentId: string,
 ): Promise<DeploymentDetail> {

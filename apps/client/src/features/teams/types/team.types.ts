@@ -107,6 +107,10 @@ export interface TeamAgent {
   userId: string | null;
   role: string;
   instanceNumber: number;
+  agentType: string | null;
+  workdir: string | null;
+  runtimeSessionId: string | null;
+  terminalSessionId: string | null;
   status: string;
   systemPrompt: string;
   capabilities: string[];
@@ -147,4 +151,24 @@ export interface WorkflowState {
   coordinatorInvocations: number;
   startedAt?: string;
   completedAt?: string;
+  runLogs?: TeamRunLogEntry[];
+}
+
+export interface TeamRunLogAction {
+  method: string;
+  status: "executed" | "failed" | "skipped";
+  error?: string;
+}
+
+export interface TeamRunLogEntry {
+  id: string;
+  timestamp: string;
+  deploymentId: string;
+  teamAgentId: string;
+  role: string;
+  stepId?: string;
+  summary: string;
+  actionsExecuted: number;
+  errorsEncountered: number;
+  actions: TeamRunLogAction[];
 }

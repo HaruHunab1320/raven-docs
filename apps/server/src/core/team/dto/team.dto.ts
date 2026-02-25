@@ -156,3 +156,16 @@ export class RenameTeamDto {
   @IsString()
   teamName: string;
 }
+
+export class AssignTeamTaskDto {
+  @IsUUID()
+  deploymentId: string;
+
+  @IsUUID()
+  @IsOptional()
+  taskId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  experimentId?: string;
+}

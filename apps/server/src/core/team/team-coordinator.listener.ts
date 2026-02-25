@@ -4,6 +4,7 @@ import { WorkflowExecutorService } from './workflow-executor.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import type { RavenExecutionPlan } from './workflow-state.types';
 import type { RoutingRule } from './org-chart.types';
+import { TeamDeploymentService } from './team-deployment.service';
 
 @Injectable()
 export class TeamCoordinatorListener {
@@ -12,6 +13,7 @@ export class TeamCoordinatorListener {
   constructor(
     private readonly workflowExecutor: WorkflowExecutorService,
     private readonly teamRepo: TeamDeploymentRepo,
+    private readonly teamDeploymentService: TeamDeploymentService,
   ) {}
 
   @OnEvent('team.agent_loop.completed')
@@ -136,5 +138,21 @@ export class TeamCoordinatorListener {
         `Coding swarm completion handling skipped: ${error.message}`,
       );
     }
+  }
+
+  @OnEvent('team.workflow.completed')
+  async handleWorkflowCompleted(data: { deploymentId: string }) {
+    await this.teamDeploymentService.updateTargetExperimentFromWorkflow(
+      data.deploymentId,
+      'completed',
+    );
+  }
+
+  @OnEvent('team.workflow.failed')
+  async handleWorkflowFailed(data: { deploymentId: string }) {
+    await this.teamDeploymentService.updateTargetExperimentFromWorkflow(
+      data.deploymentId,
+      'failed',
+    );
   }
 }

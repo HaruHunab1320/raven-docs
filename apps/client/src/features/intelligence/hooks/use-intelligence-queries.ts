@@ -12,6 +12,8 @@ export const INTELLIGENCE_KEYS = {
     ["intelligence-experiments", spaceId] as const,
   hypotheses: (spaceId: string) =>
     ["intelligence-hypotheses", spaceId] as const,
+  domainGraph: (spaceId: string) =>
+    ["intelligence-domain-graph", spaceId] as const,
   patterns: (spaceId: string) => ["intelligence-patterns", spaceId] as const,
 };
 
@@ -64,6 +66,15 @@ export function useHypothesesList(spaceId: string) {
   return useQuery({
     queryKey: INTELLIGENCE_KEYS.hypotheses(spaceId),
     queryFn: () => intelligenceService.getHypotheses({ spaceId }),
+    enabled: !!spaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useDomainGraph(spaceId: string) {
+  return useQuery({
+    queryKey: INTELLIGENCE_KEYS.domainGraph(spaceId),
+    queryFn: () => intelligenceService.getDomainGraph({ spaceId }),
     enabled: !!spaceId,
     staleTime: 30_000,
   });

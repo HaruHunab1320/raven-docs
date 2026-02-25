@@ -93,12 +93,14 @@ export class CodingSwarmListener {
   @OnEvent('coding_swarm.status_changed')
   handleStatusChanged(data: {
     workspaceId: string;
+    spaceId?: string;
     executionId: string;
     status: string;
   }) {
     this.wsGateway.server
       .to(`workspace-${data.workspaceId}`)
       .emit('swarm:status_changed', {
+        spaceId: data.spaceId,
         executionId: data.executionId,
         status: data.status,
       });
@@ -110,12 +112,14 @@ export class CodingSwarmListener {
   @OnEvent('coding_swarm.completed')
   handleCompleted(data: {
     workspaceId: string;
+    spaceId?: string;
     executionId: string;
     experimentId?: string;
   }) {
     this.wsGateway.server
       .to(`workspace-${data.workspaceId}`)
       .emit('swarm:completed', {
+        spaceId: data.spaceId,
         executionId: data.executionId,
         experimentId: data.experimentId,
       });

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { InjectKysely } from 'nestjs-kysely';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import { TeamTemplateRepo } from '../../database/repos/team/team-template.repo';
 import { UserRepo } from '@raven-docs/db/repos/user/user.repo';
@@ -17,8 +18,10 @@ import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { compileOrgPattern } from './raven-compile-target';
 import { WorkflowExecutorService } from './workflow-executor.service';
+import { ensurePersistenceCapabilities } from './capability-guards';
 import type { OrgPattern } from './org-chart.types';
 import type { WorkflowState } from './workflow-state.types';
+import type { KyselyDB } from '../../database/types/kysely.types';
 
 export interface TeamAgentLoopJob {
   teamAgentId: string;
@@ -31,6 +34,8 @@ export interface TeamAgentLoopJob {
   capabilities: string[];
   stepId?: string;
   stepContext?: { name: string; task: string };
+  targetTaskId?: string;
+  targetExperimentId?: string;
 }
 
 export type TeamMemoryPolicy = 'none' | 'carry_all';
@@ -49,6 +54,7 @@ export class TeamDeploymentService {
     private readonly workflowExecutor: WorkflowExecutorService,
     @InjectQueue(QueueName.TEAM_QUEUE)
     private readonly teamQueue: Queue,
+    @InjectKysely() private readonly db: KyselyDB,
   ) {}
 
   /**
@@ -120,14 +126,27 @@ export class TeamDeploymentService {
         );
 
         // Create team_agent record
+        const normalizedCapabilities = ensurePersistenceCapabilities(
+          roleDef.capabilities,
+        );
+        const roleAgentType =
+          (roleDef as any).agentType ||
+          process.env.TEAM_AGENT_DEFAULT_TYPE ||
+          'claude-code';
+        const roleWorkdir =
+          (roleDef as any).workdir ||
+          process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
+          process.cwd();
         const agent = await this.teamRepo.createAgent({
           deploymentId: deployment.id,
           workspaceId,
           userId: agentUser.id,
           role: roleDef.role,
           instanceNumber: i,
+          agentType: roleAgentType,
+          workdir: roleWorkdir,
           systemPrompt: roleDef.systemPrompt,
-          capabilities: roleDef.capabilities,
+          capabilities: normalizedCapabilities,
         });
 
         agents.push({ ...agent, userName: agentName });
@@ -147,9 +166,9 @@ export class TeamDeploymentService {
   /**
    * Get deployment with its agents
    */
-  async getDeployment(deploymentId: string) {
+  async getDeployment(workspaceId: string, deploymentId: string) {
     const deployment = await this.teamRepo.findById(deploymentId);
-    if (!deployment) {
+    if (!deployment || deployment.workspaceId !== workspaceId) {
       throw new NotFoundException('Deployment not found');
     }
 
@@ -245,17 +264,41 @@ export class TeamDeploymentService {
   /**
    * Trigger a single run of all agents in a deployment
    */
-  async triggerTeamRun(deploymentId: string) {
+  async triggerTeamRun(workspaceId: string, deploymentId: string) {
     const deployment = await this.teamRepo.findById(deploymentId);
-    if (!deployment || deployment.status !== 'active') {
+    if (
+      !deployment ||
+      deployment.workspaceId !== workspaceId ||
+      deployment.status !== 'active'
+    ) {
       throw new NotFoundException('Active deployment not found');
     }
 
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
     const jobs = [];
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
+    const targetExperimentId = deploymentConfig.targetExperimentId as
+      | string
+      | undefined;
+
+    if (targetExperimentId) {
+      await this.updateTargetExperimentStatus(
+        deployment.workspaceId,
+        deployment.spaceId,
+        targetExperimentId,
+        'running',
+        {
+          activeTeamDeploymentId: deployment.id,
+          lastTriggeredAt: new Date().toISOString(),
+        },
+      );
+    }
 
     for (const agent of agents) {
       if (agent.status === 'paused' || !agent.userId) continue;
+
+      await this.teamRepo.updateAgentCurrentStep(agent.id, 'manual_run');
 
       const jobData: TeamAgentLoopJob = {
         teamAgentId: agent.id,
@@ -265,7 +308,14 @@ export class TeamDeploymentService {
         agentUserId: agent.userId,
         role: agent.role,
         systemPrompt: agent.systemPrompt,
-        capabilities: agent.capabilities as string[],
+        capabilities: ensurePersistenceCapabilities(agent.capabilities as string[]),
+        stepId: 'manual_run',
+        stepContext: {
+          name: 'manual-run',
+          task: 'Execute one ad-hoc team loop',
+        },
+        targetTaskId,
+        targetExperimentId,
       };
 
       const job = await this.teamQueue.add(
@@ -291,25 +341,55 @@ export class TeamDeploymentService {
   /**
    * Pause a deployment — stops all agents from running
    */
-  async pauseDeployment(deploymentId: string) {
+  async pauseDeployment(workspaceId: string, deploymentId: string) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
     return this.teamRepo.updateStatus(deploymentId, 'paused');
   }
 
   /**
    * Resume a paused deployment
    */
-  async resumeDeployment(deploymentId: string) {
-    return this.teamRepo.updateStatus(deploymentId, 'active');
+  async resumeDeployment(workspaceId: string, deploymentId: string) {
+    const existing = await this.teamRepo.findById(deploymentId);
+    if (!existing || existing.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    const deployment = await this.teamRepo.updateStatus(deploymentId, 'active');
+    if (!deployment) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    // If workflow hasn't started yet, resume should continue execution behavior.
+    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
+
+    if (!state.currentPhase || state.currentPhase === 'idle' || state.currentPhase === 'paused') {
+      await this.startWorkflow(workspaceId, deploymentId);
+    }
+
+    return deployment;
   }
 
   /**
    * Teardown a deployment — mark torn down, agents stop running
    */
-  async teardownTeam(deploymentId: string) {
+  async teardownTeam(workspaceId: string, deploymentId: string) {
     const deployment = await this.teamRepo.findById(deploymentId);
-    if (!deployment) {
+    if (!deployment || deployment.workspaceId !== workspaceId) {
       throw new NotFoundException('Deployment not found');
     }
+
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const targetExperimentId = deploymentConfig.targetExperimentId as
+      | string
+      | undefined;
 
     await this.teamRepo.updateStatus(deploymentId, 'torn_down');
 
@@ -323,6 +403,40 @@ export class TeamDeploymentService {
       state.currentPhase = 'torn_down';
       state.tornDownAt = new Date().toISOString();
       await this.teamRepo.updateWorkflowState(deploymentId, state);
+    }
+
+    // If this team was actively driving an experiment, release it back to planned.
+    if (targetExperimentId) {
+      const page = await this.db
+        .selectFrom('pages')
+        .select(['id', 'metadata'])
+        .where('id', '=', targetExperimentId)
+        .where('workspaceId', '=', deployment.workspaceId)
+        .where('spaceId', '=', deployment.spaceId)
+        .where('pageType', '=', 'experiment')
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+
+      if (page) {
+        const metadata =
+          typeof page.metadata === 'string'
+            ? (JSON.parse(page.metadata) as Record<string, any>)
+            : ((page.metadata as Record<string, any>) || {});
+        const currentStatus = String(metadata.status || '').toLowerCase();
+
+        if (currentStatus === 'running' || currentStatus === 'active') {
+          await this.updateTargetExperimentStatus(
+            deployment.workspaceId,
+            deployment.spaceId,
+            targetExperimentId,
+            'planned',
+            {
+              activeTeamDeploymentId: deployment.id,
+              tornDownAt: new Date().toISOString(),
+            },
+          );
+        }
+      }
     }
 
     this.logger.log(`Tore down team deployment ${deploymentId}`);
@@ -463,19 +577,36 @@ export class TeamDeploymentService {
         const systemPrompt = [
           `You are "${roleDef.name}", part of the "${orgPattern.name}" team.`,
           orgPattern.structure.roles[roleId]?.description || '',
-          `Your capabilities: ${roleDef.capabilities.join(', ')}`,
+          `Your capabilities: ${ensurePersistenceCapabilities(roleDef.capabilities).join(', ')}`,
         ]
           .filter(Boolean)
           .join('\n');
 
+        const normalizedCapabilities = ensurePersistenceCapabilities(
+          roleDef.capabilities,
+        );
+        const roleMetadata =
+          orgPattern.structure.roles[roleId]?.metadata || {};
+        const roleAgentType =
+          (roleDef as any).agentType ||
+          (roleMetadata as any).agentType ||
+          process.env.TEAM_AGENT_DEFAULT_TYPE ||
+          'claude-code';
+        const roleWorkdir =
+          (roleDef as any).workdir ||
+          (roleMetadata as any).workdir ||
+          process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
+          process.cwd();
         const agent = await this.teamRepo.createAgent({
           deploymentId: deployment.id,
           workspaceId,
           userId: agentUserId,
           role: roleId,
           instanceNumber: i,
+          agentType: roleAgentType,
+          workdir: roleWorkdir,
           systemPrompt,
-          capabilities: roleDef.capabilities,
+          capabilities: normalizedCapabilities,
         });
 
         agents.push({ ...agent, userName: agentName });
@@ -518,7 +649,12 @@ export class TeamDeploymentService {
   /**
    * Start the workflow for a deployment — sets phase to 'running' and advances.
    */
-  async startWorkflow(deploymentId: string) {
+  async startWorkflow(workspaceId: string, deploymentId: string) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
+
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
     if (!stateRow) {
       throw new NotFoundException('Deployment not found');
@@ -535,11 +671,53 @@ export class TeamDeploymentService {
 
     await this.teamRepo.updateWorkflowState(deploymentId, state as any);
 
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const targetExperimentId = deploymentConfig.targetExperimentId as
+      | string
+      | undefined;
+    if (targetExperimentId) {
+      await this.updateTargetExperimentStatus(
+        deployment.workspaceId,
+        deployment.spaceId,
+        targetExperimentId,
+        'running',
+        {
+          activeTeamDeploymentId: deployment.id,
+          workflowStartedAt: state.startedAt,
+        },
+      );
+    }
+
     await this.workflowExecutor.advance(deploymentId, {
       reason: 'workflow_started',
     });
 
     return { started: true, deploymentId };
+  }
+
+  async updateTargetExperimentFromWorkflow(
+    deploymentId: string,
+    nextStatus: 'completed' | 'failed',
+  ) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment) return;
+
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const targetExperimentId = deploymentConfig.targetExperimentId as
+      | string
+      | undefined;
+    if (!targetExperimentId) return;
+
+    await this.updateTargetExperimentStatus(
+      deployment.workspaceId,
+      deployment.spaceId,
+      targetExperimentId,
+      nextStatus,
+      {
+        activeTeamDeploymentId: deployment.id,
+        workflowFinishedAt: new Date().toISOString(),
+      },
+    );
   }
 
   /**
@@ -595,6 +773,72 @@ export class TeamDeploymentService {
     return updated;
   }
 
+  async assignTargetTask(
+    workspaceId: string,
+    deploymentId: string,
+    taskId?: string,
+    experimentId?: string,
+  ) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    if (taskId && experimentId) {
+      throw new BadRequestException(
+        'Specify either taskId or experimentId, not both',
+      );
+    }
+
+    if (taskId) {
+      const task = await this.db
+        .selectFrom('tasks')
+        .select(['id'])
+        .where('id', '=', taskId)
+        .where('workspaceId', '=', workspaceId)
+        .where('spaceId', '=', deployment.spaceId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (!task) {
+        throw new BadRequestException(
+          'Task not found in this deployment space',
+        );
+      }
+    }
+
+    if (experimentId) {
+      const experiment = await this.db
+        .selectFrom('pages')
+        .select(['id'])
+        .where('id', '=', experimentId)
+        .where('workspaceId', '=', workspaceId)
+        .where('spaceId', '=', deployment.spaceId)
+        .where('pageType', '=', 'experiment')
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (!experiment) {
+        throw new BadRequestException(
+          'Experiment not found in this deployment space',
+        );
+      }
+    }
+
+    const config = this.parseJsonSafe(deployment.config) || {};
+    const nextConfig = { ...config };
+    if (taskId) {
+      nextConfig.targetTaskId = taskId;
+      delete nextConfig.targetExperimentId;
+    } else if (experimentId) {
+      nextConfig.targetExperimentId = experimentId;
+      delete nextConfig.targetTaskId;
+    } else {
+      delete nextConfig.targetTaskId;
+      delete nextConfig.targetExperimentId;
+    }
+
+    return this.teamRepo.updateConfig(deploymentId, nextConfig);
+  }
+
   private buildRoleInstanceKey(role: string, instanceNumber: number) {
     return `${role}#${instanceNumber}`;
   }
@@ -636,5 +880,53 @@ export class TeamDeploymentService {
         `Skipping duplicate space membership for agent user ${userId}: ${error?.message || 'unknown error'}`,
       );
     }
+  }
+
+  private async updateTargetExperimentStatus(
+    workspaceId: string,
+    spaceId: string,
+    experimentId: string,
+    status: 'planned' | 'running' | 'completed' | 'failed',
+    extra: Record<string, any> = {},
+  ) {
+    const page = await this.db
+      .selectFrom('pages')
+      .select(['id', 'metadata'])
+      .where('id', '=', experimentId)
+      .where('workspaceId', '=', workspaceId)
+      .where('spaceId', '=', spaceId)
+      .where('pageType', '=', 'experiment')
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+
+    if (!page) return;
+
+    let metadata: Record<string, any> = {};
+    try {
+      metadata =
+        typeof page.metadata === 'string'
+          ? JSON.parse(page.metadata)
+          : ((page.metadata as Record<string, any>) || {});
+    } catch {
+      metadata = {};
+    }
+
+    const nextMetadata = {
+      ...metadata,
+      status,
+      teamRuntime: {
+        ...(metadata.teamRuntime || {}),
+        ...extra,
+      },
+    };
+
+    await this.db
+      .updateTable('pages')
+      .set({
+        metadata: JSON.stringify(nextMetadata),
+        updatedAt: new Date(),
+      })
+      .where('id', '=', experimentId)
+      .execute();
   }
 }
