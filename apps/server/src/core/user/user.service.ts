@@ -9,6 +9,22 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationOptions } from '@raven-docs/db/pagination/pagination-options';
 import { PaginationResult } from '@raven-docs/db/pagination/pagination';
 import { User } from '@raven-docs/db/types/entity.types';
+import { UpdateAgentProviderAuthDto } from './dto/update-agent-provider-auth.dto';
+
+type AgentProviderStatus = {
+  keyPresent: boolean;
+  source: 'user' | 'global' | 'none';
+  available: boolean;
+};
+
+export type AgentProviderAvailabilityResponse = {
+  providers: {
+    claude: AgentProviderStatus;
+    codex: AgentProviderStatus;
+    gemini: AgentProviderStatus;
+    aider: AgentProviderStatus;
+  };
+};
 
 @Injectable()
 export class UserService {
@@ -117,5 +133,166 @@ export class UserService {
 
     await this.userRepo.updateUser(updateUserDto, userId, workspaceId);
     return user;
+  }
+
+  async getAgentProviderAvailability(
+    userId: string,
+    workspaceId: string,
+  ): Promise<AgentProviderAvailabilityResponse> {
+    const user = await this.userRepo.findById(userId, workspaceId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const providerSettings = this.getAgentProviderSettings(user.settings);
+    const hasAnthropic = Boolean(providerSettings.anthropicApiKey);
+    const hasClaudeSubscription = Boolean(
+      providerSettings.claudeSubscriptionToken,
+    );
+    const hasOpenAI = Boolean(providerSettings.openaiApiKey);
+    const hasOpenAISubscription = Boolean(
+      providerSettings.openaiSubscriptionToken,
+    );
+    const hasGoogle = Boolean(providerSettings.googleApiKey);
+
+    const globalAnthropic = Boolean(
+      process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN,
+    );
+    const globalOpenAI = Boolean(
+      process.env.OPENAI_API_KEY || process.env.OPENAI_AUTH_TOKEN,
+    );
+    const globalGoogle = Boolean(
+      process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY,
+    );
+
+    const claudeAvailable =
+      hasAnthropic || hasClaudeSubscription || globalAnthropic;
+    const codexAvailable = hasOpenAI || hasOpenAISubscription || globalOpenAI;
+    const geminiAvailable = hasGoogle || globalGoogle;
+    const aiderAvailable = claudeAvailable || codexAvailable || geminiAvailable;
+
+    return {
+      providers: {
+        claude: {
+          keyPresent: claudeAvailable,
+          source:
+            hasAnthropic || hasClaudeSubscription
+              ? 'user'
+              : globalAnthropic
+                ? 'global'
+                : 'none',
+          available: claudeAvailable,
+        },
+        codex: {
+          keyPresent: codexAvailable,
+          source:
+            hasOpenAI || hasOpenAISubscription
+              ? 'user'
+              : globalOpenAI
+                ? 'global'
+                : 'none',
+          available: codexAvailable,
+        },
+        gemini: {
+          keyPresent: geminiAvailable,
+          source: hasGoogle ? 'user' : globalGoogle ? 'global' : 'none',
+          available: geminiAvailable,
+        },
+        aider: {
+          keyPresent: aiderAvailable,
+          source: hasOpenAI || hasOpenAISubscription
+            ? 'user'
+            : hasAnthropic || hasClaudeSubscription
+              ? 'user'
+              : hasGoogle
+                ? 'user'
+                : globalOpenAI || globalAnthropic || globalGoogle
+                  ? 'global'
+                  : 'none',
+          available: aiderAvailable,
+        },
+      },
+    };
+  }
+
+  async updateAgentProviderAuth(
+    userId: string,
+    workspaceId: string,
+    dto: UpdateAgentProviderAuthDto,
+  ): Promise<AgentProviderAvailabilityResponse> {
+    const user = await this.userRepo.findById(userId, workspaceId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const settings = ((user.settings as any) || {}) as Record<string, any>;
+    const integrations = (settings.integrations || {}) as Record<string, any>;
+    const agentProviders = {
+      ...(integrations.agentProviders || {}),
+    } as Record<string, any>;
+
+    this.applySecretUpdate(agentProviders, 'anthropicApiKey', dto.anthropicApiKey);
+    this.applySecretUpdate(
+      agentProviders,
+      'claudeSubscriptionToken',
+      dto.claudeSubscriptionToken,
+    );
+    this.applySecretUpdate(agentProviders, 'openaiApiKey', dto.openaiApiKey);
+    this.applySecretUpdate(
+      agentProviders,
+      'openaiSubscriptionToken',
+      dto.openaiSubscriptionToken,
+    );
+    this.applySecretUpdate(agentProviders, 'googleApiKey', dto.googleApiKey);
+
+    const nextSettings = {
+      ...settings,
+      integrations: {
+        ...integrations,
+        agentProviders,
+      },
+    };
+
+    await this.userRepo.updateUser(
+      {
+        settings: nextSettings,
+      } as any,
+      userId,
+      workspaceId,
+    );
+
+    return this.getAgentProviderAvailability(userId, workspaceId);
+  }
+
+  private getAgentProviderSettings(settings: unknown): {
+    anthropicApiKey?: string;
+    claudeSubscriptionToken?: string;
+    openaiApiKey?: string;
+    openaiSubscriptionToken?: string;
+    googleApiKey?: string;
+  } {
+    const record = (settings || {}) as Record<string, any>;
+    const integrations = (record.integrations || {}) as Record<string, any>;
+    return (integrations.agentProviders || {}) as {
+      anthropicApiKey?: string;
+      claudeSubscriptionToken?: string;
+      openaiApiKey?: string;
+      openaiSubscriptionToken?: string;
+      googleApiKey?: string;
+    };
+  }
+
+  private applySecretUpdate(
+    target: Record<string, any>,
+    key: string,
+    value: string | undefined,
+  ) {
+    if (typeof value === 'undefined') return;
+    const trimmed = value.trim();
+    if (!trimmed) {
+      delete target[key];
+      return;
+    }
+    target[key] = trimmed;
   }
 }

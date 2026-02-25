@@ -290,16 +290,16 @@ describe('WorkspacePreparationService', () => {
 
       expect(result.adapterConfig).toEqual({
         interactive: true,
-        approvalPreset: 'autonomous',
+        approvalPreset: 'standard',
       });
     });
 
-    it('should default to autonomous approval preset', async () => {
+    it('should default to standard approval preset', async () => {
       await service.prepareWorkspace(baseParams);
 
       expect(mockGenerateApprovalConfig).toHaveBeenCalledWith(
         'claude',
-        'autonomous',
+        'standard',
       );
     });
 
@@ -321,7 +321,7 @@ describe('WorkspacePreparationService', () => {
       expect(mockWriteApprovalConfig).toHaveBeenCalledWith(
         baseParams.workspacePath,
         expect.objectContaining({
-          adapterConfig: { approvalPreset: 'autonomous' },
+          adapterConfig: { approvalPreset: 'standard' },
         }),
       );
     });

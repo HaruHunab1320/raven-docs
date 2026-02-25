@@ -1,4 +1,5 @@
 export interface AgentSettings {
+  swarmPermissionLevel?: 'readonly' | 'standard' | 'permissive' | 'yolo';
   policy?: {
     allowAutoApply?: string[];
     requireApproval?: string[];
@@ -43,6 +44,7 @@ export interface AgentSettings {
 }
 
 export const defaultAgentSettings: AgentSettings = {
+  swarmPermissionLevel: 'standard',
   policy: {
     allowAutoApply: [],
     requireApproval: [],

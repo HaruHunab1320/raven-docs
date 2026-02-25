@@ -1,5 +1,10 @@
 export type AgentHostingMode = 'local' | 'parallax' | 'custom';
 export type RuntimeAuthType = 'api_key' | 'none';
+export type SwarmPermissionLevel =
+  | 'readonly'
+  | 'standard'
+  | 'permissive'
+  | 'yolo';
 
 export interface RuntimeStatus {
   connected: boolean;
@@ -10,6 +15,7 @@ export interface RuntimeStatus {
 }
 
 export interface AgentSettings {
+  swarmPermissionLevel: SwarmPermissionLevel;
   policy?: {
     allowAutoApply?: string[];
     requireApproval?: string[];

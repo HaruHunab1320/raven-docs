@@ -7,6 +7,11 @@ import { TeamAgentLoopJob } from './team-deployment.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
+import { WorkspacePreparationService } from '../coding-swarm/workspace-preparation.service';
+import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
+import { UserRepo } from '../../database/repos/user/user.repo';
+import { resolveAgentSettings } from '../agent/agent-settings';
+import { mapSwarmPermissionToApprovalPreset } from '../coding-swarm/swarm-permission-level';
 
 @Processor(QueueName.TEAM_QUEUE)
 export class TeamAgentLoopProcessor extends WorkerHost {
@@ -26,6 +31,9 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     private readonly eventEmitter: EventEmitter2,
     private readonly agentExecution: AgentExecutionService,
     private readonly terminalSessionService: TerminalSessionService,
+    private readonly workspacePreparationService: WorkspacePreparationService,
+    private readonly workspaceRepo: WorkspaceRepo,
+    private readonly userRepo: UserRepo,
   ) {
     super();
   }
@@ -156,6 +164,11 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         ? deploymentConfig.roles.find((r: any) => r?.role === agent.role)
         : null;
       const triggerUserId = deployment?.deployedBy || data.agentUserId;
+      const workspace = await this.workspaceRepo.findById(data.workspaceId);
+      const agentSettings = resolveAgentSettings(workspace?.settings);
+      const defaultApprovalPreset = mapSwarmPermissionToApprovalPreset(
+        agentSettings.swarmPermissionLevel,
+      );
 
       const agentType =
         this.normalizeAgentType(
@@ -171,6 +184,41 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         deploymentConfig?.workdir ||
         process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
         process.cwd();
+      const workspaceCredentials = await this.resolveAgentCredentials(
+        data.workspaceId,
+        triggerUserId || undefined,
+      );
+      const prepExecutionId = data.teamAgentId;
+      const explicitApprovalPreset = this.resolveApprovalPreset(
+        (roleDef as any)?.approvalPreset ||
+          (deploymentConfig as any)?.approvalPreset,
+      );
+
+      await this.workspacePreparationService.cleanupApiKey(
+        prepExecutionId,
+        triggerUserId || 'system',
+      );
+
+      const prepResult = await this.workspacePreparationService.prepareWorkspace({
+        workspacePath: workdir,
+        workspaceId: data.workspaceId,
+        executionId: prepExecutionId,
+        agentType,
+        triggeredBy: triggerUserId || 'system',
+        taskDescription: this.buildTeamTaskDescription(
+          data,
+          agent.systemPrompt,
+          agent.capabilities as string[],
+        ),
+        taskContext: {
+          role: data.role,
+          stepId: data.stepId || 'manual_run',
+          capabilities: agent.capabilities || [],
+          targetTaskId: data.targetTaskId,
+          targetExperimentId: data.targetExperimentId,
+        },
+        approvalPreset: explicitApprovalPreset || defaultApprovalPreset,
+      });
 
       const spawned = await this.agentExecution.spawn(
         data.workspaceId,
@@ -178,6 +226,11 @@ export class TeamAgentLoopProcessor extends WorkerHost {
           type: agentType,
           name: `team-${data.deploymentId.slice(0, 8)}-${agent.role}-${agent.instanceNumber}`,
           workdir,
+          env: {
+            ...workspaceCredentials,
+            ...prepResult.env,
+          },
+          adapterConfig: prepResult.adapterConfig,
         },
         triggerUserId || undefined,
       );
@@ -231,9 +284,113 @@ export class TeamAgentLoopProcessor extends WorkerHost {
       `[Team Runtime] role=${data.role} step=${stepText}`,
       targetText,
       `Task: ${taskText}`,
+      `Allowed MCP methods: ${(data.capabilities || []).join(', ') || 'none'}`,
+      'Persist the work in Raven Docs using the allowed MCP methods. Record findings, updates, and artifacts as you go.',
       'Work in this session and emit concise progress updates as you execute.',
     ].join('\n');
 
     await this.agentExecution.send(runtimeSessionId, prompt, data.workspaceId);
+  }
+
+  private async resolveAgentCredentials(
+    workspaceId: string,
+    triggerUserId?: string,
+  ): Promise<Record<string, string>> {
+    const env: Record<string, string> = {};
+
+    try {
+      let userIntegrations: Record<string, any> = {};
+      if (triggerUserId) {
+        const user = await this.userRepo.findById(triggerUserId, workspaceId);
+        userIntegrations = ((user?.settings as any)?.integrations || {}) as Record<
+          string,
+          any
+        >;
+      }
+      const userAgentProviders = (userIntegrations.agentProviders ||
+        {}) as Record<string, any>;
+
+      if (userAgentProviders.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = userAgentProviders.anthropicApiKey;
+      } else if (userAgentProviders.claudeSubscriptionToken) {
+        env.ANTHROPIC_AUTH_TOKEN = userAgentProviders.claudeSubscriptionToken;
+      } else if (process.env.ANTHROPIC_API_KEY) {
+        env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+      } else if (process.env.ANTHROPIC_AUTH_TOKEN) {
+        env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN;
+      }
+
+      if (userAgentProviders.openaiApiKey) {
+        env.OPENAI_API_KEY = userAgentProviders.openaiApiKey;
+      } else if (userAgentProviders.openaiSubscriptionToken) {
+        env.OPENAI_AUTH_TOKEN = userAgentProviders.openaiSubscriptionToken;
+      } else if (process.env.OPENAI_API_KEY) {
+        env.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      } else if (process.env.OPENAI_AUTH_TOKEN) {
+        env.OPENAI_AUTH_TOKEN = process.env.OPENAI_AUTH_TOKEN;
+      }
+
+      if (userAgentProviders.googleApiKey) {
+        env.GOOGLE_API_KEY = userAgentProviders.googleApiKey;
+      } else if (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY) {
+        env.GOOGLE_API_KEY =
+          process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
+      }
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to resolve agent credentials for workspace ${workspaceId}: ${error.message}`,
+      );
+    }
+
+    return env;
+  }
+
+  private buildTeamTaskDescription(
+    data: TeamAgentLoopJob,
+    systemPrompt: string,
+    capabilities: string[],
+  ): string {
+    const stepText = data.stepContext?.name || data.stepId || 'manual_run';
+    const taskText = data.stepContext?.task || 'Continue assigned team workflow.';
+    const caps = (capabilities || []).join(', ') || 'none';
+    const targetText = data.targetExperimentId
+      ? `Target experiment: ${data.targetExperimentId}`
+      : data.targetTaskId
+        ? `Target task: ${data.targetTaskId}`
+        : 'No explicit target constraint.';
+
+    return [
+      `Role: ${data.role}`,
+      `Step: ${stepText}`,
+      `Task: ${taskText}`,
+      targetText,
+      '',
+      'System instructions:',
+      systemPrompt || 'No explicit system prompt.',
+      '',
+      `MCP methods allowed for this role: ${caps}`,
+      'Important: use Raven MCP tools to persist findings, updates, and artifacts so work is tracked in Raven Docs.',
+    ].join('\n');
+  }
+
+  private resolveApprovalPreset(
+    value: unknown,
+  ): 'readonly' | 'standard' | 'permissive' | 'autonomous' | undefined {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!normalized) return undefined;
+    if (
+      normalized === 'readonly' ||
+      normalized === 'standard' ||
+      normalized === 'permissive' ||
+      normalized === 'autonomous'
+    ) {
+      return normalized;
+    }
+    if (normalized === 'yolo') {
+      return 'autonomous';
+    }
+    return mapSwarmPermissionToApprovalPreset(normalized);
   }
 }

@@ -20,7 +20,8 @@ import {
   getWorkspaceIntelligenceSettings,
   updateWorkspaceIntelligenceSettings,
 } from "@/features/workspace/services/workspace-service";
-import { TEAM_AGENT_TYPE_OPTIONS } from "@/features/teams/constants/agent-types";
+import { TEAM_AGENT_TYPE_OPTIONS, getProviderKeyForAgentType } from "@/features/teams/constants/agent-types";
+import { getAgentProviderAvailability } from "@/features/user/services/user-service";
 
 export default function TeamsSettings() {
   const { t } = useTranslation();
@@ -32,11 +33,27 @@ export default function TeamsSettings() {
     queryKey: ["workspace-intelligence-settings"],
     queryFn: getWorkspaceIntelligenceSettings,
   });
+  const providerAvailabilityQuery = useQuery({
+    queryKey: ["agent-provider-availability"],
+    queryFn: getAgentProviderAvailability,
+  });
 
   useEffect(() => {
     const nextValue = intelligenceQuery.data?.defaultTeamAgentType || "claude";
     setDefaultAgentType(nextValue);
   }, [intelligenceQuery.data?.defaultTeamAgentType]);
+
+  const teamAgentTypeOptions = TEAM_AGENT_TYPE_OPTIONS.map((option) => {
+    const provider = getProviderKeyForAgentType(option.value);
+    const available = providerAvailabilityQuery.data
+      ? Boolean(providerAvailabilityQuery.data.providers[provider]?.available)
+      : true;
+    return {
+      ...option,
+      disabled: !available,
+    };
+  });
+  const selectedOption = teamAgentTypeOptions.find((option) => option.value === defaultAgentType);
 
   const updateIntelligenceMutation = useMutation({
     mutationFn: (agentType: string) =>
@@ -103,13 +120,13 @@ export default function TeamsSettings() {
                   updateIntelligenceMutation.mutate(defaultAgentType)
                 }
                 loading={updateIntelligenceMutation.isPending}
-                disabled={!isAdmin && !isOwner}
+                disabled={!isAdmin && !isOwner || Boolean(selectedOption?.disabled)}
               >
                 Save
               </Button>
             </Group>
             <Select
-              data={TEAM_AGENT_TYPE_OPTIONS}
+              data={teamAgentTypeOptions}
               value={defaultAgentType}
               onChange={(value) => setDefaultAgentType(value || "claude")}
               disabled={intelligenceQuery.isLoading}

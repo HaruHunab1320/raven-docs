@@ -11,7 +11,18 @@ export enum RuntimeAuthType {
   NONE = 'none',
 }
 
+export enum SwarmPermissionLevel {
+  READONLY = 'readonly',
+  STANDARD = 'standard',
+  PERMISSIVE = 'permissive',
+  YOLO = 'yolo',
+}
+
 export class AgentSettingsDto {
+  @IsOptional()
+  @IsEnum(SwarmPermissionLevel)
+  swarmPermissionLevel?: SwarmPermissionLevel;
+
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;

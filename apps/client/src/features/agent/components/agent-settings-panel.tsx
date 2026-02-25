@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -7,10 +8,12 @@ import {
   Divider,
   Group,
   NumberInput,
+  Select,
   SegmentedControl,
   Stack,
   Switch,
   Text,
+  PasswordInput,
   TextInput,
   Title,
   Tooltip,
@@ -31,6 +34,10 @@ import { currentUserAtom } from "@/features/user/atoms/current-user-atom";
 import useUserRole from "@/hooks/use-user-role";
 import { getSpaces } from "@/features/space/services/space-service";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
+import {
+  getAgentProviderAvailability,
+  updateAgentProviderAuth,
+} from "@/features/user/services/user-service";
 
 const toLabel = (text: string) => text;
 
@@ -47,6 +54,20 @@ export function AgentSettingsPanel() {
   const [defaultTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   );
+  const [providerKeyDraft, setProviderKeyDraft] = useState({
+    anthropicApiKey: "",
+    claudeSubscriptionToken: "",
+    openaiApiKey: "",
+    openaiSubscriptionToken: "",
+    googleApiKey: "",
+  });
+  const [providerKeyDirty, setProviderKeyDirty] = useState({
+    anthropicApiKey: false,
+    claudeSubscriptionToken: false,
+    openaiApiKey: false,
+    openaiSubscriptionToken: false,
+    googleApiKey: false,
+  });
   const queryClient = useQueryClient();
 
   const settingsQuery = useQuery({
@@ -69,6 +90,11 @@ export function AgentSettingsPanel() {
         sources: ["agent-loop"],
         limit: 5,
       }),
+    enabled: !!workspace?.id,
+  });
+  const providerAvailabilityQuery = useQuery({
+    queryKey: ["agent-provider-availability"],
+    queryFn: getAgentProviderAvailability,
     enabled: !!workspace?.id,
   });
 
@@ -103,9 +129,43 @@ export function AgentSettingsPanel() {
     },
   });
 
+  const providerAuthMutation = useMutation({
+    mutationFn: updateAgentProviderAuth,
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Updated",
+        message: "Personal provider credentials saved",
+        color: "green",
+      });
+      queryClient.setQueryData(["agent-provider-availability"], data);
+      setProviderKeyDraft({
+        anthropicApiKey: "",
+        claudeSubscriptionToken: "",
+        openaiApiKey: "",
+        openaiSubscriptionToken: "",
+        googleApiKey: "",
+      });
+      setProviderKeyDirty({
+        anthropicApiKey: false,
+        claudeSubscriptionToken: false,
+        openaiApiKey: false,
+        openaiSubscriptionToken: false,
+        googleApiKey: false,
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save provider credentials",
+        color: "red",
+      });
+    },
+  });
+
   const currentSettings = useMemo(
     () => {
       const defaults: AgentSettings = {
+        swarmPermissionLevel: "standard",
         policy: {
           allowAutoApply: [],
           requireApproval: [],
@@ -307,12 +367,205 @@ export function AgentSettingsPanel() {
             Workspace-wide
           </Text>
         </Group>
+        <Card withBorder radius="md" p="sm">
+          <Stack gap="xs">
+            <Group justify="space-between">
+              <Text fw={600} size="sm">
+                Personal LLM Credentials
+              </Text>
+              <Button
+                size="xs"
+                onClick={() =>
+                  providerAuthMutation.mutate({
+                    anthropicApiKey: providerKeyDirty.anthropicApiKey
+                      ? providerKeyDraft.anthropicApiKey
+                      : undefined,
+                    claudeSubscriptionToken:
+                      providerKeyDirty.claudeSubscriptionToken
+                        ? providerKeyDraft.claudeSubscriptionToken
+                        : undefined,
+                    openaiApiKey: providerKeyDirty.openaiApiKey
+                      ? providerKeyDraft.openaiApiKey
+                      : undefined,
+                    openaiSubscriptionToken:
+                      providerKeyDirty.openaiSubscriptionToken
+                        ? providerKeyDraft.openaiSubscriptionToken
+                        : undefined,
+                    googleApiKey: providerKeyDirty.googleApiKey
+                      ? providerKeyDraft.googleApiKey
+                      : undefined,
+                  })
+                }
+                loading={providerAuthMutation.isPending}
+                disabled={
+                  !providerKeyDirty.anthropicApiKey &&
+                  !providerKeyDirty.claudeSubscriptionToken &&
+                  !providerKeyDirty.openaiApiKey &&
+                  !providerKeyDirty.openaiSubscriptionToken &&
+                  !providerKeyDirty.googleApiKey
+                }
+              >
+                Save Keys
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed">
+              Per-user swarm credentials. You can use API keys or subscription auth
+              tokens where supported. Edited fields are saved.
+            </Text>
+            <Group grow>
+              <PasswordInput
+                label="Claude (Anthropic)"
+                placeholder="sk-ant-..."
+                value={providerKeyDraft.anthropicApiKey}
+                onChange={(event) => {
+                  setProviderKeyDraft((prev) => ({
+                    ...prev,
+                    anthropicApiKey: event.currentTarget.value,
+                  }));
+                  setProviderKeyDirty((prev) => ({
+                    ...prev,
+                    anthropicApiKey: true,
+                  }));
+                }}
+              />
+              <Badge
+                mt={26}
+                color={
+                  providerAvailabilityQuery.data?.providers.claude.available
+                    ? "green"
+                    : "gray"
+                }
+                variant="light"
+              >
+                {providerAvailabilityQuery.data?.providers.claude.available
+                  ? `Available (${providerAvailabilityQuery.data.providers.claude.source})`
+                  : "Unavailable"}
+              </Badge>
+            </Group>
+            <PasswordInput
+              label="Claude Subscription Token (optional)"
+              placeholder="subscription token"
+              value={providerKeyDraft.claudeSubscriptionToken}
+              onChange={(event) => {
+                setProviderKeyDraft((prev) => ({
+                  ...prev,
+                  claudeSubscriptionToken: event.currentTarget.value,
+                }));
+                setProviderKeyDirty((prev) => ({
+                  ...prev,
+                  claudeSubscriptionToken: true,
+                }));
+              }}
+            />
+            <Group grow>
+              <PasswordInput
+                label="Codex (OpenAI)"
+                placeholder="sk-..."
+                value={providerKeyDraft.openaiApiKey}
+                onChange={(event) => {
+                  setProviderKeyDraft((prev) => ({
+                    ...prev,
+                    openaiApiKey: event.currentTarget.value,
+                  }));
+                  setProviderKeyDirty((prev) => ({
+                    ...prev,
+                    openaiApiKey: true,
+                  }));
+                }}
+              />
+              <Badge
+                mt={26}
+                color={
+                  providerAvailabilityQuery.data?.providers.codex.available
+                    ? "green"
+                    : "gray"
+                }
+                variant="light"
+              >
+                {providerAvailabilityQuery.data?.providers.codex.available
+                  ? `Available (${providerAvailabilityQuery.data.providers.codex.source})`
+                  : "Unavailable"}
+              </Badge>
+            </Group>
+            <PasswordInput
+              label="OpenAI Subscription Token (optional)"
+              placeholder="subscription token"
+              value={providerKeyDraft.openaiSubscriptionToken}
+              onChange={(event) => {
+                setProviderKeyDraft((prev) => ({
+                  ...prev,
+                  openaiSubscriptionToken: event.currentTarget.value,
+                }));
+                setProviderKeyDirty((prev) => ({
+                  ...prev,
+                  openaiSubscriptionToken: true,
+                }));
+              }}
+            />
+            <Group grow>
+              <PasswordInput
+                label="Gemini (Google)"
+                placeholder="AIza..."
+                value={providerKeyDraft.googleApiKey}
+                onChange={(event) => {
+                  setProviderKeyDraft((prev) => ({
+                    ...prev,
+                    googleApiKey: event.currentTarget.value,
+                  }));
+                  setProviderKeyDirty((prev) => ({
+                    ...prev,
+                    googleApiKey: true,
+                  }));
+                }}
+              />
+              <Badge
+                mt={26}
+                color={
+                  providerAvailabilityQuery.data?.providers.gemini.available
+                    ? "green"
+                    : "gray"
+                }
+                variant="light"
+              >
+                {providerAvailabilityQuery.data?.providers.gemini.available
+                  ? `Available (${providerAvailabilityQuery.data.providers.gemini.source})`
+                  : "Unavailable"}
+              </Badge>
+            </Group>
+            {!providerAvailabilityQuery.data?.providers.claude.available &&
+            !providerAvailabilityQuery.data?.providers.codex.available &&
+            !providerAvailabilityQuery.data?.providers.gemini.available ? (
+              <Alert color="yellow" variant="light">
+                No providers are available yet. Configure a personal key or set a
+                global infrastructure key.
+              </Alert>
+            ) : null}
+          </Stack>
+        </Card>
         {!isAdmin && (
           <Text size="sm" c="dimmed">
             You need admin permissions to edit agent settings.
           </Text>
         )}
         <Stack gap="xs">
+          <Select
+            label={toLabel("Swarm permission level")}
+            description="Global default for coding-swarm and team CLI agents."
+            data={[
+              { value: "readonly", label: "Readonly" },
+              { value: "standard", label: "Standard" },
+              { value: "permissive", label: "Permissive" },
+              { value: "yolo", label: "Yolo" },
+            ]}
+            value={currentSettings.swarmPermissionLevel}
+            onChange={(value) =>
+              mutation.mutate({
+                swarmPermissionLevel:
+                  (value as AgentSettings["swarmPermissionLevel"]) || "standard",
+              })
+            }
+            disabled={!isAdmin}
+          />
           <Switch
             label={toLabel("Enable agent")}
             checked={currentSettings.enabled}

@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { WorkspacePreparationService } from '../coding-swarm/workspace-preparation.service';
 
 @Injectable()
 export class TeamRuntimeSessionListener {
@@ -12,6 +13,7 @@ export class TeamRuntimeSessionListener {
     private readonly teamRepo: TeamDeploymentRepo,
     private readonly terminalSessionService: TerminalSessionService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly workspacePreparationService: WorkspacePreparationService,
   ) {}
 
   @OnEvent('parallax.agent_stopped')
@@ -40,6 +42,7 @@ export class TeamRuntimeSessionListener {
       runtimeSessionId: null,
       terminalSessionId: null,
     });
+    await this.cleanupTeamApiKey(teamAgent.deploymentId, teamAgent.id, teamAgent.userId);
 
     if (teamAgent.terminalSessionId) {
       try {
@@ -109,6 +112,7 @@ export class TeamRuntimeSessionListener {
 
     await this.teamRepo.updateAgentStatus(teamAgent.id, 'error');
     await this.teamRepo.updateAgentCurrentStep(teamAgent.id, null);
+    await this.cleanupTeamApiKey(teamAgent.deploymentId, teamAgent.id, teamAgent.userId);
 
     try {
       await this.teamRepo.appendRunLog(teamAgent.deploymentId, {
@@ -239,5 +243,22 @@ export class TeamRuntimeSessionListener {
       method,
       runtimeSessionId,
     });
+  }
+
+  private async cleanupTeamApiKey(
+    deploymentId: string,
+    teamAgentId: string,
+    fallbackUserId?: string | null,
+  ): Promise<void> {
+    try {
+      const deployment = await this.teamRepo.findById(deploymentId);
+      const triggerUserId = deployment?.deployedBy || fallbackUserId || 'system';
+      await this.workspacePreparationService.cleanupApiKey(
+        teamAgentId,
+        triggerUserId,
+      );
+    } catch {
+      // best-effort cleanup
+    }
   }
 }

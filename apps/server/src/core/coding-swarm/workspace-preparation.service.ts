@@ -12,8 +12,8 @@ import {
 import { readFileSync, existsSync, appendFileSync } from 'fs';
 import { resolve } from 'path';
 
-/** Default approval preset for swarm agents — they need autonomy to work without human input */
-const DEFAULT_APPROVAL_PRESET: ApprovalPreset = 'autonomous';
+/** Default approval preset for swarm agents when no workspace/team override is provided */
+const DEFAULT_APPROVAL_PRESET: ApprovalPreset = 'standard';
 
 /** Map execution agentType strings to adapter adapterType values */
 const AGENT_TYPE_TO_ADAPTER: Record<string, AdapterType> = {
@@ -109,6 +109,7 @@ export class WorkspacePreparationService {
       executionId,
       workspaceId,
       taskDescription,
+      taskContext: params.taskContext,
     });
 
     // Step 3: Write memory file
@@ -199,6 +200,7 @@ export class WorkspacePreparationService {
     executionId: string;
     workspaceId: string;
     taskDescription: string;
+    taskContext?: Record<string, any>;
   }): string {
     const templatePath = resolve(
       __dirname,
@@ -216,13 +218,25 @@ export class WorkspacePreparationService {
 
     const toolCategories = this.buildToolCategoriesList();
 
-    return template
+    const base = template
       .replace(/\{\{serverUrl\}\}/g, params.serverUrl)
       .replace(/\{\{apiKey\}\}/g, params.apiKey)
       .replace(/\{\{executionId\}\}/g, params.executionId)
       .replace(/\{\{workspaceId\}\}/g, params.workspaceId)
       .replace(/\{\{taskDescription\}\}/g, params.taskDescription)
       .replace(/\{\{toolCategories\}\}/g, toolCategories);
+
+    if (!params.taskContext || Object.keys(params.taskContext).length === 0) {
+      return base;
+    }
+
+    return `${base}
+
+## Task Context
+\`\`\`json
+${JSON.stringify(params.taskContext, null, 2)}
+\`\`\`
+`;
   }
 
   private buildToolCategoriesList(): string {

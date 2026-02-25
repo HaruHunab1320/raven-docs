@@ -29,6 +29,9 @@ import type {
   WorkflowStep,
 } from "../types/team.types";
 import { TEAM_AGENT_TYPE_OPTIONS } from "../constants/agent-types";
+import { getProviderKeyForAgentType } from "../constants/agent-types";
+import { useQuery } from "@tanstack/react-query";
+import { getAgentProviderAvailability } from "@/features/user/services/user-service";
 
 interface RoleFormValue {
   id: string;
@@ -253,6 +256,10 @@ export function TeamBuilderModal({ opened, onClose, template }: Props) {
   const createMutation = useCreateTemplateMutation();
   const updateMutation = useUpdateTemplateMutation();
   const isEditing = !!template;
+  const providerAvailabilityQuery = useQuery({
+    queryKey: ["agent-provider-availability"],
+    queryFn: getAgentProviderAvailability,
+  });
 
   const form = useForm<FormValues>({
     initialValues: template
@@ -277,6 +284,16 @@ export function TeamBuilderModal({ opened, onClose, template }: Props) {
     value: r.id,
     label: r.name || r.id,
   }));
+  const teamAgentTypeOptions = TEAM_AGENT_TYPE_OPTIONS.map((option) => {
+    const provider = getProviderKeyForAgentType(option.value);
+    const available = providerAvailabilityQuery.data
+      ? Boolean(providerAvailabilityQuery.data.providers[provider]?.available)
+      : true;
+    return {
+      ...option,
+      disabled: !available,
+    };
+  });
 
   const livePattern = buildOrgPattern(form.values);
 
@@ -387,7 +404,7 @@ export function TeamBuilderModal({ opened, onClose, template }: Props) {
                     <Select
                       label="Coding Adapter"
                       placeholder="Use workspace default"
-                      data={TEAM_AGENT_TYPE_OPTIONS}
+                      data={teamAgentTypeOptions}
                       clearable
                       size="xs"
                       {...form.getInputProps(`roles.${index}.agentType`)}

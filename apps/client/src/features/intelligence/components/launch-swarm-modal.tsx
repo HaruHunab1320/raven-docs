@@ -10,9 +10,12 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useCurrentWorkspace } from "@/features/workspace/hooks/use-current-workspace";
 import { useActiveExperiments } from "../hooks/use-intelligence-queries";
 import { useExecuteSwarmMutation } from "../hooks/use-swarm-queries";
+import { getAgentProviderAvailability } from "@/features/user/services/user-service";
+import { getProviderKeyForAgentType } from "@/features/teams/constants/agent-types";
 
 interface Props {
   opened: boolean;
@@ -65,11 +68,24 @@ export function LaunchSwarmModal({
   const { data: workspace } = useCurrentWorkspace();
   const { data: experiments } = useActiveExperiments(spaceId);
   const executeMutation = useExecuteSwarmMutation();
+  const providerAvailabilityQuery = useQuery({
+    queryKey: ["agent-provider-availability"],
+    queryFn: getAgentProviderAvailability,
+  });
 
   const experimentOptions = (experiments ?? []).map((e) => ({
     value: e.id,
     label: e.title || "Untitled",
   }));
+  const availableMap = providerAvailabilityQuery.data?.providers;
+  const agentTypeOptions = AGENT_TYPES.map((option) => {
+    const provider = getProviderKeyForAgentType(option.value);
+    const available = availableMap ? Boolean(availableMap[provider]?.available) : true;
+    return {
+      ...option,
+      disabled: !available,
+    };
+  });
 
   const form = useForm({
     initialValues: {
@@ -100,8 +116,28 @@ export function LaunchSwarmModal({
     );
   }, [opened, workspace?.settings, form]);
 
+  useEffect(() => {
+    if (!opened) return;
+    const current = form.values.agentType;
+    const selected = agentTypeOptions.find((option) => option.value === current);
+    if (selected && !selected.disabled) return;
+    const next = agentTypeOptions.find((option) => !option.disabled);
+    if (next) {
+      form.setFieldValue("agentType", next.value);
+    }
+  }, [opened, form, agentTypeOptions, form.values.agentType]);
+
   const handleSubmit = form.onSubmit(async (values) => {
     if (!workspace) return;
+    const selected = agentTypeOptions.find((option) => option.value === values.agentType);
+    if (selected?.disabled) {
+      notifications.show({
+        title: "Provider unavailable",
+        message: "Configure provider auth in Agent Settings before launching this adapter.",
+        color: "yellow",
+      });
+      return;
+    }
 
     try {
       await executeMutation.mutateAsync({
@@ -151,7 +187,7 @@ export function LaunchSwarmModal({
 
           <Select
             label="Agent Type"
-            data={AGENT_TYPES}
+            data={agentTypeOptions}
             {...form.getInputProps("agentType")}
           />
 

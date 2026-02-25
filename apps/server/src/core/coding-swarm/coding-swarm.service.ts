@@ -9,8 +9,11 @@ import { GitWorkspaceService } from '../git-workspace/git-workspace.service';
 import { AgentExecutionService } from './agent-execution.service';
 import { WorkspacePreparationService } from './workspace-preparation.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
+import { UserRepo } from '../../database/repos/user/user.repo';
 import { KyselyDB } from '../../database/types/kysely.types';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
+import { resolveAgentSettings } from '../agent/agent-settings';
+import { mapSwarmPermissionToApprovalPreset } from './swarm-permission-level';
 import { mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -26,6 +29,7 @@ export class CodingSwarmService implements OnModuleInit {
     private readonly agentExecutionService: AgentExecutionService,
     private readonly workspacePreparationService: WorkspacePreparationService,
     private readonly workspaceRepo: WorkspaceRepo,
+    private readonly userRepo: UserRepo,
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue(QueueName.GENERAL_QUEUE) private readonly generalQueue: Queue,
     @InjectKysely() private readonly db: KyselyDB,
@@ -135,6 +139,12 @@ export class CodingSwarmService implements OnModuleInit {
       // Step 2: Resolve API credentials for the agent
       const agentEnv = await this.resolveAgentCredentials(
         execution.workspaceId,
+        execution.triggeredBy || undefined,
+      );
+      const workspace = await this.workspaceRepo.findById(execution.workspaceId);
+      const agentSettings = resolveAgentSettings(workspace?.settings);
+      const defaultApprovalPreset = mapSwarmPermissionToApprovalPreset(
+        agentSettings.swarmPermissionLevel,
       );
 
       // Step 3: Prepare workspace — MCP API key, memory file, approval config, env vars
@@ -147,7 +157,7 @@ export class CodingSwarmService implements OnModuleInit {
           triggeredBy: execution.triggeredBy || 'system',
           taskDescription: execution.taskDescription,
           taskContext: execution.taskContext as Record<string, any> | undefined,
-          approvalPreset: config.approvalPreset,
+          approvalPreset: config.approvalPreset || defaultApprovalPreset,
         });
       const fullEnv = { ...agentEnv, ...prepResult.env };
 
@@ -576,33 +586,47 @@ export class CodingSwarmService implements OnModuleInit {
 
   private async resolveAgentCredentials(
     workspaceId: string,
+    triggerUserId?: string,
   ): Promise<Record<string, string>> {
     const env: Record<string, string> = {};
 
     try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      const settings = workspace?.settings as any;
-      const integrations = settings?.integrations || {};
+      let userIntegrations: Record<string, any> = {};
+      if (triggerUserId) {
+        const user = await this.userRepo.findById(triggerUserId, workspaceId);
+        userIntegrations = ((user?.settings as any)?.integrations || {}) as Record<
+          string,
+          any
+        >;
+      }
+      const userAgentProviders = (userIntegrations.agentProviders ||
+        {}) as Record<string, any>;
 
-      // Anthropic key (for Claude Code)
-      if (integrations.anthropicKey) {
-        env.ANTHROPIC_API_KEY = integrations.anthropicKey;
+      if (userAgentProviders.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = userAgentProviders.anthropicApiKey;
+      } else if (userAgentProviders.claudeSubscriptionToken) {
+        env.ANTHROPIC_AUTH_TOKEN = userAgentProviders.claudeSubscriptionToken;
       } else if (process.env.ANTHROPIC_API_KEY) {
         env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+      } else if (process.env.ANTHROPIC_AUTH_TOKEN) {
+        env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN;
       }
 
-      // OpenAI key (for Codex, Aider)
-      if (integrations.openaiKey) {
-        env.OPENAI_API_KEY = integrations.openaiKey;
+      if (userAgentProviders.openaiApiKey) {
+        env.OPENAI_API_KEY = userAgentProviders.openaiApiKey;
+      } else if (userAgentProviders.openaiSubscriptionToken) {
+        env.OPENAI_AUTH_TOKEN = userAgentProviders.openaiSubscriptionToken;
       } else if (process.env.OPENAI_API_KEY) {
         env.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      } else if (process.env.OPENAI_AUTH_TOKEN) {
+        env.OPENAI_AUTH_TOKEN = process.env.OPENAI_AUTH_TOKEN;
       }
 
-      // Google key (for Gemini CLI)
-      if (integrations.googleKey) {
-        env.GOOGLE_API_KEY = integrations.googleKey;
-      } else if (process.env.GOOGLE_API_KEY) {
-        env.GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+      if (userAgentProviders.googleApiKey) {
+        env.GOOGLE_API_KEY = userAgentProviders.googleApiKey;
+      } else if (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY) {
+        env.GOOGLE_API_KEY =
+          process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
       }
     } catch (error: any) {
       this.logger.warn(

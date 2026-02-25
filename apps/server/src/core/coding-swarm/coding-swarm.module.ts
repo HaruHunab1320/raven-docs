@@ -29,6 +29,6 @@ import { TerminalModule } from '../terminal/terminal.module';
     AgentExecutionService,
     WorkspacePreparationService,
   ],
-  exports: [CodingSwarmService, AgentExecutionService],
+  exports: [CodingSwarmService, AgentExecutionService, WorkspacePreparationService],
 })
 export class CodingSwarmModule {}

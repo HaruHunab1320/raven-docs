@@ -12,6 +12,44 @@ export async function updateUser(data: Partial<IUser>): Promise<IUser> {
   return req.data as IUser;
 }
 
+export interface AgentProviderStatus {
+  keyPresent: boolean;
+  source: "user" | "global" | "none";
+  available: boolean;
+}
+
+export interface AgentProviderAvailability {
+  providers: {
+    claude: AgentProviderStatus;
+    codex: AgentProviderStatus;
+    gemini: AgentProviderStatus;
+    aider: AgentProviderStatus;
+  };
+}
+
+export interface UpdateAgentProviderAuthPayload {
+  anthropicApiKey?: string;
+  claudeSubscriptionToken?: string;
+  openaiApiKey?: string;
+  openaiSubscriptionToken?: string;
+  googleApiKey?: string;
+}
+
+export async function getAgentProviderAvailability(): Promise<AgentProviderAvailability> {
+  const req = await api.post<AgentProviderAvailability>("/users/agent-providers");
+  return req.data;
+}
+
+export async function updateAgentProviderAuth(
+  data: UpdateAgentProviderAuthPayload,
+): Promise<AgentProviderAvailability> {
+  const req = await api.post<AgentProviderAvailability>(
+    "/users/agent-providers/update",
+    data,
+  );
+  return req.data;
+}
+
 export async function uploadAvatar(file: File): Promise<any> {
   const formData = new FormData();
   formData.append("type", "avatar");
