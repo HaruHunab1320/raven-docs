@@ -1,6 +1,7 @@
 export interface IntelligenceSettings {
   enabled: boolean;
   profileType: string;
+  defaultTeamAgentType: string;
   pageTypes: Array<{
     type: string;
     label: string;
@@ -45,6 +46,7 @@ export interface IntelligenceSettings {
 export const defaultResearchProfile: IntelligenceSettings = {
   enabled: false,
   profileType: 'research',
+  defaultTeamAgentType: 'claude',
 
   pageTypes: [
     {
@@ -284,6 +286,9 @@ export const resolveIntelligenceSettings = (
 ): IntelligenceSettings => ({
   ...defaultResearchProfile,
   ...(settings?.intelligence || {}),
+  defaultTeamAgentType:
+    settings?.intelligence?.defaultTeamAgentType ||
+    defaultResearchProfile.defaultTeamAgentType,
   pageTypes:
     settings?.intelligence?.pageTypes || defaultResearchProfile.pageTypes,
   edgeTypes:

@@ -11,6 +11,7 @@ import {
   IWorkspaceIntegrations,
   IChannelMapping,
   IGitHubConnectionStatus,
+  IIntelligenceSettings,
 } from "../types/workspace.types";
 import { IPagination, QueryParams } from "@/lib/types.ts";
 import { ISetupWorkspace } from "@/features/auth/types/auth.types.ts";
@@ -113,6 +114,21 @@ export async function getAppVersion(): Promise<IVersion> {
 
 export async function getWorkspaceIntegrations(): Promise<IWorkspaceIntegrations> {
   const req = await api.post<IWorkspaceIntegrations>("/workspace/integrations");
+  return req.data;
+}
+
+export async function getWorkspaceIntelligenceSettings(): Promise<IIntelligenceSettings> {
+  const req = await api.post<IIntelligenceSettings>("/workspace/intelligence");
+  return req.data;
+}
+
+export async function updateWorkspaceIntelligenceSettings(
+  data: Partial<IIntelligenceSettings>,
+): Promise<IIntelligenceSettings> {
+  const req = await api.post<IIntelligenceSettings>(
+    "/workspace/intelligence/update",
+    data,
+  );
   return req.data;
 }
 

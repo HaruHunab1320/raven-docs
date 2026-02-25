@@ -232,6 +232,14 @@ export class TeamDeploymentRepo {
       .executeTakeFirst();
   }
 
+  async findAgentByRuntimeSessionId(runtimeSessionId: string) {
+    return this.db
+      .selectFrom('teamAgents')
+      .selectAll()
+      .where('runtimeSessionId', '=', runtimeSessionId)
+      .executeTakeFirst();
+  }
+
   /**
    * Atomic task claiming — assigns a task to an agent only if unassigned.
    * Returns the task if claimed, null if already taken.

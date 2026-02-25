@@ -5,6 +5,7 @@ import { TeamAgentLoopProcessor } from './team-agent-loop.processor';
 import { WorkflowExecutorService } from './workflow-executor.service';
 import { TeamCoordinatorListener } from './team-coordinator.listener';
 import { TeamRuntimeListener } from './team-runtime.listener';
+import { TeamRuntimeSessionListener } from './team-runtime-session.listener';
 import { TeamTemplateValidationService } from './team-template-validation.service';
 import { TeamController } from './team.controller';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
@@ -41,6 +42,7 @@ import { TerminalModule } from '../terminal/terminal.module';
     WorkflowExecutorService,
     TeamCoordinatorListener,
     TeamRuntimeListener,
+    TeamRuntimeSessionListener,
     TeamTemplateValidationService,
     TeamDeploymentRepo,
     TeamTemplateRepo,

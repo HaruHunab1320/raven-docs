@@ -11,6 +11,8 @@ export interface OrgRole {
   name?: string;
   description?: string;
   type?: string | string[];
+  agentType?: string;
+  workdir?: string;
   capabilities: string[];
   reportsTo?: string;
   minInstances?: number;

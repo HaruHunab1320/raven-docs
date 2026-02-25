@@ -75,6 +75,39 @@ export class TeamRuntimeListener {
     await this.emitAndPublishTeamRuntimeEvent('team:workflow_failed', 'workflow_failed', data);
   }
 
+  @OnEvent('team.agent_tool_running')
+  async handleAgentToolRunning(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    stepId?: string;
+    tool?: { toolName?: string; description?: string } | null;
+    autoInterruptEnabled: boolean;
+    runtimeSessionId: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:agent_tool_running',
+      'agent_tool_running',
+      data,
+    );
+  }
+
+  @OnEvent('team.agent_tool_interrupted')
+  async handleAgentToolInterrupted(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    stepId?: string;
+    tool?: { toolName?: string; description?: string } | null;
+    interrupted: boolean;
+    method: string;
+    runtimeSessionId: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:agent_tool_interrupted',
+      'agent_tool_interrupted',
+      data,
+    );
+  }
+
   private async emitAndPublishTeamRuntimeEvent(
     wsEventName: string,
     eventName: string,

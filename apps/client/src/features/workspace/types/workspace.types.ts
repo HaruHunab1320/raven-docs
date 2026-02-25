@@ -108,3 +108,14 @@ export interface IChannelMapping {
   spaceId: string;
   spaceName?: string;
 }
+
+export interface IIntelligenceSettings {
+  enabled?: boolean;
+  profileType?: string;
+  defaultTeamAgentType?: string;
+  pageTypes?: any[];
+  edgeTypes?: any[];
+  teamTemplates?: any[];
+  patternRules?: any[];
+  dashboardWidgets?: string[];
+}

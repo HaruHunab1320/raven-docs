@@ -65,6 +65,8 @@ export interface RavenExecutionPlan {
     name: string;
     capabilities: string[];
     reportsTo?: string;
+    agentType?: string;
+    workdir?: string;
     minInstances: number;
     maxInstances: number;
     singleton: boolean;

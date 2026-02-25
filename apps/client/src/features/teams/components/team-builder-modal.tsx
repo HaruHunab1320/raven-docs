@@ -28,11 +28,13 @@ import type {
   OrgRole,
   WorkflowStep,
 } from "../types/team.types";
+import { TEAM_AGENT_TYPE_OPTIONS } from "../constants/agent-types";
 
 interface RoleFormValue {
   id: string;
   name: string;
   description: string;
+  agentType: string;
   capabilities: string[];
   reportsTo: string;
   minInstances: number;
@@ -100,6 +102,7 @@ function emptyRole(): RoleFormValue {
     id: `role_${Date.now()}`,
     name: "",
     description: "",
+    agentType: "",
     capabilities: [],
     reportsTo: "",
     minInstances: 1,
@@ -133,16 +136,22 @@ function parseExistingTemplate(template: TeamTemplate): FormValues {
 
   const roles: RoleFormValue[] = Object.entries(
     pattern.structure?.roles || {},
-  ).map(([id, role]) => ({
-    id,
-    name: role.name || id,
-    description: role.description || "",
-    capabilities: role.capabilities || [],
-    reportsTo: role.reportsTo || "",
-    minInstances: role.minInstances || 1,
-    maxInstances: role.maxInstances || 1,
-    singleton: role.singleton || false,
-  }));
+  ).map(([id, role]) => {
+    const metadata = role.metadata as Record<string, unknown> | undefined;
+    const metadataAgentType =
+      typeof metadata?.agentType === "string" ? metadata.agentType : "";
+    return {
+      id,
+      name: role.name || id,
+      description: role.description || "",
+      agentType: role.agentType || metadataAgentType,
+      capabilities: role.capabilities || [],
+      reportsTo: role.reportsTo || "",
+      minInstances: role.minInstances || 1,
+      maxInstances: role.maxInstances || 1,
+      singleton: role.singleton || false,
+    };
+  });
 
   const steps: StepFormValue[] = (pattern.workflow?.steps || []).map(
     (step) => ({
@@ -176,6 +185,7 @@ function buildOrgPattern(values: FormValues): OrgPattern {
     roles[role.id] = {
       name: role.name,
       description: role.description || undefined,
+      agentType: role.agentType || undefined,
       capabilities: role.capabilities,
       reportsTo: role.reportsTo || undefined,
       minInstances: role.minInstances,
@@ -373,6 +383,14 @@ export function TeamBuilderModal({ opened, onClose, template }: Props) {
                       placeholder="What this role does"
                       size="xs"
                       {...form.getInputProps(`roles.${index}.description`)}
+                    />
+                    <Select
+                      label="Coding Adapter"
+                      placeholder="Use workspace default"
+                      data={TEAM_AGENT_TYPE_OPTIONS}
+                      clearable
+                      size="xs"
+                      {...form.getInputProps(`roles.${index}.agentType`)}
                     />
                     <TagsInput
                       label="Capabilities"

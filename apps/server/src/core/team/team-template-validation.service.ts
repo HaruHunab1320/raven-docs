@@ -3,6 +3,20 @@ import { MCPSchemaService } from '../../integrations/mcp/services/mcp-schema.ser
 
 @Injectable()
 export class TeamTemplateValidationService {
+  private readonly supportedAgentTypes = new Set([
+    'claude',
+    'claude-code',
+    'claudecode',
+    'claude_code',
+    'codex',
+    'gpt-codex',
+    'openai-codex',
+    'gemini',
+    'gemini-cli',
+    'gemini_cli',
+    'aider',
+  ]);
+
   constructor(private readonly mcpSchema: MCPSchemaService) {}
 
   validateOrgPatternCapabilities(orgPattern: Record<string, any>) {
@@ -14,6 +28,19 @@ export class TeamTemplateValidationService {
     }
 
     for (const [roleId, roleDef] of Object.entries(roles)) {
+      const roleAgentType = String((roleDef as any)?.agentType || '').trim();
+      if (
+        roleAgentType &&
+        !this.supportedAgentTypes.has(roleAgentType.toLowerCase())
+      ) {
+        invalid.push({
+          roleId,
+          capability: roleAgentType,
+          reason:
+            'Unsupported agentType. Use one of: claude, codex, gemini, aider',
+        });
+      }
+
       const capabilities = Array.isArray((roleDef as any)?.capabilities)
         ? ((roleDef as any).capabilities as string[])
         : [];

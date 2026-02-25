@@ -5,7 +5,8 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PTYManager } from 'pty-manager';
+import { PTYManager, TerminalAttachment, ToolRunningInfo } from 'pty-manager';
+import { PTYConsoleBridge } from 'pty-console';
 import { createAllAdapters, checkAdapters } from 'coding-agent-adapters';
 import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
 
@@ -22,8 +23,10 @@ export interface AgentSpawnConfig {
 export class AgentExecutionService implements OnModuleDestroy {
   private readonly logger = new Logger(AgentExecutionService.name);
   private ptyManager: PTYManager | null = null;
+  private consoleBridge: PTYConsoleBridge | null = null;
   readonly mode: 'local' | 'remote';
   private readonly sessionWorkspaceMap = new Map<string, string>();
+  private readonly interruptCooldownBySession = new Map<string, number>();
 
   constructor(
     private readonly eventEmitter: EventEmitter2,
@@ -42,6 +45,11 @@ export class AgentExecutionService implements OnModuleDestroy {
       for (const adapter of createAllAdapters()) {
         this.ptyManager.registerAdapter(adapter);
       }
+
+      // Bridge PTY manager output/status into a console-oriented stream.
+      this.consoleBridge = new PTYConsoleBridge(this.ptyManager, {
+        maxBufferedCharsPerSession: 100_000,
+      });
 
       // Bridge PTYManager events → Raven event system
       this.ptyManager.on('session_ready', (session) => {
@@ -89,11 +97,99 @@ export class AgentExecutionService implements OnModuleDestroy {
         });
       });
 
+      this.ptyManager.on('tool_running', (session, info) => {
+        void this.handleToolRunningEvent(session.id, info);
+      });
+
       this.logger.log('AgentExecutionService initialized in LOCAL mode');
     } else {
       this.logger.log(
         `AgentExecutionService initialized in REMOTE mode → ${process.env.AGENT_RUNTIME_ENDPOINT}`,
       );
+    }
+  }
+
+  private isAutoInterruptEnabled(): boolean {
+    const raw =
+      process.env.TEAM_AUTO_INTERRUPT_TOOL_RUNNING ??
+      process.env.SWARM_AUTO_INTERRUPT_TOOL_RUNNING ??
+      'true';
+    return raw.toLowerCase() !== 'false';
+  }
+
+  private async handleToolRunningEvent(
+    sessionId: string,
+    info: ToolRunningInfo,
+  ): Promise<void> {
+    const workspaceId = this.sessionWorkspaceMap.get(sessionId);
+    const autoInterruptEnabled = this.isAutoInterruptEnabled();
+    const toolName = info.toolName || 'unknown';
+
+    this.logger.warn(
+      `Detected tool-running session ${sessionId} (tool=${toolName})`,
+    );
+
+    this.eventEmitter.emit('parallax.tool_running', {
+      workspaceId,
+      agentId: sessionId,
+      info,
+      autoInterruptEnabled,
+    });
+
+    if (!autoInterruptEnabled) {
+      this.eventEmitter.emit('parallax.tool_attention_required', {
+        workspaceId,
+        agentId: sessionId,
+        reason: 'auto_interrupt_disabled',
+        info,
+      });
+      return;
+    }
+
+    const now = Date.now();
+    const lastInterrupt = this.interruptCooldownBySession.get(sessionId) || 0;
+    if (now - lastInterrupt < 1500) {
+      return;
+    }
+    this.interruptCooldownBySession.set(sessionId, now);
+
+    const interrupted = this.tryInterruptSession(sessionId);
+    this.eventEmitter.emit('parallax.tool_interrupted', {
+      workspaceId,
+      agentId: sessionId,
+      info,
+      interrupted,
+      method: interrupted ? 'sendKeys(ctrl+c)' : 'none',
+    });
+
+    if (!interrupted) {
+      this.eventEmitter.emit('parallax.tool_attention_required', {
+        workspaceId,
+        agentId: sessionId,
+        reason: 'interrupt_failed',
+        info,
+      });
+    }
+  }
+
+  private tryInterruptSession(sessionId: string): boolean {
+    if (!this.ptyManager) return false;
+    const session = this.ptyManager.getSession(sessionId);
+    if (!session) return false;
+
+    try {
+      session.sendKeys('ctrl+c');
+      setTimeout(() => {
+        try {
+          const s = this.ptyManager?.getSession(sessionId);
+          s?.sendKeys('ctrl+c');
+        } catch {
+          // best effort follow-up interrupt
+        }
+      }, 250);
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -255,7 +351,28 @@ export class AgentExecutionService implements OnModuleDestroy {
    */
   attachTerminal(sessionId: string): any | null {
     if (this.mode === 'local') {
-      return this.ptyManager?.attachTerminal(sessionId) ?? null;
+      if (!this.consoleBridge) return null;
+      const session = this.consoleBridge.getSession(sessionId);
+      if (!session) return null;
+
+      const attachment: TerminalAttachment = {
+        onData: (callback: (data: string) => void) => {
+          const handler = (event: { sessionId: string; data: string }) => {
+            if (event.sessionId === sessionId) {
+              callback(event.data);
+            }
+          };
+          this.consoleBridge?.on('session_output', handler);
+          return () => this.consoleBridge?.off('session_output', handler);
+        },
+        write: (data: string) => {
+          this.consoleBridge?.sendMessage(sessionId, data);
+        },
+        resize: (cols: number, rows: number) => {
+          this.consoleBridge?.resize(sessionId, cols, rows);
+        },
+      };
+      return attachment;
     }
     return null;
   }
@@ -291,6 +408,10 @@ export class AgentExecutionService implements OnModuleDestroy {
   async onModuleDestroy() {
     if (this.mode === 'local' && this.ptyManager) {
       this.logger.log('Shutting down PTYManager...');
+      if (this.consoleBridge) {
+        this.consoleBridge.close();
+        this.consoleBridge = null;
+      }
       await this.ptyManager.shutdown();
       this.sessionWorkspaceMap.clear();
     }

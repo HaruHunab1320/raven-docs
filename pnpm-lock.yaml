@@ -154,8 +154,8 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2
       coding-agent-adapters:
-        specifier: 0.7.5
-        version: 0.7.5(pty-manager@1.8.0)
+        specifier: 0.8.0
+        version: 0.8.0(pty-manager@1.9.0)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -193,8 +193,8 @@ importers:
         specifier: ^13.0.0
         version: 13.1.3
       pty-manager:
-        specifier: 1.8.0
-        version: 1.8.0
+        specifier: 1.9.0
+        version: 1.9.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -625,8 +625,8 @@ importers:
         specifier: ^0.14.1
         version: 0.14.3
       coding-agent-adapters:
-        specifier: 0.7.5
-        version: 0.7.5(pty-manager@1.8.0)
+        specifier: 0.8.0
+        version: 0.8.0(pty-manager@1.9.0)
       cookie:
         specifier: ^1.0.2
         version: 1.1.1
@@ -690,9 +690,12 @@ importers:
       postmark:
         specifier: ^4.0.5
         version: 4.0.5
+      pty-console:
+        specifier: 0.3.0
+        version: 0.3.0
       pty-manager:
-        specifier: 1.8.0
-        version: 1.8.0
+        specifier: 1.9.0
+        version: 1.9.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -6533,12 +6536,12 @@ packages:
       agent-adapter-monitor:
         optional: true
 
-  coding-agent-adapters@0.7.5:
-    resolution: {integrity: sha512-LxXZdw5xWnuiXsMS2o8YItoZCU71GdrMBqN3xlg0Hp58fdU8dk9FHBQCSkj1GNw2hPYXoHtTTIsQydGzDrycyw==}
+  coding-agent-adapters@0.8.0:
+    resolution: {integrity: sha512-u55gCgTzRCsfYAzI2XobqrQtIIgLDJJUT6ffABwlv48Ta/oBE5lZA2xAbTUMCEB4p7zy/vYBYkLpRSwSLbcx2w==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       agent-adapter-monitor: ^0.3.0
-      pty-manager: ^1.7.2
+      pty-manager: ^1.9.0
     peerDependenciesMeta:
       agent-adapter-monitor:
         optional: true
@@ -10885,13 +10888,17 @@ packages:
   pstree.remy@1.1.8:
     resolution: {integrity: sha512-77DZwxQmxKnu3aR542U+X8FypNzbfJ+C5XQDk3uWjWxn6151aIMGthWYRXTqT1E5oJvg+ljaa2OJi+VfvCOQ8w==}
 
+  pty-console@0.3.0:
+    resolution: {integrity: sha512-IEizJ4F8LjQJLimLT7aHRFzWTU19Bjv2/3h6Ols+Zn9iU23iQmF1lIGaDuwWmlZ0ADUOPUkGiWwOh+7MFM074g==}
+    engines: {node: '>=18'}
+
   pty-manager@1.3.1:
     resolution: {integrity: sha512-+WzVT8WkQKQffV2bDPq00sMyy9VRDMne/QuclwbTbnuZJwWpwofKg1AGp9aBTacom/X0WXMcKsf56O0kzhITcQ==}
     engines: {node: '>=18'}
     hasBin: true
 
-  pty-manager@1.8.0:
-    resolution: {integrity: sha512-N8129+je8UYgakq8x0NgMA5yxbPCz0MBs5q8kRZjjCVRRzf5xOeq69LofkkNTfEmz1JRKa5pbA/m6nRCnxT9Cw==}
+  pty-manager@1.9.0:
+    resolution: {integrity: sha512-QhGslG2X3IlJkK+75nFCLmBYQgI6ExMCRmI8vgIy14NzpfHGogUYb4/gviqAAGWpr3raIPdsxxHJAVlKvUdp2w==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20770,9 +20777,9 @@ snapshots:
     dependencies:
       pty-manager: 1.3.1
 
-  coding-agent-adapters@0.7.5(pty-manager@1.8.0):
+  coding-agent-adapters@0.8.0(pty-manager@1.9.0):
     dependencies:
-      pty-manager: 1.8.0
+      pty-manager: 1.9.0
 
   collapse-white-space@2.1.0: {}
 
@@ -26222,11 +26229,15 @@ snapshots:
 
   pstree.remy@1.1.8: {}
 
+  pty-console@0.3.0:
+    dependencies:
+      pty-manager: 1.9.0
+
   pty-manager@1.3.1:
     dependencies:
       node-pty: 1.1.0
 
-  pty-manager@1.8.0:
+  pty-manager@1.9.0:
     dependencies:
       node-pty: 1.1.0
 

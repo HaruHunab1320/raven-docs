@@ -10,6 +10,7 @@ import { DatabaseModule } from '../../database/database.module';
 import { ParallaxAgentsModule } from '../parallax-agents/parallax-agents.module';
 import { MCPModule } from '../../integrations/mcp/mcp.module';
 import { WsModule } from '../../ws/ws.module';
+import { TerminalModule } from '../terminal/terminal.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WsModule } from '../../ws/ws.module';
     GitWorkspaceModule,
     forwardRef(() => ParallaxAgentsModule),
     forwardRef(() => MCPModule),
+    forwardRef(() => TerminalModule),
     WsModule,
   ],
   controllers: [CodingSwarmController],

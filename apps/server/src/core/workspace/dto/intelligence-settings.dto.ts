@@ -74,6 +74,14 @@ export class TeamRoleDto {
   @IsString({ each: true })
   capabilities: string[];
 
+  @IsOptional()
+  @IsString()
+  agentType?: string;
+
+  @IsOptional()
+  @IsString()
+  workdir?: string;
+
   count: number;
 }
 
@@ -114,6 +122,10 @@ export class IntelligenceSettingsDto {
   @IsOptional()
   @IsString()
   profileType?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultTeamAgentType?: string;
 
   @IsOptional()
   @IsArray()

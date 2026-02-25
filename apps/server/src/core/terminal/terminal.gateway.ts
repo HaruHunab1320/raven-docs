@@ -8,18 +8,22 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { TokenService } from '../auth/services/token.service';
 import { JwtPayload, JwtType } from '../auth/dto/jwt-payload';
 import { TerminalSessionService } from './terminal-session.service';
 import * as cookie from 'cookie';
 import WebSocket from 'ws';
+import { TerminalAttachment } from 'pty-manager';
+import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
 
 interface TerminalClient extends Socket {
   userId?: string;
   workspaceId?: string;
   sessionId?: string;
   runtimeWs?: WebSocket; // Proxy connection to runtime
+  localAttachment?: TerminalAttachment; // Local PTY attachment
+  localAttachmentUnsub?: () => void;
 }
 
 @WebSocketGateway({
@@ -44,6 +48,7 @@ export class TerminalGateway
   constructor(
     private readonly tokenService: TokenService,
     private readonly terminalSessionService: TerminalSessionService,
+    @Optional() private readonly agentExecution?: AgentExecutionService,
   ) {}
 
   async handleConnection(client: TerminalClient): Promise<void> {
@@ -100,6 +105,11 @@ export class TerminalGateway
     if (client.runtimeWs) {
       client.runtimeWs.close();
     }
+    if (client.localAttachmentUnsub) {
+      client.localAttachmentUnsub();
+      client.localAttachmentUnsub = undefined;
+    }
+    client.localAttachment = undefined;
 
     if (client.sessionId) {
       this.terminalSessionService.handleUserDisconnect(client.sessionId, client.userId);
@@ -164,6 +174,19 @@ export class TerminalGateway
       if (!hasLegacyConnection && session.runtimeEndpoint) {
         // Proxy mode: Connect to runtime's terminal WebSocket
         await this.setupProxyConnection(client, session);
+      } else if (!hasLegacyConnection && this.agentExecution?.mode === 'local') {
+        // Local PTY mode: attach directly to the local runtime session.
+        const localAttachment = this.agentExecution.attachTerminal(
+          session.runtimeSessionId,
+        ) as TerminalAttachment | null;
+        if (localAttachment) {
+          client.localAttachment = localAttachment;
+          client.localAttachmentUnsub = localAttachment.onData((chunk) => {
+            client.emit('data', chunk);
+            void this.terminalSessionService.logOutput(session.id, chunk.slice(0, 10000));
+          });
+          await this.terminalSessionService.updateStatus(session.id, 'active');
+        }
       }
 
       // Notify user of successful attachment
@@ -270,6 +293,11 @@ export class TerminalGateway
         client.runtimeWs.close();
         client.runtimeWs = undefined;
       }
+      if (client.localAttachmentUnsub) {
+        client.localAttachmentUnsub();
+        client.localAttachmentUnsub = undefined;
+      }
+      client.localAttachment = undefined;
       this.proxyConnections.delete(client.sessionId);
 
       client.emit('detached');
@@ -300,6 +328,13 @@ export class TerminalGateway
     // Try proxy mode first
     if (client.runtimeWs && client.runtimeWs.readyState === WebSocket.OPEN) {
       client.runtimeWs.send(data);
+      await this.terminalSessionService.logInput(session.id, data);
+      return;
+    }
+
+    // Local PTY mode
+    if (client.localAttachment) {
+      client.localAttachment.write(data);
       await this.terminalSessionService.logInput(session.id, data);
       return;
     }
@@ -337,6 +372,12 @@ export class TerminalGateway
         rows: data.rows,
       }));
       this.logger.debug(`Resize sent for session ${session.id}: ${data.cols}x${data.rows}`);
+      return;
+    }
+
+    // Local PTY mode
+    if (client.localAttachment) {
+      client.localAttachment.resize(data.cols, data.rows);
       return;
     }
 

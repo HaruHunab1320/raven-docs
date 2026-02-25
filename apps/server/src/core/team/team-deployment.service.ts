@@ -131,6 +131,7 @@ export class TeamDeploymentService {
         );
         const roleAgentType =
           (roleDef as any).agentType ||
+          intelligence.defaultTeamAgentType ||
           process.env.TEAM_AGENT_DEFAULT_TYPE ||
           'claude-code';
         const roleWorkdir =
@@ -499,6 +500,11 @@ export class TeamDeploymentService {
       teamName?: string;
     },
   ) {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const intelligence = resolveIntelligenceSettings(workspace.settings);
     const executionPlan = compileOrgPattern(orgPattern);
     const memoryPolicy = opts?.memoryPolicy || 'none';
     const sourceAgentUsers = opts?.sourceAgentUsers || new Map<string, string>();
@@ -512,6 +518,7 @@ export class TeamDeploymentService {
       config: {
         ...(orgPattern as any),
         teamName: opts?.teamName || orgPattern.name,
+        defaultAgentType: intelligence.defaultTeamAgentType,
         redeploy: opts?.sourceDeploymentId
           ? {
               sourceDeploymentId: opts.sourceDeploymentId,
@@ -590,6 +597,7 @@ export class TeamDeploymentService {
         const roleAgentType =
           (roleDef as any).agentType ||
           (roleMetadata as any).agentType ||
+          intelligence.defaultTeamAgentType ||
           process.env.TEAM_AGENT_DEFAULT_TYPE ||
           'claude-code';
         const roleWorkdir =

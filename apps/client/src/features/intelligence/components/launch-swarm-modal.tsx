@@ -9,6 +9,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { useEffect } from "react";
 import { useCurrentWorkspace } from "@/features/workspace/hooks/use-current-workspace";
 import { useActiveExperiments } from "../hooks/use-intelligence-queries";
 import { useExecuteSwarmMutation } from "../hooks/use-swarm-queries";
@@ -27,6 +28,32 @@ const AGENT_TYPES = [
   { value: "aider", label: "Aider" },
   { value: "codex", label: "Codex" },
 ];
+
+function mapWorkspaceDefaultToSwarmAgentType(value: unknown): string {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  switch (normalized) {
+    case "claude":
+    case "claude-code":
+    case "claude_code":
+    case "claudecode":
+      return "claude-code";
+    case "gemini":
+    case "gemini-cli":
+    case "gemini_cli":
+      return "gemini-cli";
+    case "codex":
+    case "openai-codex":
+    case "gpt-codex":
+      return "codex";
+    case "aider":
+      return "aider";
+    default:
+      return "claude-code";
+  }
+}
 
 export function LaunchSwarmModal({
   opened,
@@ -60,6 +87,18 @@ export function LaunchSwarmModal({
         v.trim() ? null : "Task description is required",
     },
   });
+
+  useEffect(() => {
+    if (!opened) return;
+    if (form.isTouched("agentType")) return;
+
+    const workspaceDefault = (workspace?.settings as any)?.intelligence
+      ?.defaultTeamAgentType;
+    form.setFieldValue(
+      "agentType",
+      mapWorkspaceDefaultToSwarmAgentType(workspaceDefault),
+    );
+  }, [opened, workspace?.settings, form]);
 
   const handleSubmit = form.onSubmit(async (values) => {
     if (!workspace) return;
