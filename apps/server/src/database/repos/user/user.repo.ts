@@ -368,4 +368,18 @@ export class UserRepo {
       .returning(this.baseFields)
       .executeTakeFirst();
   }
+
+  async listUsersWithSubscriptionRefreshTokens(limit = 500): Promise<User[]> {
+    return this.db
+      .selectFrom('users')
+      .select(this.baseFields)
+      .where('deletedAt', 'is', null)
+      .where(
+        sql<boolean>`(settings->'integrations'->'agentProviders'->>'claudeSubscriptionRefreshToken' is not null
+          OR settings->'integrations'->'agentProviders'->>'openaiSubscriptionRefreshToken' is not null)`,
+      )
+      .orderBy('updatedAt', 'desc')
+      .limit(limit)
+      .execute();
+  }
 }

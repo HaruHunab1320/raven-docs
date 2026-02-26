@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AgentChatDto } from './agent-chat.dto';
 import { AgentMemoryService } from '../agent-memory/agent-memory.service';
 import { MCPService } from '../../integrations/mcp/mcp.service';
+import { MCPSchemaService } from '../../integrations/mcp/services/mcp-schema.service';
 import { User, Workspace } from '@raven-docs/db/types/entity.types';
 import { resolveAgentSettings } from './agent-settings';
 import { SpaceRepo } from '@raven-docs/db/repos/space/space.repo';
@@ -21,6 +22,7 @@ export class AgentStreamService {
   constructor(
     private readonly memoryService: AgentMemoryService,
     private readonly mcpService: MCPService,
+    private readonly mcpSchemaService: MCPSchemaService,
     private readonly spaceRepo: SpaceRepo,
     private readonly pageRepo: PageRepo,
     private readonly memoryContextService: AgentMemoryContextService,
@@ -98,16 +100,25 @@ export class AgentStreamService {
       `- knowledge_search: Search documentation and knowledge base. USE THIS for any questions about Raven Docs features, capabilities, or how to do things.`,
       `- search_pages: Search user-created pages in the workspace.`,
       `- create_task: Create a new task.`,
+      `- list_projects: List projects in the current space.`,
+      `- create_project: Create a new project in the current space.`,
+      `- update_project: Update an existing project.`,
+      `- archive_project: Archive or unarchive a project.`,
+      `- delete_project: Delete a project.`,
       `- report_bug: Report a bug or issue. Users can type "/bug" followed by a description.`,
       `- context_query: Ask "what do we know about X?" to get a structured overview of hypotheses, experiments, and evidence.`,
       `- create_hypothesis: Formalize a testable hypothesis with predictions and success criteria.`,
       `- register_experiment: Register a new experiment linked to a hypothesis.`,
       `- deploy_team: Deploy a multi-agent research team from a template to the current space.`,
+      `- mcp_call: Generic MCP bridge to call any available MCP method with params.`,
       ``,
       `Guidelines:`,
       `- ALWAYS use knowledge_search when asked about Raven Docs`,
       `- Provide specific, detailed answers based on search results`,
       `- Be helpful and concise`,
+      `- If a needed capability is not covered by a specialized tool, use mcp_call.`,
+      `- Preferred: pass method-specific params. The runtime auto-injects workspaceId/spaceId/pageId when missing.`,
+      `Available MCP methods: ${this.mcpSchemaService.getAllMethodNames().join(', ')}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -227,6 +238,172 @@ export class AgentStreamService {
           }
 
           return { success: true, task: response.result };
+        },
+      }),
+
+      list_projects: tool({
+        description: 'List projects in the current space',
+        inputSchema: z.object({
+          includeArchived: z.boolean().optional().describe('Include archived projects'),
+          searchTerm: z.string().optional().describe('Optional search term'),
+          page: z.number().int().min(1).optional(),
+          limit: z.number().int().min(1).max(100).optional(),
+        }),
+        execute: async ({ includeArchived, searchTerm, page, limit }) => {
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'project.list',
+              params: {
+                spaceId: dto.spaceId,
+                includeArchived,
+                searchTerm,
+                page: page ?? 1,
+                limit: limit ?? 20,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message };
+          }
+
+          const projects = response.result?.projects || [];
+          return {
+            count: projects.length,
+            projects: projects.slice(0, 10).map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              archived: Boolean(p.isArchived),
+            })),
+          };
+        },
+      }),
+
+      create_project: tool({
+        description: 'Create a new project in the current space',
+        inputSchema: z.object({
+          name: z.string().describe('Project name'),
+          description: z.string().optional().describe('Project description'),
+          icon: z.string().optional().describe('Project icon'),
+          color: z.string().optional().describe('Project color'),
+        }),
+        execute: async ({ name, description, icon, color }) => {
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'project.create',
+              params: {
+                name,
+                description,
+                icon,
+                color,
+                spaceId: dto.spaceId,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message, code: response.error.code };
+          }
+
+          return { success: true, project: response.result };
+        },
+      }),
+
+      update_project: tool({
+        description: 'Update an existing project',
+        inputSchema: z.object({
+          projectId: z.string().describe('Project ID'),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          icon: z.string().optional(),
+          color: z.string().optional(),
+        }),
+        execute: async ({ projectId, name, description, icon, color }) => {
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'project.update',
+              params: {
+                projectId,
+                name,
+                description,
+                icon,
+                color,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message, code: response.error.code };
+          }
+
+          return { success: true, project: response.result };
+        },
+      }),
+
+      archive_project: tool({
+        description: 'Archive or unarchive a project',
+        inputSchema: z.object({
+          projectId: z.string().describe('Project ID'),
+          isArchived: z.boolean().optional().describe('true to archive, false to unarchive'),
+        }),
+        execute: async ({ projectId, isArchived }) => {
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'project.archive',
+              params: {
+                projectId,
+                isArchived: typeof isArchived === 'boolean' ? isArchived : true,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message, code: response.error.code };
+          }
+
+          return { success: true, project: response.result };
+        },
+      }),
+
+      delete_project: tool({
+        description: 'Delete a project',
+        inputSchema: z.object({
+          projectId: z.string().describe('Project ID'),
+        }),
+        execute: async ({ projectId }) => {
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method: 'project.delete',
+              params: {
+                projectId,
+                workspaceId: workspace.id,
+              },
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return { error: response.error.message, code: response.error.code };
+          }
+
+          return { success: true };
         },
       }),
 
@@ -404,6 +581,50 @@ export class AgentStreamService {
           return response.result;
         },
       }),
+
+      mcp_call: tool({
+        description:
+          'Call any MCP method directly. Use when no specialized tool exists for the requested operation.',
+        inputSchema: z.object({
+          method: z.string().describe('Exact MCP method name, e.g. project.create or task.list'),
+          params: z
+            .record(z.string(), z.any())
+            .optional()
+            .describe('Method parameters object'),
+        }),
+        execute: async ({ method, params }) => {
+          const mergedParams = {
+            ...(params || {}),
+            workspaceId: (params as any)?.workspaceId || workspace.id,
+            spaceId: (params as any)?.spaceId || dto.spaceId,
+            pageId: (params as any)?.pageId || dto.pageId,
+          };
+
+          const response = await this.mcpService.processRequest(
+            {
+              jsonrpc: '2.0',
+              method,
+              params: mergedParams,
+              id: Date.now(),
+            },
+            user,
+          );
+
+          if (response.error) {
+            return {
+              success: false,
+              error: response.error.message,
+              code: response.error.code,
+              data: response.error.data,
+            };
+          }
+
+          return {
+            success: true,
+            result: response.result,
+          };
+        },
+      }),
     };
 
     const messages = [
@@ -428,7 +649,7 @@ export class AgentStreamService {
 
     this.logger.log(`[Stream] Starting chat with message: "${dto.message.slice(0, 50)}..."`);
     this.logger.log(`[Stream] Using model: ${this.getModelId()}`);
-    this.logger.log(`[Stream] Tools defined: knowledge_search, search_pages, create_task`);
+    this.logger.log('[Stream] Tools defined: knowledge_search, search_pages, create_task, list_projects, create_project, update_project, archive_project, delete_project, report_bug, context_query, create_hypothesis, register_experiment, deploy_team, mcp_call');
 
     // Stream the response
     const result = streamText({

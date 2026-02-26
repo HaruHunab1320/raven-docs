@@ -35,6 +35,26 @@ export interface UpdateAgentProviderAuthPayload {
   googleApiKey?: string;
 }
 
+export type SubscriptionProvider = "anthropic-subscription" | "openai-codex";
+
+export interface SubscriptionStatusResult {
+  providers: Record<
+    SubscriptionProvider,
+    {
+      connected: boolean;
+      source: "user" | "global" | "none";
+      connectedAt: string | null;
+      expiresAt: string | null;
+    }
+  >;
+}
+
+export interface StartSubscriptionResult {
+  provider: SubscriptionProvider;
+  state: string;
+  authUrl: string;
+}
+
 export async function getAgentProviderAvailability(): Promise<AgentProviderAvailability> {
   const req = await api.post<AgentProviderAvailability>("/users/agent-providers");
   return req.data;
@@ -47,6 +67,42 @@ export async function updateAgentProviderAuth(
     "/users/agent-providers/update",
     data,
   );
+  return req.data;
+}
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatusResult> {
+  const req = await api.post<SubscriptionStatusResult>("/subscription/status");
+  return req.data;
+}
+
+export async function startSubscriptionAuth(
+  provider: SubscriptionProvider,
+): Promise<StartSubscriptionResult> {
+  const req = await api.post<StartSubscriptionResult>("/subscription/start", {
+    provider,
+  });
+  return req.data;
+}
+
+export async function exchangeSubscriptionCode(data: {
+  provider: SubscriptionProvider;
+  code: string;
+  state?: string;
+}): Promise<{ success: boolean; provider: SubscriptionProvider; connected: boolean }> {
+  const req = await api.post("/subscription/exchange", data);
+  return req.data;
+}
+
+export async function setupSubscriptionToken(data: {
+  provider: SubscriptionProvider;
+  token: string;
+}): Promise<{ success: boolean; provider: SubscriptionProvider; connected: boolean }> {
+  const req = await api.post("/subscription/setup-token", data);
+  return req.data;
+}
+
+export async function deleteSubscription(provider: SubscriptionProvider): Promise<{ success: boolean; provider: SubscriptionProvider }> {
+  const req = await api.delete("/subscription", { data: { provider } });
   return req.data;
 }
 

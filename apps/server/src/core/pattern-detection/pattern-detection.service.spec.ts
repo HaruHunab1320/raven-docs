@@ -61,6 +61,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -81,6 +82,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -117,6 +119,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -156,6 +159,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -188,6 +192,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -225,6 +230,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -258,6 +264,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -302,6 +309,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -340,6 +348,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],
@@ -371,6 +380,7 @@ describe('PatternDetectionService', () => {
       const settings: IntelligenceSettings = {
         enabled: true,
         profileType: 'research',
+        defaultTeamAgentType: 'claude',
         pageTypes: [],
         edgeTypes: [],
         teamTemplates: [],

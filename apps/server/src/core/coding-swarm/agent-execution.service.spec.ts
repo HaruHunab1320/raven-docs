@@ -11,10 +11,13 @@ jest.mock('pty-manager', () => {
     send: jest.fn(),
     stop: jest.fn(),
     get: jest.fn(),
+    getSession: jest.fn(),
+    list: jest.fn(() => []),
     logs: jest.fn(),
     attachTerminal: jest.fn(),
     shutdown: jest.fn(),
     on: jest.fn(),
+    off: jest.fn(),
   };
   return {
     PTYManager: jest.fn(() => mockPTYManager),
@@ -48,6 +51,9 @@ describe('AgentExecutionService', () => {
   beforeEach(async () => {
     // Ensure local mode (no AGENT_RUNTIME_ENDPOINT)
     delete process.env.AGENT_RUNTIME_ENDPOINT;
+    checkAdapters.mockResolvedValue([
+      { type: 'claude', installed: true, installCommand: 'npm i -g claude' },
+    ]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -189,13 +195,9 @@ describe('AgentExecutionService', () => {
   });
 
   describe('attachTerminal (local mode)', () => {
-    it('should return terminal attachment', () => {
-      const mockAttachment = { onData: jest.fn(), write: jest.fn() };
-      __mockPTYManager.attachTerminal.mockReturnValue(mockAttachment);
-
+    it('should return null when no active bridged session exists', () => {
       const result = service.attachTerminal('session-123');
-
-      expect(result).toEqual(mockAttachment);
+      expect(result).toBeNull();
     });
   });
 
@@ -211,12 +213,12 @@ describe('AgentExecutionService', () => {
       expect(checkAdapters).toHaveBeenCalledWith(['claude']);
     });
 
-    it('should return false for uninstalled adapter', async () => {
+    it('should return false for unknown uninstalled adapter', async () => {
       checkAdapters.mockResolvedValue([
-        { type: 'aider', installed: false },
+        { type: 'unknown', installed: false },
       ]);
 
-      const result = await service.checkInstallation('aider');
+      const result = await service.checkInstallation('unknown');
 
       expect(result.available).toBe(false);
     });

@@ -78,6 +78,10 @@
   border: 1px solid var(--mantine-color-gray-3);
 }
 
+.typingMessage {
+  opacity: 0.85;
+}
+
 .userMessage {
   align-self: flex-end;
   background: var(--mantine-color-blue-light);
@@ -147,6 +151,23 @@
 
 .contextDropdown {
   max-height: 320px;
+}
+
+.contextItemText {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.contextItemText :where(p, ul, ol, blockquote, pre) {
+  margin: 0 0 4px;
+}
+
+.contextItemText :where(*:last-child) {
+  margin-bottom: 0;
 }
 
 .debugToggle {

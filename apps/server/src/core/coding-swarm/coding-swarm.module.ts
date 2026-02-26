@@ -11,6 +11,7 @@ import { ParallaxAgentsModule } from '../parallax-agents/parallax-agents.module'
 import { MCPModule } from '../../integrations/mcp/mcp.module';
 import { WsModule } from '../../ws/ws.module';
 import { TerminalModule } from '../terminal/terminal.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TerminalModule } from '../terminal/terminal.module';
     forwardRef(() => ParallaxAgentsModule),
     forwardRef(() => MCPModule),
     forwardRef(() => TerminalModule),
+    UserModule,
     WsModule,
   ],
   controllers: [CodingSwarmController],

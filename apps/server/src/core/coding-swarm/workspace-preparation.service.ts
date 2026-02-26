@@ -9,7 +9,7 @@ import {
   type ApprovalPreset,
   type ApprovalConfig,
 } from 'coding-agent-adapters';
-import { readFileSync, existsSync, appendFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 
 /** Default approval preset for swarm agents when no workspace/team override is provided */
@@ -143,7 +143,17 @@ export class WorkspacePreparationService {
       );
     }
 
-    // Step 5: Update .gitignore
+    // Step 5: Disable user-global MCP servers (e.g. claude-in-chrome) for
+    // spawned agents — they access Raven via HTTP API, not Claude MCP.
+    try {
+      this.disableGlobalMcpServers(workspacePath, agentType);
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to disable global MCP servers for execution ${executionId}: ${error.message}`,
+      );
+    }
+
+    // Step 6: Update .gitignore
     try {
       this.updateGitignore(workspacePath, agentType);
     } catch (error: any) {
@@ -152,7 +162,7 @@ export class WorkspacePreparationService {
       );
     }
 
-    // Step 6: Return env vars + adapterConfig for spawn
+    // Step 7: Return env vars + adapterConfig for spawn
     return {
       env: {
         MCP_SERVER_URL: serverUrl,
@@ -285,6 +295,37 @@ ${JSON.stringify(params.taskContext, null, 2)}
       envVars: approvalConfig.envVars,
       summary: approvalConfig.summary,
     };
+  }
+
+  /**
+   * Write a project-level settings file that disables user-global MCP servers.
+   * Spawned agents access Raven via HTTP, so they don't need Claude-level MCP
+   * integrations (e.g. claude-in-chrome) which cause blocking config prompts.
+   */
+  private disableGlobalMcpServers(
+    workspacePath: string,
+    agentType: string,
+  ): void {
+    if (agentType !== 'claude' && agentType !== 'claude-code') return;
+
+    const claudeDir = resolve(workspacePath, '.claude');
+    if (!existsSync(claudeDir)) {
+      mkdirSync(claudeDir, { recursive: true });
+    }
+
+    const settingsPath = resolve(claudeDir, 'settings.local.json');
+    let settings: Record<string, any> = {};
+    if (existsSync(settingsPath)) {
+      try {
+        settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+      } catch {
+        settings = {};
+      }
+    }
+
+    // Override mcpServers to empty so no user-global servers are inherited
+    settings.mcpServers = {};
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
   }
 
   private updateGitignore(

@@ -462,10 +462,10 @@ describe('CodingSwarmService', () => {
 
   describe('getStatus', () => {
     it('should return execution by id', async () => {
-      const mockExecution = { id: 'exec-001', status: 'running' };
+      const mockExecution = { id: 'exec-001', workspaceId: 'workspace-123', status: 'running' };
       mockSwarmExecRepo.findById.mockResolvedValue(mockExecution);
 
-      const result = await service.getStatus('exec-001');
+      const result = await service.getStatus('workspace-123', 'exec-001');
 
       expect(result).toEqual(mockExecution);
     });
@@ -502,7 +502,7 @@ describe('CodingSwarmService', () => {
       mockSwarmExecRepo.updateStatus.mockResolvedValue({});
       mockAgentExecutionService.stop.mockResolvedValue(undefined);
 
-      const result = await service.stop('exec-001');
+      const result = await service.stop('workspace-123', 'exec-001');
 
       expect(result).toEqual({
         success: true,
@@ -525,7 +525,7 @@ describe('CodingSwarmService', () => {
     it('should throw when execution not found', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.stop('nonexistent')).rejects.toThrow(
+      await expect(service.stop('workspace-123', 'nonexistent')).rejects.toThrow(
         'Execution nonexistent not found',
       );
     });
@@ -544,7 +544,7 @@ describe('CodingSwarmService', () => {
         new Error('Connection refused'),
       );
 
-      const result = await service.stop('exec-001');
+      const result = await service.stop('workspace-123', 'exec-001');
 
       expect(result.status).toBe('cancelled');
     });
@@ -554,6 +554,7 @@ describe('CodingSwarmService', () => {
     it('should try AgentExecutionService logs first', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue({
         id: 'exec-001',
+        workspaceId: 'workspace-123',
         agentId: 'agent-abc',
         terminalSessionId: 'term-456',
       });
@@ -563,7 +564,7 @@ describe('CodingSwarmService', () => {
         'Done.',
       ]);
 
-      const result = await service.getLogs('exec-001', 50);
+      const result = await service.getLogs('workspace-123', 'exec-001', 50);
 
       expect(result).toEqual({
         logs: [{ content: 'Building...' }, { content: 'Done.' }],
@@ -577,6 +578,7 @@ describe('CodingSwarmService', () => {
     it('should fall back to DB logs when PTY logs empty', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue({
         id: 'exec-001',
+        workspaceId: 'workspace-123',
         agentId: 'agent-abc',
         terminalSessionId: 'term-456',
       });
@@ -588,7 +590,7 @@ describe('CodingSwarmService', () => {
       ];
       mockSelectChain.execute.mockResolvedValue(mockLogs);
 
-      const result = await service.getLogs('exec-001', 50);
+      const result = await service.getLogs('workspace-123', 'exec-001', 50);
 
       expect(result).toEqual({ logs: mockLogs });
     });
@@ -596,11 +598,12 @@ describe('CodingSwarmService', () => {
     it('should return empty when no terminal session', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue({
         id: 'exec-001',
+        workspaceId: 'workspace-123',
         agentId: null,
         terminalSessionId: null,
       });
 
-      const result = await service.getLogs('exec-001');
+      const result = await service.getLogs('workspace-123', 'exec-001');
 
       expect(result).toEqual({
         logs: [],
@@ -611,7 +614,7 @@ describe('CodingSwarmService', () => {
     it('should throw when execution not found', async () => {
       mockSwarmExecRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.getLogs('nonexistent')).rejects.toThrow(
+      await expect(service.getLogs('workspace-123', 'nonexistent')).rejects.toThrow(
         'Execution nonexistent not found',
       );
     });

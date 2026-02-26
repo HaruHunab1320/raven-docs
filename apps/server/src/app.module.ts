@@ -27,6 +27,7 @@ import { LoggerModule } from 'nestjs-pino';
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
+        level: process.env.LOG_LEVEL || 'info',
         serializers: {
           req: (req) => ({
             method: req.method,

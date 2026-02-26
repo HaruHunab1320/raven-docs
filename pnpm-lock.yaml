@@ -154,8 +154,8 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2
       coding-agent-adapters:
-        specifier: 0.8.0
-        version: 0.8.0(pty-manager@1.9.0)
+        specifier: 0.8.3
+        version: 0.8.3(pty-manager@1.9.1)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -193,8 +193,8 @@ importers:
         specifier: ^13.0.0
         version: 13.1.3
       pty-manager:
-        specifier: 1.9.0
-        version: 1.9.0
+        specifier: 1.9.1
+        version: 1.9.1
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -6546,6 +6546,16 @@ packages:
       agent-adapter-monitor:
         optional: true
 
+  coding-agent-adapters@0.8.3:
+    resolution: {integrity: sha512-8rfBzr6nY+2j5tjOV514c4VkuCnYPTeNntfWqVZfVUh+AfNbBTJuDkg/AyvYNbhBC0rwcsqWdqaE9Tv9WVBZgg==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      agent-adapter-monitor: ^0.3.0
+      pty-manager: ^1.9.1
+    peerDependenciesMeta:
+      agent-adapter-monitor:
+        optional: true
+
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
 
@@ -10899,6 +10909,11 @@ packages:
 
   pty-manager@1.9.0:
     resolution: {integrity: sha512-QhGslG2X3IlJkK+75nFCLmBYQgI6ExMCRmI8vgIy14NzpfHGogUYb4/gviqAAGWpr3raIPdsxxHJAVlKvUdp2w==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  pty-manager@1.9.1:
+    resolution: {integrity: sha512-ff/EI0N6jCwM4NGDFDRV38RVR3ibqAU9cgN4q/F0GLiABHH66M6UlAW39wLQDhF+yqOT3wNy9Fxl/pEmIMzH7g==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -20781,6 +20796,10 @@ snapshots:
     dependencies:
       pty-manager: 1.9.0
 
+  coding-agent-adapters@0.8.3(pty-manager@1.9.1):
+    dependencies:
+      pty-manager: 1.9.1
+
   collapse-white-space@2.1.0: {}
 
   collect-v8-coverage@1.0.3: {}
@@ -26238,6 +26257,10 @@ snapshots:
       node-pty: 1.1.0
 
   pty-manager@1.9.0:
+    dependencies:
+      node-pty: 1.1.0
+
+  pty-manager@1.9.1:
     dependencies:
       node-pty: 1.1.0
 

@@ -20,6 +20,7 @@ import { MCPModule } from '../../integrations/mcp/mcp.module';
 import { WsModule } from '../../ws/ws.module';
 import { CodingSwarmModule } from '../coding-swarm/coding-swarm.module';
 import { TerminalModule } from '../terminal/terminal.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TerminalModule } from '../terminal/terminal.module';
     WsModule,
     CodingSwarmModule,
     TerminalModule,
+    UserModule,
     forwardRef(() => MCPModule),
   ],
   controllers: [TeamController],

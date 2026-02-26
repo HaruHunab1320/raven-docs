@@ -8,6 +8,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PTYManager, TerminalAttachment, ToolRunningInfo } from 'pty-manager';
 import { PTYConsoleBridge } from 'pty-console';
 import { createAllAdapters, checkAdapters } from 'coding-agent-adapters';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
 
 export interface AgentSpawnConfig {
@@ -22,6 +25,21 @@ export interface AgentSpawnConfig {
 @Injectable()
 export class AgentExecutionService implements OnModuleDestroy {
   private readonly logger = new Logger(AgentExecutionService.name);
+  private readonly agentTypeAliases: Record<string, string> = {
+    'claude-code': 'claude',
+    claudecode: 'claude',
+    claude_code: 'claude',
+    'gemini-cli': 'gemini',
+    gemini_cli: 'gemini',
+    'gpt-codex': 'codex',
+    'openai-codex': 'codex',
+  };
+  private readonly agentTypeCommands: Record<string, string> = {
+    claude: 'claude',
+    gemini: 'gemini',
+    codex: 'codex',
+    aider: 'aider',
+  };
   private ptyManager: PTYManager | null = null;
   private consoleBridge: PTYConsoleBridge | null = null;
   readonly mode: 'local' | 'remote';
@@ -205,6 +223,17 @@ export class AgentExecutionService implements OnModuleDestroy {
       if (!this.ptyManager) {
         throw new Error('PTYManager not initialized');
       }
+      const normalizedType = this.normalizeAgentType(config.type);
+
+      const installation = await this.checkInstallation(normalizedType);
+      if (!installation.available) {
+        const installHint = installation.info?.installCommand
+          ? ` Install command: ${installation.info.installCommand}`
+          : '';
+        throw new Error(
+          `Coding CLI for adapter "${normalizedType}" is not installed or not available in PATH.${installHint}`,
+        );
+      }
 
       // Override env vars that prevent agent nesting
       // PTYManager merges env with process.env, so we set these to empty to override
@@ -214,22 +243,44 @@ export class AgentExecutionService implements OnModuleDestroy {
         CLAUDE_CODE_SESSION: '',
         CLAUDE_CODE_ENTRYPOINT: '',
       };
-      const spawnEnv = config.env
-        ? { ...nestingOverrides, ...config.env }
-        : nestingOverrides;
+      const spawnPath = this.buildSpawnPath(config.env);
+      const spawnEnv = {
+        ...nestingOverrides,
+        ...(config.env || {}),
+        PATH: spawnPath,
+      };
 
-      const session = await this.ptyManager.spawn({
-        type: config.type,
-        name: config.name,
-        workdir: config.workdir,
-        env: spawnEnv,
-        adapterConfig: config.adapterConfig,
-        timeout: config.timeout,
-      });
+      const command = this.getCommandForAgentType(normalizedType);
+      if (command && !this.commandExists(command, spawnPath)) {
+        throw new Error(
+          `Coding CLI for adapter "${normalizedType}" was not found in backend PATH. ` +
+            `Command "${command}" is missing. Set TEAM_AGENT_EXTRA_PATHS or SWARM_AGENT_EXTRA_PATHS to include its bin directory.`,
+        );
+      }
+
+      let session: any;
+      try {
+        session = await this.ptyManager.spawn({
+          type: normalizedType,
+          name: config.name,
+          workdir: config.workdir,
+          env: spawnEnv,
+          adapterConfig: config.adapterConfig,
+          timeout: config.timeout,
+        });
+      } catch (error: any) {
+        const rawMessage = String(error?.message || '');
+        if (rawMessage.toLowerCase().includes('posix_spawnp failed')) {
+          throw new Error(
+            `Failed to spawn ${normalizedType} CLI. Command not found or not executable in backend PATH (checked command "${command ?? normalizedType}").`,
+          );
+        }
+        throw error;
+      }
 
       this.sessionWorkspaceMap.set(session.id, workspaceId);
       this.logger.log(
-        `Spawned local agent ${session.id} (${config.type}) in ${config.workdir}`,
+        `Spawned local agent ${session.id} (${normalizedType}) in ${config.workdir}`,
       );
 
       return { id: session.id };
@@ -239,7 +290,7 @@ export class AgentExecutionService implements OnModuleDestroy {
     const spawnResult = await this.parallaxAgentsService.spawnAgents(
       workspaceId,
       {
-        agentType: config.type,
+        agentType: this.normalizeAgentType(config.type),
         count: 1,
         name: config.name,
         config: { workdir: config.workdir },
@@ -384,11 +435,19 @@ export class AgentExecutionService implements OnModuleDestroy {
     agentType: string,
   ): Promise<{ available: boolean; info?: any }> {
     if (this.mode === 'local') {
-      const results = await checkAdapters([agentType as any]);
+      const normalizedType = this.normalizeAgentType(agentType);
+      const command = this.getCommandForAgentType(normalizedType);
+      const pathValue = this.buildSpawnPath();
+      const commandFound = command ? this.commandExists(command, pathValue) : false;
+      const results = await checkAdapters([normalizedType as any]);
       const result = results[0];
       return {
-        available: result?.installed ?? false,
-        info: result,
+        available: commandFound || (result?.installed ?? false),
+        info: {
+          ...result,
+          command,
+          commandFound,
+        },
       };
     }
 
@@ -415,5 +474,84 @@ export class AgentExecutionService implements OnModuleDestroy {
       await this.ptyManager.shutdown();
       this.sessionWorkspaceMap.clear();
     }
+  }
+
+  private normalizeAgentType(value: string): string {
+    const raw = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!raw) return 'claude';
+    return this.agentTypeAliases[raw] || raw;
+  }
+
+  private getCommandForAgentType(agentType: string): string | null {
+    return this.agentTypeCommands[agentType] || null;
+  }
+
+  private buildSpawnPath(env?: Record<string, string>): string {
+    const delimiter = path.delimiter;
+    const home = os.homedir();
+    const configuredExtra = [
+      process.env.TEAM_AGENT_EXTRA_PATHS || '',
+      process.env.SWARM_AGENT_EXTRA_PATHS || '',
+    ]
+      .join(delimiter)
+      .split(/[,:]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const commonBins = [
+      '/opt/homebrew/bin',
+      '/usr/local/bin',
+      '/usr/bin',
+      '/bin',
+      path.join(home, '.local', 'bin'),
+      path.join(home, '.npm-global', 'bin'),
+      path.join(home, '.nvm', 'current', 'bin'),
+      path.join(home, '.bun', 'bin'),
+      path.join(home, '.cargo', 'bin'),
+    ];
+
+    const entries = [
+      ...(String(env?.PATH || '').split(delimiter).filter(Boolean) as string[]),
+      ...(String(process.env.PATH || '')
+        .split(delimiter)
+        .filter(Boolean) as string[]),
+      ...configuredExtra,
+      ...commonBins,
+    ];
+
+    const deduped: string[] = [];
+    const seen = new Set<string>();
+    for (const entry of entries) {
+      const normalized = entry.trim();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      deduped.push(normalized);
+    }
+    return deduped.join(delimiter);
+  }
+
+  private commandExists(command: string, pathValue: string): boolean {
+    if (!command) return false;
+    if (path.isAbsolute(command)) {
+      try {
+        fs.accessSync(command, fs.constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    for (const dir of pathValue.split(path.delimiter)) {
+      const full = path.join(dir, command);
+      try {
+        fs.accessSync(full, fs.constants.X_OK);
+        return true;
+      } catch {
+        // continue
+      }
+    }
+    return false;
   }
 }

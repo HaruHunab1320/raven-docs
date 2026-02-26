@@ -36,7 +36,12 @@ import { getSpaces } from "@/features/space/services/space-service";
 import { agentMemoryService } from "@/features/agent-memory/services/agent-memory-service";
 import {
   getAgentProviderAvailability,
+  getSubscriptionStatus,
+  startSubscriptionAuth,
+  exchangeSubscriptionCode,
+  deleteSubscription,
   updateAgentProviderAuth,
+  type SubscriptionProvider,
 } from "@/features/user/services/user-service";
 
 const toLabel = (text: string) => text;
@@ -68,6 +73,14 @@ export function AgentSettingsPanel() {
     openaiSubscriptionToken: false,
     googleApiKey: false,
   });
+  const [subscriptionCodeDraft, setSubscriptionCodeDraft] = useState<Record<SubscriptionProvider, string>>({
+    "anthropic-subscription": "",
+    "openai-codex": "",
+  });
+  const [subscriptionStateDraft, setSubscriptionStateDraft] = useState<Record<SubscriptionProvider, string>>({
+    "anthropic-subscription": "",
+    "openai-codex": "",
+  });
   const queryClient = useQueryClient();
 
   const settingsQuery = useQuery({
@@ -95,6 +108,11 @@ export function AgentSettingsPanel() {
   const providerAvailabilityQuery = useQuery({
     queryKey: ["agent-provider-availability"],
     queryFn: getAgentProviderAvailability,
+    enabled: !!workspace?.id,
+  });
+  const subscriptionStatusQuery = useQuery({
+    queryKey: ["subscription-status"],
+    queryFn: getSubscriptionStatus,
     enabled: !!workspace?.id,
   });
 
@@ -157,6 +175,67 @@ export function AgentSettingsPanel() {
       notifications.show({
         title: "Error",
         message: "Failed to save provider credentials",
+        color: "red",
+      });
+    },
+  });
+  const startSubscriptionMutation = useMutation({
+    mutationFn: startSubscriptionAuth,
+    onSuccess: (data) => {
+      setSubscriptionStateDraft((prev) => ({
+        ...prev,
+        [data.provider]: data.state,
+      }));
+      window.open(data.authUrl, "_blank", "noopener,noreferrer");
+      notifications.show({
+        title: "OAuth started",
+        message: `Complete auth in provider page, then paste the code here for ${data.provider}.`,
+        color: "blue",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to start subscription OAuth",
+        color: "red",
+      });
+    },
+  });
+  const exchangeSubscriptionMutation = useMutation({
+    mutationFn: exchangeSubscriptionCode,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-provider-availability"] });
+      setSubscriptionCodeDraft((prev) => ({ ...prev, [data.provider]: "" }));
+      notifications.show({
+        title: "Connected",
+        message: `${data.provider} subscription connected`,
+        color: "green",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to exchange OAuth code",
+        color: "red",
+      });
+    },
+  });
+  const deleteSubscriptionMutation = useMutation({
+    mutationFn: deleteSubscription,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-provider-availability"] });
+      notifications.show({
+        title: "Disconnected",
+        message: "Subscription credentials removed",
+        color: "green",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to disconnect subscription",
         color: "red",
       });
     },
@@ -412,6 +491,141 @@ export function AgentSettingsPanel() {
               Per-user swarm credentials. You can use API keys or subscription auth
               tokens where supported. Edited fields are saved.
             </Text>
+            <Divider label="OAuth Subscriptions" labelPosition="left" />
+            <Stack gap="xs">
+              <Group justify="space-between">
+                <Text size="sm" fw={500}>
+                  Claude Subscription
+                </Text>
+                <Badge
+                  color={
+                    subscriptionStatusQuery.data?.providers["anthropic-subscription"]?.connected
+                      ? "green"
+                      : "gray"
+                  }
+                  variant="light"
+                >
+                  {subscriptionStatusQuery.data?.providers["anthropic-subscription"]?.connected
+                    ? `Connected (${subscriptionStatusQuery.data.providers["anthropic-subscription"].source})`
+                    : "Not connected"}
+                </Badge>
+              </Group>
+              <Group grow>
+                <TextInput
+                  label="OAuth Code"
+                  placeholder="Paste authorization code"
+                  value={subscriptionCodeDraft["anthropic-subscription"]}
+                  onChange={(event) =>
+                    setSubscriptionCodeDraft((prev) => ({
+                      ...prev,
+                      "anthropic-subscription": event.currentTarget.value,
+                    }))
+                  }
+                />
+                <Button
+                  mt={26}
+                  variant="light"
+                  onClick={() =>
+                    startSubscriptionMutation.mutate("anthropic-subscription")
+                  }
+                  loading={startSubscriptionMutation.isPending}
+                >
+                  Start OAuth
+                </Button>
+                <Button
+                  mt={26}
+                  onClick={() =>
+                    exchangeSubscriptionMutation.mutate({
+                      provider: "anthropic-subscription",
+                      code: subscriptionCodeDraft["anthropic-subscription"],
+                      state: subscriptionStateDraft["anthropic-subscription"] || undefined,
+                    })
+                  }
+                  loading={exchangeSubscriptionMutation.isPending}
+                  disabled={!subscriptionCodeDraft["anthropic-subscription"].trim()}
+                >
+                  Exchange Code
+                </Button>
+                <Button
+                  mt={26}
+                  color="red"
+                  variant="subtle"
+                  onClick={() =>
+                    deleteSubscriptionMutation.mutate("anthropic-subscription")
+                  }
+                  loading={deleteSubscriptionMutation.isPending}
+                >
+                  Disconnect
+                </Button>
+              </Group>
+            </Stack>
+            <Stack gap="xs">
+              <Group justify="space-between">
+                <Text size="sm" fw={500}>
+                  OpenAI Codex Subscription
+                </Text>
+                <Badge
+                  color={
+                    subscriptionStatusQuery.data?.providers["openai-codex"]?.connected
+                      ? "green"
+                      : "gray"
+                  }
+                  variant="light"
+                >
+                  {subscriptionStatusQuery.data?.providers["openai-codex"]?.connected
+                    ? `Connected (${subscriptionStatusQuery.data.providers["openai-codex"].source})`
+                    : "Not connected"}
+                </Badge>
+              </Group>
+              <Group grow>
+                <TextInput
+                  label="OAuth Code"
+                  placeholder="Paste authorization code"
+                  value={subscriptionCodeDraft["openai-codex"]}
+                  onChange={(event) =>
+                    setSubscriptionCodeDraft((prev) => ({
+                      ...prev,
+                      "openai-codex": event.currentTarget.value,
+                    }))
+                  }
+                />
+                <Button
+                  mt={26}
+                  variant="light"
+                  onClick={() =>
+                    startSubscriptionMutation.mutate("openai-codex")
+                  }
+                  loading={startSubscriptionMutation.isPending}
+                >
+                  Start OAuth
+                </Button>
+                <Button
+                  mt={26}
+                  onClick={() =>
+                    exchangeSubscriptionMutation.mutate({
+                      provider: "openai-codex",
+                      code: subscriptionCodeDraft["openai-codex"],
+                      state: subscriptionStateDraft["openai-codex"] || undefined,
+                    })
+                  }
+                  loading={exchangeSubscriptionMutation.isPending}
+                  disabled={!subscriptionCodeDraft["openai-codex"].trim()}
+                >
+                  Exchange Code
+                </Button>
+                <Button
+                  mt={26}
+                  color="red"
+                  variant="subtle"
+                  onClick={() =>
+                    deleteSubscriptionMutation.mutate("openai-codex")
+                  }
+                  loading={deleteSubscriptionMutation.isPending}
+                >
+                  Disconnect
+                </Button>
+              </Group>
+            </Stack>
             <Group grow>
               <PasswordInput
                 label="Claude (Anthropic)"

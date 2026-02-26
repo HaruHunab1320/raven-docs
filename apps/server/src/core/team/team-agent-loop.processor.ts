@@ -2,6 +2,9 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { TeamAgentLoopJob } from './team-deployment.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
@@ -9,7 +12,7 @@ import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { WorkspacePreparationService } from '../coding-swarm/workspace-preparation.service';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
-import { UserRepo } from '../../database/repos/user/user.repo';
+import { UserService } from '../user/user.service';
 import { resolveAgentSettings } from '../agent/agent-settings';
 import { mapSwarmPermissionToApprovalPreset } from '../coding-swarm/swarm-permission-level';
 
@@ -33,7 +36,7 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     private readonly terminalSessionService: TerminalSessionService,
     private readonly workspacePreparationService: WorkspacePreparationService,
     private readonly workspaceRepo: WorkspaceRepo,
-    private readonly userRepo: UserRepo,
+    private readonly userService: UserService,
   ) {
     super();
   }
@@ -178,12 +181,17 @@ export class TeamAgentLoopProcessor extends WorkerHost {
             process.env.TEAM_AGENT_DEFAULT_TYPE ||
             'claude',
         );
-      const workdir =
+      const configuredWorkdir =
         agent.workdir ||
         roleDef?.workdir ||
         deploymentConfig?.workdir ||
         process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
-        process.cwd();
+        null;
+
+      // Each team agent gets its own scratch directory to avoid config
+      // collisions (.claude/, CLAUDE.md) when multiple agents share a workdir.
+      const workdir = configuredWorkdir ||
+        mkdtempSync(join(tmpdir(), `raven-team-${data.teamAgentId.slice(0, 8)}-`));
       const workspaceCredentials = await this.resolveAgentCredentials(
         data.workspaceId,
         triggerUserId || undefined,
@@ -296,53 +304,14 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     workspaceId: string,
     triggerUserId?: string,
   ): Promise<Record<string, string>> {
-    const env: Record<string, string> = {};
-
     try {
-      let userIntegrations: Record<string, any> = {};
-      if (triggerUserId) {
-        const user = await this.userRepo.findById(triggerUserId, workspaceId);
-        userIntegrations = ((user?.settings as any)?.integrations || {}) as Record<
-          string,
-          any
-        >;
-      }
-      const userAgentProviders = (userIntegrations.agentProviders ||
-        {}) as Record<string, any>;
-
-      if (userAgentProviders.anthropicApiKey) {
-        env.ANTHROPIC_API_KEY = userAgentProviders.anthropicApiKey;
-      } else if (userAgentProviders.claudeSubscriptionToken) {
-        env.ANTHROPIC_AUTH_TOKEN = userAgentProviders.claudeSubscriptionToken;
-      } else if (process.env.ANTHROPIC_API_KEY) {
-        env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-      } else if (process.env.ANTHROPIC_AUTH_TOKEN) {
-        env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN;
-      }
-
-      if (userAgentProviders.openaiApiKey) {
-        env.OPENAI_API_KEY = userAgentProviders.openaiApiKey;
-      } else if (userAgentProviders.openaiSubscriptionToken) {
-        env.OPENAI_AUTH_TOKEN = userAgentProviders.openaiSubscriptionToken;
-      } else if (process.env.OPENAI_API_KEY) {
-        env.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-      } else if (process.env.OPENAI_AUTH_TOKEN) {
-        env.OPENAI_AUTH_TOKEN = process.env.OPENAI_AUTH_TOKEN;
-      }
-
-      if (userAgentProviders.googleApiKey) {
-        env.GOOGLE_API_KEY = userAgentProviders.googleApiKey;
-      } else if (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY) {
-        env.GOOGLE_API_KEY =
-          process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
-      }
+      return this.userService.resolveAgentProviderEnv(triggerUserId, workspaceId);
     } catch (error: any) {
       this.logger.warn(
         `Failed to resolve agent credentials for workspace ${workspaceId}: ${error.message}`,
       );
     }
-
-    return env;
+    return {};
   }
 
   private buildTeamTaskDescription(

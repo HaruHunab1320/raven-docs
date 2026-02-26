@@ -282,7 +282,9 @@ export function AgentChatPanel({
   const activeContext = contextSummary || contextQuery.data;
   const contextChips = useMemo(() => {
     if (activeContext?.sources?.length) {
-      return activeContext.sources.filter((source) => source.count > 0);
+      return activeContext.sources.filter(
+        (source) => source.count > 0 && source.key !== "chat",
+      );
     }
     return [];
   }, [activeContext]);
@@ -432,16 +434,6 @@ export function AgentChatPanel({
               }
             }}
           />
-          <Group gap="xs">
-            {isBusy ? <Loader size="xs" /> : null}
-            <Text size="xs" c="dimmed">
-              {isBusy
-                ? status === "submitted"
-                  ? "Sending..."
-                  : "Streaming..."
-                : "Ready"}
-            </Text>
-          </Group>
         </Group>
         <Group justify="space-between" align="center">
           <Group gap="xs">
@@ -498,35 +490,44 @@ export function AgentChatPanel({
             </Button>
           </Popover.Target>
           <Popover.Dropdown>
-            <Stack gap="xs" className={classes.contextDropdown}>
-              {contextChips.length ? (
-                contextChips.map((source, sourceIndex) => (
-                  <Stack key={source.key || `source-${sourceIndex}`} gap={4}>
-                    <Group justify="space-between" align="center">
-                      <Text size="xs" fw={600}>
-                        {source.label}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {source.count}
-                      </Text>
-                    </Group>
-                    <ScrollArea h={120} offsetScrollbars>
+            <ScrollArea h={280} offsetScrollbars>
+              <Stack gap="xs" className={classes.contextDropdown}>
+                {contextChips.length ? (
+                  contextChips.map((source, sourceIndex) => (
+                    <Stack key={source.key || `source-${sourceIndex}`} gap={4}>
+                      <Group justify="space-between" align="center">
+                        <Text size="xs" fw={600}>
+                          {source.label}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {source.count}
+                        </Text>
+                      </Group>
                       <Stack gap={4}>
                         {source.items.map((item, itemIndex) => (
-                          <Text key={item.id || `item-${sourceIndex}-${itemIndex}`} size="xs" c="dimmed">
-                            {item.summary || "memory"}
-                          </Text>
+                          <TypographyStylesProvider
+                            key={item.id || `item-${sourceIndex}-${itemIndex}`}
+                            className={`${classes.markdown} ${classes.contextItemText}`}
+                          >
+                            <div
+                              dangerouslySetInnerHTML={{
+                                __html: DOMPurify.sanitize(
+                                  marked.parse(item.summary || "memory") as string,
+                                ),
+                              }}
+                            />
+                          </TypographyStylesProvider>
                         ))}
                       </Stack>
-                    </ScrollArea>
-                  </Stack>
-                ))
-              ) : (
-                <Text size="xs" c="dimmed">
-                  No context available yet.
-                </Text>
-              )}
-            </Stack>
+                    </Stack>
+                  ))
+                ) : (
+                  <Text size="xs" c="dimmed">
+                    No context available yet.
+                  </Text>
+                )}
+              </Stack>
+            </ScrollArea>
           </Popover.Dropdown>
         </Popover>
       </Group>
@@ -617,6 +618,16 @@ export function AgentChatPanel({
               No messages yet.
             </Text>
           )}
+          {isBusy ? (
+            <div className={`${classes.message} ${classes.assistantMessage} ${classes.typingMessage}`}>
+              <Group gap="xs" align="center">
+                <Loader size="xs" />
+                <Text size="xs" c="dimmed">
+                  {status === "submitted" ? "Raven is thinking..." : "Raven is responding..."}
+                </Text>
+              </Group>
+            </div>
+          ) : null}
           <div ref={bottomRef} />
         </div>
         {contextLabel ? (

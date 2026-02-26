@@ -84,11 +84,17 @@ export class UserController {
     if (agentProviders.claudeSubscriptionToken) {
       agentProviders.claudeSubscriptionToken = '••••••••';
     }
+    if (agentProviders.claudeSubscriptionRefreshToken) {
+      agentProviders.claudeSubscriptionRefreshToken = '••••••••';
+    }
     if (agentProviders.openaiApiKey) {
       agentProviders.openaiApiKey = '••••••••';
     }
     if (agentProviders.openaiSubscriptionToken) {
       agentProviders.openaiSubscriptionToken = '••••••••';
+    }
+    if (agentProviders.openaiSubscriptionRefreshToken) {
+      agentProviders.openaiSubscriptionRefreshToken = '••••••••';
     }
     if (agentProviders.googleApiKey) {
       agentProviders.googleApiKey = '••••••••';
