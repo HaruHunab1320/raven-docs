@@ -1,0 +1,17 @@
+{
+  "name": "@raven-docs/mcp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stdio MCP bridge that proxies to Raven's HTTP MCP API",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4"
+  }
+}
