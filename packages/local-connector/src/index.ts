@@ -6,6 +6,7 @@ import {
   readdirSync,
   statSync,
   writeFileSync,
+  unlinkSync,
   existsSync,
   mkdirSync,
 } from 'fs';
@@ -50,6 +51,7 @@ interface QueueItem {
   contentHash: string;
   contentType: string;
   baseHash?: string;
+  isDelete?: boolean;
   attempts: number;
   nextAttemptAt: number;
   lastError?: string;
@@ -200,11 +202,13 @@ function enqueueChangedFiles(input: {
   state: DaemonState;
 }) {
   const files = walkMarkdownFiles(input.rootDir);
+  const scanned = new Set<string>();
 
   for (const fullPath of files) {
     const content = readFileSync(fullPath, 'utf8');
     const hash = sha256(content);
     const rel = relative(input.rootDir, fullPath).replace(/\\/g, '/');
+    scanned.add(rel);
     const known = input.state.localHashes[rel];
 
     if (known === hash) {
@@ -229,6 +233,29 @@ function enqueueChangedFiles(input: {
     }
 
     input.state.localHashes[rel] = hash;
+  }
+
+  for (const rel of Object.keys(input.state.localHashes)) {
+    if (scanned.has(rel)) {
+      continue;
+    }
+
+    const queuedDelete = input.state.queue.some(
+      (item) => item.relativePath === rel && item.isDelete,
+    );
+    if (!queuedDelete) {
+      input.state.queue.push({
+        operationId: `${Date.now()}-delete-${Math.random().toString(36).slice(2)}`,
+        relativePath: rel,
+        content: '',
+        contentHash: sha256(''),
+        contentType: 'text/markdown',
+        baseHash: input.remoteMap.get(rel) || input.state.localHashes[rel],
+        isDelete: true,
+        attempts: 0,
+        nextAttemptAt: Date.now(),
+      });
+    }
   }
 }
 
@@ -256,8 +283,17 @@ async function flushQueue(input: {
         contentType: item.contentType,
         contentHash: item.contentHash,
         baseHash: item.baseHash,
+        isDelete: item.isDelete,
       })),
     });
+
+    for (const item of ready) {
+      if (item.isDelete) {
+        delete input.state.localHashes[item.relativePath];
+      } else {
+        input.state.localHashes[item.relativePath] = item.contentHash;
+      }
+    }
 
     const doneIds = new Set(ready.map((item) => item.operationId));
     input.state.queue = input.state.queue.filter(
@@ -311,6 +347,28 @@ function applyRemoteUpsert(input: {
   input.state.localHashes[rel] = hash || sha256(content);
 }
 
+function applyRemoteDelete(input: {
+  rootDir: string;
+  state: DaemonState;
+  event: DeltaEvent;
+}) {
+  const rel = input.event.relativePath;
+  if (!rel) {
+    return;
+  }
+
+  const queuedForFile = input.state.queue.some((item) => item.relativePath === rel);
+  if (queuedForFile) {
+    return;
+  }
+
+  const fullPath = join(input.rootDir, rel);
+  if (existsSync(fullPath)) {
+    unlinkSync(fullPath);
+  }
+  delete input.state.localHashes[rel];
+}
+
 async function pullAndApplyRemote(input: {
   config: ConnectorConfig;
   sourceId: string;
@@ -330,6 +388,12 @@ async function pullAndApplyRemote(input: {
     for (const event of events) {
       if (event.type === 'file.upsert') {
         applyRemoteUpsert({
+          rootDir: input.rootDir,
+          state: input.state,
+          event,
+        });
+      } else if (event.type === 'file.delete') {
+        applyRemoteDelete({
           rootDir: input.rootDir,
           state: input.state,
           event,
