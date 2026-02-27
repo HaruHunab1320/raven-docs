@@ -30,6 +30,10 @@ interface SourceFileSummary {
 interface SourceSummary {
   id: string;
   mode: 'import_only' | 'local_to_cloud' | 'bidirectional';
+  status?: 'active' | 'paused';
+  connectorId?: string;
+  includePatterns?: string[];
+  excludePatterns?: string[];
 }
 
 interface DeltaEvent {
@@ -68,6 +72,9 @@ const DEFAULT_STATE: DaemonState = {
   queue: [],
   remoteCursor: 0,
 };
+
+const DEFAULT_MAX_FILE_BYTES = Number(process.env.RAVEN_MAX_FILE_BYTES || 1_000_000);
+const DEFAULT_MAX_FILES_PER_SCAN = Number(process.env.RAVEN_MAX_FILES_PER_SCAN || 10_000);
 
 function getConfig(): ConnectorConfig {
   const serverUrl = process.env.RAVEN_SERVER_URL || 'http://localhost:3000';
@@ -144,10 +151,75 @@ function print(result: unknown) {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
-function walkMarkdownFiles(rootDir: string): string[] {
+function normalizeRelativePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^\.?\//, '');
+}
+
+function globToRegExp(pattern: string): RegExp {
+  const normalized = normalizeRelativePath(pattern);
+  const escaped = normalized.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const withDoubleStar = escaped.replace(/\*\*/g, '<<<DOUBLE_STAR>>>');
+  const withSingleStar = withDoubleStar.replace(/\*/g, '[^/]*');
+  const finalPattern = withSingleStar.replace(/<<<DOUBLE_STAR>>>/g, '.*');
+  return new RegExp(`^${finalPattern}$`);
+}
+
+function parseIgnoreRules(rootDir: string): Array<{ negate: boolean; regex: RegExp }> {
+  const gitIgnorePath = join(rootDir, '.gitignore');
+  if (!existsSync(gitIgnorePath)) {
+    return [];
+  }
+
+  const lines = readFileSync(gitIgnorePath, 'utf8').split('\n');
+  const rules: Array<{ negate: boolean; regex: RegExp }> = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const negate = line.startsWith('!');
+    const pattern = negate ? line.slice(1) : line;
+    try {
+      rules.push({ negate, regex: globToRegExp(pattern) });
+    } catch {
+      // Skip malformed patterns from .gitignore parsing.
+    }
+  }
+
+  return rules;
+}
+
+function isIgnoredByRules(
+  relPath: string,
+  rules: Array<{ negate: boolean; regex: RegExp }>,
+): boolean {
+  let ignored = false;
+  for (const rule of rules) {
+    if (rule.regex.test(relPath)) {
+      ignored = !rule.negate;
+    }
+  }
+  return ignored;
+}
+
+function walkMarkdownFiles(input: {
+  rootDir: string;
+  includePatterns: string[];
+  excludePatterns: string[];
+  maxFileBytes: number;
+  maxFilesPerScan: number;
+}): string[] {
   const out: string[] = [];
+  const includeRegs = input.includePatterns.map((pattern) => globToRegExp(pattern));
+  const excludeRegs = input.excludePatterns.map((pattern) => globToRegExp(pattern));
+  const gitIgnoreRules = parseIgnoreRules(input.rootDir);
 
   function walk(dir: string) {
+    if (out.length >= input.maxFilesPerScan) {
+      return;
+    }
+
     const entries = readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.name === '.git' || entry.name === 'node_modules') {
@@ -161,22 +233,45 @@ function walkMarkdownFiles(rootDir: string): string[] {
       }
 
       if (entry.isFile() && fullPath.toLowerCase().endsWith('.md')) {
+        const rel = normalizeRelativePath(relative(input.rootDir, fullPath));
+        if (rel === '.raven-local-sync-state.json') {
+          continue;
+        }
+
+        if (includeRegs.length > 0 && !includeRegs.some((reg) => reg.test(rel))) {
+          continue;
+        }
+        if (excludeRegs.some((reg) => reg.test(rel))) {
+          continue;
+        }
+        if (isIgnoredByRules(rel, gitIgnoreRules)) {
+          continue;
+        }
+
+        const stats = statSync(fullPath);
+        if (stats.size > input.maxFileBytes) {
+          continue;
+        }
+
         out.push(fullPath);
       }
     }
   }
 
-  walk(rootDir);
+  walk(input.rootDir);
   return out;
 }
 
-async function getSourceMode(
+async function getSourceSummary(
   config: ConnectorConfig,
   sourceId: string,
-): Promise<'import_only' | 'local_to_cloud' | 'bidirectional'> {
+): Promise<SourceSummary> {
   const sources = (await post(config, 'sources/list', {})) as unknown as SourceSummary[];
   const source = sources.find((item) => item.id === sourceId);
-  return source?.mode || 'import_only';
+  if (!source) {
+    throw new Error(`Source not found: ${sourceId}`);
+  }
+  return source;
 }
 
 async function getRemoteFileMap(
@@ -200,14 +295,24 @@ function enqueueChangedFiles(input: {
   rootDir: string;
   remoteMap: Map<string, string>;
   state: DaemonState;
+  includePatterns: string[];
+  excludePatterns: string[];
+  maxFileBytes: number;
+  maxFilesPerScan: number;
 }) {
-  const files = walkMarkdownFiles(input.rootDir);
+  const files = walkMarkdownFiles({
+    rootDir: input.rootDir,
+    includePatterns: input.includePatterns,
+    excludePatterns: input.excludePatterns,
+    maxFileBytes: input.maxFileBytes,
+    maxFilesPerScan: input.maxFilesPerScan,
+  });
   const scanned = new Set<string>();
 
   for (const fullPath of files) {
     const content = readFileSync(fullPath, 'utf8');
     const hash = sha256(content);
-    const rel = relative(input.rootDir, fullPath).replace(/\\/g, '/');
+    const rel = normalizeRelativePath(relative(input.rootDir, fullPath));
     scanned.add(rel);
     const known = input.state.localHashes[rel];
 
@@ -420,10 +525,21 @@ async function runDaemon(
   const state = loadState(stateFilePath);
   let isSyncing = false;
 
-  const mode = await getSourceMode(config, sourceId);
+  const initialSource = await getSourceSummary(config, sourceId);
+  let mode = initialSource.mode;
+  let sourceStatus = initialSource.status || 'active';
+  let connectorId = initialSource.connectorId;
+  let includePatterns = initialSource.includePatterns || ['**/*.md'];
+  let excludePatterns = initialSource.excludePatterns || [
+    '**/.git/**',
+    '**/node_modules/**',
+  ];
+  let lastHeartbeatAt = 0;
+  const maxFileBytes = DEFAULT_MAX_FILE_BYTES;
+  const maxFilesPerScan = DEFAULT_MAX_FILES_PER_SCAN;
 
   process.stdout.write(
-    `[local-connector] daemon start source=${sourceId} mode=${mode} root=${rootDir} interval=${intervalMs}ms state=${stateFilePath}\n`,
+    `[local-connector] daemon start source=${sourceId} mode=${mode} root=${rootDir} interval=${intervalMs}ms maxFileBytes=${maxFileBytes} maxFiles=${maxFilesPerScan} state=${stateFilePath}\n`,
   );
 
   const tick = async () => {
@@ -437,8 +553,37 @@ async function runDaemon(
         throw new Error(`Not a directory: ${rootDir}`);
       }
 
+      const source = await getSourceSummary(config, sourceId);
+      mode = source.mode;
+      sourceStatus = source.status || 'active';
+      connectorId = source.connectorId || connectorId;
+      includePatterns = source.includePatterns?.length
+        ? source.includePatterns
+        : includePatterns;
+      excludePatterns = source.excludePatterns?.length
+        ? source.excludePatterns
+        : excludePatterns;
+
+      if (connectorId && Date.now() - lastHeartbeatAt >= 30_000) {
+        await post(config, 'connectors/heartbeat', { connectorId });
+        lastHeartbeatAt = Date.now();
+      }
+
+      if (sourceStatus === 'paused') {
+        saveState(stateFilePath, state);
+        return;
+      }
+
       const remoteMap = await getRemoteFileMap(config, sourceId);
-      enqueueChangedFiles({ rootDir, remoteMap, state });
+      enqueueChangedFiles({
+        rootDir,
+        remoteMap,
+        state,
+        includePatterns,
+        excludePatterns,
+        maxFileBytes,
+        maxFilesPerScan,
+      });
 
       const flushResult = await flushQueue({ config, sourceId, state });
 

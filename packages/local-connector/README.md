@@ -7,6 +7,8 @@ Minimal CLI scaffold for Raven local sync development.
 - `RAVEN_SERVER_URL` (default: `http://localhost:3000`)
 - `RAVEN_WORKSPACE` (workspace context header value)
 - `RAVEN_JWT` (JWT for authenticated local-sync endpoints)
+- `RAVEN_MAX_FILE_BYTES` (optional, default `1000000`)
+- `RAVEN_MAX_FILES_PER_SCAN` (optional, default `10000`)
 
 ## Commands
 
@@ -29,7 +31,13 @@ pnpm --filter @raven-docs/local-connector start daemon <sourceId> <rootDir> [int
 Current behavior:
 - Uses previous remote hash as `baseHash` when available
 - Skips `.git` and `node_modules`
+- Applies source include/exclude patterns
+- Applies `.gitignore` rules in the synced root
+- Skips files above `RAVEN_MAX_FILE_BYTES`
+- Caps scan size by `RAVEN_MAX_FILES_PER_SCAN`
 - Persists local state and queue to `.raven-local-sync-state.json` in the root folder
 - Retries failed flushes with exponential backoff
+- Sends periodic connector heartbeat updates
+- Applies remote `file.delete` deltas and queues local delete operations
 
 This is Phase 1 scaffolding and will evolve into native file watchers + richer conflict workflows.
