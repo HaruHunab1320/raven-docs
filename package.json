@@ -72,7 +72,7 @@
     "@tiptap/starter-kit": "^2.10.3",
     "@tiptap/suggestion": "^2.10.3",
     "bytes": "^3.1.2",
-    "coding-agent-adapters": "0.8.3",
+    "coding-agent-adapters": "0.8.4",
     "cross-env": "^7.0.3",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.4",

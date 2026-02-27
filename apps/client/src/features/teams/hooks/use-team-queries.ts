@@ -284,6 +284,33 @@ export function useResumeDeploymentMutation() {
   });
 }
 
+export function useResetTeamMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deploymentId: string) =>
+      teamService.resetTeam(deploymentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      queryClient.invalidateQueries({
+        queryKey: ["team-deployment-status"],
+      });
+      notifications.show({
+        title: "Team Reset",
+        message: "Errored agents have been reset to idle",
+        color: "blue",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message:
+          error.response?.data?.message || "Failed to reset team",
+        color: "red",
+      });
+    },
+  });
+}
+
 export function useTeardownDeploymentMutation() {
   const queryClient = useQueryClient();
   return useMutation({

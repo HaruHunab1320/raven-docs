@@ -2475,6 +2475,21 @@ export class MCPStandardService {
       { isApiKeyAuth: true },
     );
 
+    // If the internal MCP service returned a JSON-RPC error, propagate it
+    if (result.error) {
+      const errMsg = result.error.message || 'Unknown error';
+      const errCode = result.error.code || -32603;
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Error (${errCode}): ${errMsg}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
     // Return in standard MCP format
     return {
       content: [

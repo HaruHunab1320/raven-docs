@@ -91,6 +91,53 @@ export class TeamRuntimeListener {
     );
   }
 
+  @OnEvent('team.agent_blocking_prompt')
+  async handleAgentBlockingPrompt(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    stepId?: string;
+    promptInfo?: any;
+    coordinatorResponded?: boolean;
+    runtimeSessionId?: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:agent_blocking_prompt',
+      'agent_blocking_prompt',
+      data,
+    );
+  }
+
+  @OnEvent('team.stall_classified')
+  async handleStallClassified(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    stepId?: string;
+    classification?: any;
+    runtimeSessionId?: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:stall_classified',
+      'stall_classified',
+      data,
+    );
+  }
+
+  @OnEvent('team.escalation_surfaced_to_user')
+  async handleEscalationSurfacedToUser(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    runtimeSessionId?: string;
+    promptInfo?: any;
+    workspaceId?: string;
+    spaceId?: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:escalation_surfaced',
+      'escalation_surfaced_to_user',
+      data,
+    );
+  }
+
   @OnEvent('team.agent_tool_interrupted')
   async handleAgentToolInterrupted(data: {
     deploymentId: string;

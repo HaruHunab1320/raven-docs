@@ -85,6 +85,11 @@ export function useTeamLiveUpdates(spaceId: string, deploymentId?: string) {
     socket?.on("team:workflow_updated", handleTeamRuntimeEvent);
     socket?.on("team:workflow_completed", handleTeamRuntimeEvent);
     socket?.on("team:workflow_failed", handleTeamRuntimeEvent);
+    socket?.on("team:agent_blocking_prompt", handleTeamRuntimeEvent);
+    socket?.on("team:stall_classified", handleTeamRuntimeEvent);
+    socket?.on("team:agent_tool_running", handleTeamRuntimeEvent);
+    socket?.on("team:agent_tool_interrupted", handleTeamRuntimeEvent);
+    socket?.on("team:escalation_surfaced", handleTeamRuntimeEvent);
 
     return () => {
       mcpSocket?.off("mcp:event", handleMcpEvent);
@@ -96,6 +101,11 @@ export function useTeamLiveUpdates(spaceId: string, deploymentId?: string) {
       socket?.off("team:workflow_updated", handleTeamRuntimeEvent);
       socket?.off("team:workflow_completed", handleTeamRuntimeEvent);
       socket?.off("team:workflow_failed", handleTeamRuntimeEvent);
+      socket?.off("team:agent_blocking_prompt", handleTeamRuntimeEvent);
+      socket?.off("team:stall_classified", handleTeamRuntimeEvent);
+      socket?.off("team:agent_tool_running", handleTeamRuntimeEvent);
+      socket?.off("team:agent_tool_interrupted", handleTeamRuntimeEvent);
+      socket?.off("team:escalation_surfaced", handleTeamRuntimeEvent);
     };
   }, [socket, mcpSocket, spaceId, deploymentId, queryClient]);
 }

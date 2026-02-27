@@ -84,9 +84,7 @@ export class RoleAwareLoopService {
   ) {}
 
   private getAgentModel() {
-    return (
-      process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview'
-    );
+    return this.aiService.getSlowModel();
   }
 
   async runRoleLoop(input: RoleLoopInput): Promise<RoleLoopResult> {

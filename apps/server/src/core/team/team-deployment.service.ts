@@ -19,6 +19,7 @@ import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { compileOrgPattern } from './raven-compile-target';
 import { WorkflowExecutorService } from './workflow-executor.service';
 import { ensurePersistenceCapabilities } from './capability-guards';
+import { TerminalSessionService } from '../terminal/terminal-session.service';
 import type { OrgPattern } from './org-chart.types';
 import type { WorkflowState } from './workflow-state.types';
 import type { KyselyDB } from '../../database/types/kysely.types';
@@ -36,6 +37,11 @@ export interface TeamAgentLoopJob {
   stepContext?: { name: string; task: string };
   targetTaskId?: string;
   targetExperimentId?: string;
+  priorPhases?: Array<{
+    stepId: string;
+    role: string;
+    summary: string;
+  }>;
 }
 
 export type TeamMemoryPolicy = 'none' | 'carry_all';
@@ -52,6 +58,7 @@ export class TeamDeploymentService {
     private readonly workspaceService: WorkspaceService,
     private readonly spaceMemberService: SpaceMemberService,
     private readonly workflowExecutor: WorkflowExecutorService,
+    private readonly terminalSessionService: TerminalSessionService,
     @InjectQueue(QueueName.TEAM_QUEUE)
     private readonly teamQueue: Queue,
     @InjectKysely() private readonly db: KyselyDB,
@@ -263,7 +270,13 @@ export class TeamDeploymentService {
   }
 
   /**
-   * Trigger a single run of all agents in a deployment
+   * Trigger a team run — resets agents and workflow state, then starts the
+   * workflow executor so steps are dispatched in the order defined by the
+   * execution plan (coordinator first, then workers sequentially/parallel
+   * as the plan dictates).
+   *
+   * Falls back to a parallel "manual run" of all agents only when no
+   * execution plan exists (legacy template-based deployments).
    */
   async triggerTeamRun(workspaceId: string, deploymentId: string) {
     const deployment = await this.teamRepo.findById(deploymentId);
@@ -275,10 +288,7 @@ export class TeamDeploymentService {
       throw new NotFoundException('Active deployment not found');
     }
 
-    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
-    const jobs = [];
     const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
-    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
     const targetExperimentId = deploymentConfig.targetExperimentId as
       | string
       | undefined;
@@ -295,6 +305,36 @@ export class TeamDeploymentService {
         },
       );
     }
+
+    // If the deployment has an execution plan, reset and use the workflow executor
+    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
+    const hasExecutionPlan = !!stateRow?.executionPlan;
+
+    if (hasExecutionPlan) {
+      await this.resetTeam(workspaceId, deploymentId);
+      // resetTeam reactivates the deployment if paused, and resets workflow to idle
+      await this.startWorkflow(workspaceId, deploymentId);
+
+      this.logger.log(
+        `Triggered workflow-based team run for deployment ${deploymentId}`,
+      );
+      return { triggered: 'workflow', deploymentId };
+    }
+
+    // Fallback: no execution plan — dispatch all agents in parallel (legacy)
+    return this.triggerManualRunAllAgents(deployment, deploymentConfig);
+  }
+
+  private async triggerManualRunAllAgents(
+    deployment: any,
+    deploymentConfig: any,
+  ) {
+    const agents = await this.teamRepo.getAgentsByDeployment(deployment.id);
+    const jobs = [];
+    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
+    const targetExperimentId = deploymentConfig.targetExperimentId as
+      | string
+      | undefined;
 
     for (const agent of agents) {
       if (agent.status === 'paused' || !agent.userId) continue;
@@ -323,7 +363,7 @@ export class TeamDeploymentService {
         QueueJob.TEAM_AGENT_LOOP,
         jobData,
         {
-          attempts: 1, // Don't retry agent loops
+          attempts: 1,
           removeOnComplete: { count: 50 },
           removeOnFail: { count: 20 },
         },
@@ -333,7 +373,7 @@ export class TeamDeploymentService {
     }
 
     this.logger.log(
-      `Triggered ${jobs.length} agent loops for deployment ${deploymentId}`,
+      `Triggered ${jobs.length} manual agent loops for deployment ${deployment.id}`,
     );
 
     return { triggered: jobs.length, jobs };
@@ -376,6 +416,98 @@ export class TeamDeploymentService {
     }
 
     return deployment;
+  }
+
+  /**
+   * Full team reset — terminates all terminal/runtime sessions, clears all
+   * agent state back to clean idle, resets stats, and reactivates the deployment.
+   */
+  async resetTeam(workspaceId: string, deploymentId: string) {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.workspaceId !== workspaceId) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
+    let resetCount = 0;
+
+    for (const agent of agents) {
+      if (agent.status === 'paused') continue; // respect explicitly paused agents
+
+      // Terminate any lingering terminal sessions
+      if (agent.terminalSessionId) {
+        try {
+          await this.terminalSessionService.terminate(agent.terminalSessionId);
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
+      await this.teamRepo.updateAgentStatus(agent.id, 'idle');
+      await this.teamRepo.updateAgentCurrentStep(agent.id, null);
+      await this.teamRepo.updateAgentRuntimeSession(agent.id, {
+        runtimeSessionId: null,
+        terminalSessionId: null,
+      });
+      await this.teamRepo.resetAgentStats(agent.id);
+      resetCount++;
+    }
+
+    // Reactivate deployment if it was paused (e.g. auto-paused on errors)
+    if (deployment.status === 'paused') {
+      await this.teamRepo.updateStatus(deploymentId, 'active');
+    }
+
+    // Reset workflow state back to idle
+    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
+
+    if (state.currentPhase && state.currentPhase !== 'idle') {
+      state.currentPhase = 'idle';
+      // Reset all non-completed step states back to pending
+      for (const [, stepState] of Object.entries(state.stepStates || {})) {
+        if (stepState.status === 'failed' || stepState.status === 'running' || stepState.status === 'waiting') {
+          stepState.status = 'pending';
+          delete stepState.error;
+          delete stepState.completedAt;
+          delete stepState.startedAt;
+          delete stepState.assignedAgentId;
+        }
+      }
+      await this.teamRepo.updateWorkflowState(deploymentId, state as any);
+    }
+
+    this.logger.log(
+      `Reset ${resetCount} agents for deployment ${deploymentId}`,
+    );
+
+    return { reset: resetCount, deploymentId };
+  }
+
+  /**
+   * Auto-pause a deployment if all agents are in error state.
+   * Called after an agent enters error state.
+   */
+  async autoPauseIfAllErrored(deploymentId: string): Promise<boolean> {
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (!deployment || deployment.status !== 'active') return false;
+
+    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
+    if (agents.length === 0) return false;
+
+    const allErrored = agents.every(
+      (a) => a.status === 'error' || a.status === 'paused',
+    );
+    if (!allErrored) return false;
+
+    await this.teamRepo.updateStatus(deploymentId, 'paused');
+    this.logger.log(
+      `Auto-paused deployment ${deploymentId} — all agents are in error/paused state`,
+    );
+    return true;
   }
 
   /**

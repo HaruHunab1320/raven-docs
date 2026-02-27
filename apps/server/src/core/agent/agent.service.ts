@@ -41,8 +41,7 @@ export class AgentService {
   ) {}
 
   private getAgentModel() {
-    // Use the latest Gemini 3 Pro for best reasoning and tool calling
-    return process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview';
+    return this.aiService.getSlowModel();
   }
 
   private extractJsonObject(text: string): Record<string, any> | null {

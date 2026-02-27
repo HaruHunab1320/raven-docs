@@ -30,6 +30,16 @@ export class AIService {
     );
   }
 
+  /** Primary reasoning model — used for main brain, agent loops, aggregation. */
+  getSlowModel(): string {
+    return process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview';
+  }
+
+  /** Lightweight model — used for prompt classification, coordinator responses, stall detection. */
+  getFastModel(): string {
+    return process.env.GEMINI_FAST_MODEL || 'gemini-3-flash-preview';
+  }
+
   private getAllowedModels(): string[] {
     const env = process.env.GEMINI_ALLOWED_MODELS;
     if (env) {

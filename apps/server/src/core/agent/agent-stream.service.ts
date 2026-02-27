@@ -14,6 +14,7 @@ import { AgentMemoryContextService } from './agent-memory-context.service';
 import { BugReportService } from '../bug-report/bug-report.service';
 import { BugContextService } from '../bug-report/bug-context.service';
 import { BugReportSourceDto, BugReportSeverityDto } from '../bug-report/dto/create-bug-report.dto';
+import { AIService } from '../../integrations/ai/ai.service';
 
 @Injectable()
 export class AgentStreamService {
@@ -28,11 +29,11 @@ export class AgentStreamService {
     private readonly memoryContextService: AgentMemoryContextService,
     private readonly bugReportService: BugReportService,
     private readonly bugContextService: BugContextService,
+    private readonly aiService: AIService,
   ) {}
 
   private getModelId() {
-    // Use the latest Gemini 3 Pro for best reasoning and tool calling
-    return process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview';
+    return this.aiService.getSlowModel();
   }
 
   private getApiKey() {

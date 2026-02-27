@@ -32,6 +32,7 @@ import {
 } from './dto/team.dto';
 import { OrgPattern } from './org-chart.types';
 import { TeamTemplateValidationService } from './team-template-validation.service';
+import { StallClassifierService } from '../coding-swarm/stall-classifier.service';
 
 @Controller('teams')
 @UseGuards(JwtAuthGuard)
@@ -40,6 +41,7 @@ export class TeamController {
     private readonly deploymentService: TeamDeploymentService,
     private readonly templateRepo: TeamTemplateRepo,
     private readonly templateValidation: TeamTemplateValidationService,
+    private readonly stallClassifier: StallClassifierService,
   ) {}
 
   // ─── Template Endpoints ──────────────────────────────────────────────────
@@ -298,6 +300,15 @@ export class TeamController {
     return this.deploymentService.resumeDeployment(workspace.id, dto.deploymentId);
   }
 
+  @Post('deployments/reset')
+  @HttpCode(HttpStatus.OK)
+  async resetTeam(
+    @Body() dto: TeamDeploymentIdDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.resetTeam(workspace.id, dto.deploymentId);
+  }
+
   @Post('deployments/teardown')
   @HttpCode(HttpStatus.OK)
   async teardownDeployment(
@@ -314,5 +325,18 @@ export class TeamController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.deploymentService.startWorkflow(workspace.id, dto.deploymentId);
+  }
+
+  @Post('classify-stall')
+  @HttpCode(HttpStatus.OK)
+  async classifyStall(
+    @Body() body: { recentOutput: string; stallDurationMs: number; agentType?: string; role?: string },
+  ) {
+    const classification = await this.stallClassifier.classify(
+      body.recentOutput,
+      body.stallDurationMs,
+      { agentType: body.agentType, role: body.role },
+    );
+    return classification;
   }
 }

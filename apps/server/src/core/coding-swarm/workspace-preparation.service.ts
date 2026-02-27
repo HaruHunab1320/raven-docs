@@ -143,13 +143,14 @@ export class WorkspacePreparationService {
       );
     }
 
-    // Step 5: Disable user-global MCP servers (e.g. claude-in-chrome) for
-    // spawned agents — they access Raven via HTTP API, not Claude MCP.
+    // Step 5: Configure MCP servers — replace any user-global servers
+    // (e.g. claude-in-chrome) with the Raven MCP bridge so agents get
+    // native registered tools instead of having to use curl.
     try {
-      this.disableGlobalMcpServers(workspacePath, agentType);
+      this.configureAgentMcpServers(workspacePath, agentType, serverUrl, apiKey);
     } catch (error: any) {
       this.logger.warn(
-        `Failed to disable global MCP servers for execution ${executionId}: ${error.message}`,
+        `Failed to configure MCP servers for execution ${executionId}: ${error.message}`,
       );
     }
 
@@ -298,13 +299,16 @@ ${JSON.stringify(params.taskContext, null, 2)}
   }
 
   /**
-   * Write a project-level settings file that disables user-global MCP servers.
-   * Spawned agents access Raven via HTTP, so they don't need Claude-level MCP
-   * integrations (e.g. claude-in-chrome) which cause blocking config prompts.
+   * Configure the Raven MCP bridge as the sole MCP server for spawned agents.
+   * This replaces any user-global servers (e.g. claude-in-chrome) that would
+   * cause blocking config prompts, and gives the agent native tool access to
+   * the Raven API via the stdio bridge at packages/mcp-bridge.
    */
-  private disableGlobalMcpServers(
+  private configureAgentMcpServers(
     workspacePath: string,
     agentType: string,
+    serverUrl: string,
+    apiKey: string,
   ): void {
     if (agentType !== 'claude' && agentType !== 'claude-code') return;
 
@@ -323,8 +327,23 @@ ${JSON.stringify(params.taskContext, null, 2)}
       }
     }
 
-    // Override mcpServers to empty so no user-global servers are inherited
-    settings.mcpServers = {};
+    // Resolve the absolute path to the mcp-bridge package.
+    // From workspace-preparation.service.ts (apps/server/src/core/coding-swarm/)
+    // the bridge lives at the monorepo root: packages/mcp-bridge/src/index.ts
+    const bridgePath = resolve(__dirname, '../../../../../packages/mcp-bridge/src/index.ts');
+
+    // Override mcpServers: replace all user-global servers with just the Raven bridge.
+    settings.mcpServers = {
+      'raven-docs': {
+        command: 'npx',
+        args: ['tsx', bridgePath],
+        env: {
+          MCP_SERVER_URL: serverUrl,
+          MCP_API_KEY: apiKey,
+        },
+      },
+    };
+
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
   }
 

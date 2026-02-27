@@ -18,6 +18,7 @@ import {
   IconArrowLeft,
   IconTerminal2,
   IconPlayerStop,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,15 +28,15 @@ import {
   useStartWorkflowMutation,
   useRedeployTeamMutation,
   useAssignDeploymentTaskMutation,
+  useResetTeamMutation,
 } from "../hooks/use-team-queries";
 import { useTeamLiveUpdates } from "../hooks/use-team-live-updates";
 import { useActiveExperiments } from "@/features/intelligence/hooks/use-intelligence-queries";
 import { useDisclosure } from "@mantine/hooks";
 import { WorkflowProgressBar } from "./workflow-progress-bar";
-import { OrgChartMermaidPreview } from "./org-chart-mermaid-preview";
 import { WorkflowExecutionGraph } from "./workflow-execution-graph";
 import { RenameTeamModal } from "./rename-team-modal";
-import type { WorkflowState, OrgPattern } from "../types/team.types";
+import type { WorkflowState, StepState, OrgPattern, TeamAgent } from "../types/team.types";
 import { WebTerminal } from "@/features/terminal";
 import {
   getTerminalSessions,
@@ -310,6 +311,66 @@ function getStepLabel(step: Record<string, any>): string {
   }
 }
 
+function augmentWithAgentStatus(
+  plan: Record<string, any> | null,
+  state: WorkflowState | null,
+  agents: TeamAgent[],
+): WorkflowState | null {
+  if (!plan?.steps?.length || !agents?.length) return state;
+
+  // Build role -> live status from agents
+  const roleStatus = new Map<string, "running" | "failed">();
+  for (const agent of agents) {
+    if (agent.status === "running") {
+      roleStatus.set(agent.role, "running");
+    } else if (
+      agent.status === "error" &&
+      roleStatus.get(agent.role) !== "running"
+    ) {
+      roleStatus.set(agent.role, "failed");
+    }
+  }
+
+  if (roleStatus.size === 0) return state;
+
+  const base: WorkflowState = state || {
+    currentPhase: "idle",
+    stepStates: {},
+    coordinatorInvocations: 0,
+  };
+
+  const merged: WorkflowState = {
+    ...base,
+    stepStates: { ...base.stepStates },
+  };
+
+  const fill = (steps: Array<Record<string, any>>) => {
+    for (const step of steps) {
+      if (!step?.stepId) continue;
+
+      const current = merged.stepStates[step.stepId]?.status;
+      if (!current || current === "pending") {
+        const role = step.operation?.role;
+        const derived = role ? roleStatus.get(role) : undefined;
+
+        if (derived) {
+          merged.stepStates[step.stepId] = {
+            ...(merged.stepStates[step.stepId] || {}),
+            status: derived,
+          } as StepState;
+        }
+      }
+
+      if (step.children) fill(step.children);
+      if (step.thenBranch) fill([step.thenBranch]);
+      if (step.elseBranch) fill([step.elseBranch]);
+    }
+  };
+
+  fill(plan.steps);
+  return merged;
+}
+
 function collectStepRows(
   steps: Array<Record<string, any>>,
   rows: Array<{ stepId: string; label: string }>,
@@ -342,6 +403,7 @@ export function DeploymentDetailView({
   const startMutation = useStartWorkflowMutation();
   const redeployMutation = useRedeployTeamMutation();
   const assignTaskMutation = useAssignDeploymentTaskMutation();
+  const resetMutation = useResetTeamMutation();
   const [renameOpened, { open: openRename, close: closeRename }] =
     useDisclosure(false);
   const [targetExperimentId, setTargetExperimentId] = useState<string | null>(
@@ -433,6 +495,7 @@ export function DeploymentDetailView({
   }
   const stepLabelMap = new Map(stepRows.map((s) => [s.stepId, s.label]));
   const workflowState = parseWorkflowState(deployment.workflowState);
+  const liveWorkflowState = augmentWithAgentStatus(executionPlan, workflowState, agents);
   const runLogs = Array.isArray(workflowState?.runLogs)
     ? workflowState!.runLogs.slice().reverse()
     : [];
@@ -487,44 +550,72 @@ export function DeploymentDetailView({
               <Button size="xs" variant="subtle" onClick={openRename}>
                 Rename
               </Button>
-              {deployment.status === "active" && (
-                <>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    leftSection={<IconBolt size={14} />}
-                    onClick={() =>
-                      import("../services/team-service").then((s) =>
-                        s.triggerTeamRun(deploymentId),
-                      )
-                    }
-                  >
-                    Trigger Run
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="yellow"
-                    leftSection={<IconPlayerPause size={14} />}
-                    onClick={() => pauseMutation.mutate(deploymentId)}
-                    loading={pauseMutation.isPending}
-                  >
-                    Pause
-                  </Button>
-                </>
-              )}
-              {deployment.status === "paused" && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  color="green"
-                  leftSection={<IconPlayerPlay size={14} />}
-                  onClick={() => resumeMutation.mutate(deploymentId)}
-                  loading={resumeMutation.isPending}
-                >
-                  Resume
-                </Button>
-              )}
+              {(() => {
+                const hasErrors = agents.some((a) => a.status === "error");
+                const anyRunning = agents.some(
+                  (a) => a.status === "running",
+                );
+                return (
+                  <>
+                    {hasErrors && (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="blue"
+                        leftSection={<IconRefresh size={14} />}
+                        onClick={() => resetMutation.mutate(deploymentId)}
+                        loading={resetMutation.isPending}
+                      >
+                        Reset Team
+                      </Button>
+                    )}
+                    {deployment.status === "active" && (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<IconBolt size={14} />}
+                          onClick={() =>
+                            import("../services/team-service").then((s) =>
+                              s.triggerTeamRun(deploymentId),
+                            )
+                          }
+                        >
+                          Trigger Run
+                        </Button>
+                        {anyRunning && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="yellow"
+                            leftSection={<IconPlayerPause size={14} />}
+                            onClick={() =>
+                              pauseMutation.mutate(deploymentId)
+                            }
+                            loading={pauseMutation.isPending}
+                          >
+                            Pause
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {deployment.status === "paused" && !hasErrors && (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="green"
+                        leftSection={<IconPlayerPlay size={14} />}
+                        onClick={() =>
+                          resumeMutation.mutate(deploymentId)
+                        }
+                        loading={resumeMutation.isPending}
+                      >
+                        Resume
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
               {deployment.status === "torn_down" && (
                 <>
                   <Button
@@ -563,47 +654,21 @@ export function DeploymentDetailView({
           </Group>
 
           <Divider />
-          <Group align="flex-end">
-            <Select
-              label="Target Experiment"
-              placeholder="Select planned experiment (optional)"
-              data={plannedExperimentOptions}
-              searchable
-              clearable
-              value={targetExperimentId}
-              onChange={setTargetExperimentId}
-              style={{ flex: 1 }}
-            />
-            <Button
-              size="xs"
-              variant="light"
-              onClick={() =>
-                assignTaskMutation.mutate({
-                  deploymentId: deployment.id,
-                  experimentId: targetExperimentId || undefined,
-                })
-              }
-              loading={assignTaskMutation.isPending}
-            >
-              Save Target
-            </Button>
-            <Button
-              size="xs"
-              variant="subtle"
-              color="gray"
-              disabled={!currentTargetTaskId && !currentTargetExperimentId}
-              onClick={() =>
-                assignTaskMutation.mutate({
-                  deploymentId: deployment.id,
-                  taskId: undefined,
-                  experimentId: undefined,
-                })
-              }
-              loading={assignTaskMutation.isPending}
-            >
-              Clear
-            </Button>
-          </Group>
+          <Select
+            label="Target Experiment"
+            placeholder="Select planned experiment (optional)"
+            data={plannedExperimentOptions}
+            searchable
+            clearable
+            value={targetExperimentId}
+            onChange={(value) => {
+              setTargetExperimentId(value);
+              assignTaskMutation.mutate({
+                deploymentId: deployment.id,
+                experimentId: value || undefined,
+              });
+            }}
+          />
           {currentTargetExperimentId && (
             <Text size="xs" c="dimmed">
               Team is currently constrained to experiment{" "}
@@ -616,13 +681,13 @@ export function DeploymentDetailView({
             </Text>
           )}
 
-          {workflowState && Object.keys(workflowState.stepStates).length > 0 && (
+          {liveWorkflowState && Object.keys(liveWorkflowState.stepStates).length > 0 && (
             <>
               <Divider />
               <Text size="sm" fw={500}>
                 Workflow Progress
               </Text>
-              <WorkflowProgressBar stepStates={workflowState.stepStates} />
+              <WorkflowProgressBar stepStates={liveWorkflowState.stepStates} />
             </>
           )}
         </Stack>
@@ -640,8 +705,6 @@ export function DeploymentDetailView({
                 <Table.Th>Slot</Table.Th>
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Current Step</Table.Th>
-                <Table.Th>Actions</Table.Th>
-                <Table.Th>Errors</Table.Th>
                 <Table.Th>Terminal</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -677,17 +740,6 @@ export function DeploymentDetailView({
                         const label = stepLabelMap.get(agent.currentStepId);
                         return label ? `${agent.currentStepId} (${label})` : stepId;
                       })()}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{agent.totalActions}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text
-                      size="xs"
-                      c={agent.totalErrors > 0 ? "red" : undefined}
-                    >
-                      {agent.totalErrors}
                     </Text>
                   </Table.Td>
                   <Table.Td>
@@ -758,29 +810,19 @@ export function DeploymentDetailView({
       <Card withBorder radius="md" p="md">
         <Stack gap="sm">
           <Text fw={600} size="sm">
-            Org Chart
+            Workflow
           </Text>
-          {orgPattern ? (
-            <OrgChartMermaidPreview orgPattern={orgPattern} />
-          ) : (
-            <Text size="sm" c="dimmed">
-              Org chart unavailable for this deployment.
-            </Text>
-          )}
-          {stepRows.length > 0 && (
+          {stepRows.length > 0 ? (
             <>
-              <Divider />
-              <Text fw={600} size="sm">
-                Live Workflow Graph
-              </Text>
               <WorkflowExecutionGraph
                 executionPlan={(deployment as any).executionPlan}
-                workflowState={workflowState}
+                workflowState={liveWorkflowState}
+                orgPattern={orgPattern}
                 compact={compact}
               />
               <Divider />
               <Text fw={600} size="sm">
-                Workflow Steps
+                Steps
               </Text>
               <Stack gap={2}>
                 {stepRows.map((step) => (
@@ -790,6 +832,10 @@ export function DeploymentDetailView({
                 ))}
               </Stack>
             </>
+          ) : (
+            <Text size="sm" c="dimmed">
+              No workflow graph available.
+            </Text>
           )}
         </Stack>
       </Card>
@@ -804,8 +850,8 @@ export function DeploymentDetailView({
               No team run logs yet.
             </Text>
           ) : (
-            <Stack gap="xs">
-              {runLogs.slice(0, 25).map((entry) => (
+            <Stack gap="xs" style={{ maxHeight: 400, overflowY: "auto" }}>
+              {runLogs.slice(0, 50).map((entry) => (
                 <Card key={entry.id} withBorder radius="sm" p="sm">
                   <Stack gap={4}>
                     <Group justify="space-between">
@@ -818,19 +864,6 @@ export function DeploymentDetailView({
                       </Text>
                     </Group>
                     <Text size="xs">{entry.summary}</Text>
-                    <Text size="xs" c="dimmed">
-                      Actions: {entry.actionsExecuted} | Errors: {entry.errorsEncountered}
-                    </Text>
-                    {entry.actions?.length > 0 && (
-                      <Stack gap={2}>
-                        {entry.actions.map((a, idx) => (
-                          <Text key={`${entry.id}-${idx}`} size="xs" c="dimmed">
-                            {a.status}: {a.method}
-                            {a.error ? ` (${a.error})` : ""}
-                          </Text>
-                        ))}
-                      </Stack>
-                    )}
                   </Stack>
                 </Card>
               ))}

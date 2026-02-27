@@ -1,11 +1,12 @@
-import { Group, Loader, ScrollArea, Stack, Text } from "@mantine/core";
+import { ScrollArea, Stack, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import mermaid from "mermaid";
-import type { WorkflowState } from "../types/team.types";
+import type { WorkflowState, OrgPattern } from "../types/team.types";
 
 interface Props {
   executionPlan: unknown;
   workflowState: WorkflowState | null;
+  orgPattern?: OrgPattern | null;
   compact?: boolean;
 }
 
@@ -53,7 +54,7 @@ function nodeId(stepId: string): string {
 
 function collectNodesAndEdges(
   steps: PlanStep[],
-  nodes: Array<{ stepId: string; label: string }>,
+  nodes: Array<{ stepId: string; label: string; role?: string }>,
   edges: string[],
   parentStepId?: string,
 ) {
@@ -65,7 +66,15 @@ function collectNodesAndEdges(
 
   for (const step of steps) {
     if (!step.stepId) continue;
-    nodes.push({ stepId: step.stepId, label: getStepLabel(step) });
+
+    const role =
+      step.operation?.kind === "dispatch_agent_loop"
+        ? step.operation?.role
+        : step.operation?.kind === "invoke_coordinator"
+          ? "__coordinator__"
+          : undefined;
+
+    nodes.push({ stepId: step.stepId, label: getStepLabel(step), role });
 
     if (parentStepId) {
       edges.push(`${nodeId(parentStepId)} -.-> ${nodeId(step.stepId)}`);
@@ -75,26 +84,71 @@ function collectNodesAndEdges(
       collectNodesAndEdges(step.children, nodes, edges, step.stepId);
     }
     if (step.thenBranch?.stepId) {
-      edges.push(`${nodeId(step.stepId)} --> ${nodeId(step.thenBranch.stepId)}`);
+      edges.push(
+        `${nodeId(step.stepId)} --> ${nodeId(step.thenBranch.stepId)}`,
+      );
       collectNodesAndEdges([step.thenBranch], nodes, edges);
     }
     if (step.elseBranch?.stepId) {
-      edges.push(`${nodeId(step.stepId)} --> ${nodeId(step.elseBranch.stepId)}`);
+      edges.push(
+        `${nodeId(step.stepId)} --> ${nodeId(step.elseBranch.stepId)}`,
+      );
       collectNodesAndEdges([step.elseBranch], nodes, edges);
     }
   }
 }
 
+/**
+ * Build reporting-chain edges from the org pattern. Maps each role's
+ * `reportsTo` to the corresponding workflow step nodes so the graph
+ * shows both execution flow (solid arrows) and org hierarchy (dotted).
+ */
+function collectReportingEdges(
+  orgPattern: OrgPattern,
+  nodes: Array<{ stepId: string; role?: string }>,
+): string[] {
+  const roles = orgPattern.structure?.roles;
+  if (!roles) return [];
+
+  // Find the coordinator role id (the one with no reportsTo)
+  const coordinatorRoleId = Object.keys(roles).find(
+    (id) => !roles[id].reportsTo,
+  );
+
+  // Map org-chart role id → first matching step node id
+  const roleToNodeId = new Map<string, string>();
+  for (const n of nodes) {
+    if (!n.role) continue;
+    const orgRole =
+      n.role === "__coordinator__" ? coordinatorRoleId : n.role;
+    if (orgRole && !roleToNodeId.has(orgRole)) {
+      roleToNodeId.set(orgRole, nodeId(n.stepId));
+    }
+  }
+
+  const edges: string[] = [];
+  for (const [roleId, role] of Object.entries(roles)) {
+    if (!role.reportsTo) continue;
+    const fromNode = roleToNodeId.get(roleId);
+    const toNode = roleToNodeId.get(role.reportsTo);
+    if (fromNode && toNode) {
+      edges.push(`${fromNode} -. reports to .-> ${toNode}`);
+    }
+  }
+  return edges;
+}
+
 function buildGraphDef(
   executionPlan: Record<string, any>,
   workflowState: WorkflowState | null,
+  orgPattern?: OrgPattern | null,
 ): string {
   const steps = Array.isArray(executionPlan.steps)
     ? (executionPlan.steps as PlanStep[])
     : [];
   if (steps.length === 0) return "";
 
-  const nodes: Array<{ stepId: string; label: string }> = [];
+  const nodes: Array<{ stepId: string; label: string; role?: string }> = [];
   const edges: string[] = [];
   collectNodesAndEdges(steps, nodes, edges);
 
@@ -106,12 +160,18 @@ function buildGraphDef(
   });
   const uniqueEdges = Array.from(new Set(edges));
 
+  // Add reporting-chain edges from the org chart
+  const reportingEdges = orgPattern
+    ? collectReportingEdges(orgPattern, uniqueNodes)
+    : [];
+
   const lines: string[] = ["graph TD"];
   for (const n of uniqueNodes) {
     const safeLabel = `${n.stepId}: ${n.label}`.replace(/"/g, '\\"');
     lines.push(`${nodeId(n.stepId)}["${safeLabel}"]`);
   }
   for (const e of uniqueEdges) lines.push(e);
+  for (const e of reportingEdges) lines.push(e);
 
   const stepStates = workflowState?.stepStates || {};
   for (const n of uniqueNodes) {
@@ -120,7 +180,9 @@ function buildGraphDef(
   }
 
   lines.push("classDef pending fill:#f1f3f5,stroke:#868e96,color:#212529");
-  lines.push("classDef running fill:#e7f5ff,stroke:#228be6,color:#0b7285,stroke-width:3px");
+  lines.push(
+    "classDef running fill:#e7f5ff,stroke:#228be6,color:#0b7285,stroke-width:3px",
+  );
   lines.push("classDef waiting fill:#fff9db,stroke:#f59f00,color:#5f3dc4");
   lines.push("classDef completed fill:#ebfbee,stroke:#2b8a3e,color:#2b8a3e");
   lines.push("classDef failed fill:#fff5f5,stroke:#c92a2a,color:#c92a2a");
@@ -159,11 +221,11 @@ function withAnimationStyles(svg: string): string {
 export function WorkflowExecutionGraph({
   executionPlan,
   workflowState,
+  orgPattern,
   compact,
 }: Props) {
   const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [rendering, setRendering] = useState(false);
 
   useEffect(() => {
     mermaid.initialize({
@@ -181,14 +243,13 @@ export function WorkflowExecutionGraph({
       return;
     }
 
-    const graphDef = buildGraphDef(parsedPlan, workflowState);
-    setSvgMarkup(null);
+    const graphDef = buildGraphDef(parsedPlan, workflowState, orgPattern);
     if (!graphDef) {
+      setSvgMarkup(null);
       setError(null);
       return;
     }
 
-    setRendering(true);
     const id = `workflow-graph-${Date.now()}`;
     mermaid
       .render(id, graphDef)
@@ -199,17 +260,8 @@ export function WorkflowExecutionGraph({
       .catch((err) => {
         setError("Failed to render workflow graph");
         console.error("Workflow mermaid render error:", err);
-      })
-      .finally(() => setRendering(false));
-  }, [executionPlan, workflowState]);
-
-  if (rendering) {
-    return (
-      <Group justify="center" py={compact ? "xs" : "md"}>
-        <Loader size="sm" />
-      </Group>
-    );
-  }
+      });
+  }, [executionPlan, workflowState, orgPattern]);
 
   if (error) {
     return (
@@ -236,7 +288,8 @@ export function WorkflowExecutionGraph({
         />
       </ScrollArea>
       <Text size="xs" c="dimmed">
-        Live status colors: pending, running, waiting, completed, failed.
+        Solid arrows: execution flow. Dotted arrows: reporting chain. Colors:
+        pending, running, waiting, completed, failed.
       </Text>
     </Stack>
   );

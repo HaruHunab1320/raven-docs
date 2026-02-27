@@ -5,13 +5,14 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PTYManager, TerminalAttachment, ToolRunningInfo } from 'pty-manager';
+import { PTYManager, TerminalAttachment, ToolRunningInfo, StallClassification as PTYStallClassification } from 'pty-manager';
 import { PTYConsoleBridge } from 'pty-console';
 import { createAllAdapters, checkAdapters } from 'coding-agent-adapters';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
+import { StallClassifierService } from './stall-classifier.service';
 
 export interface AgentSpawnConfig {
   type: string;
@@ -49,6 +50,7 @@ export class AgentExecutionService implements OnModuleDestroy {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     @Optional() private readonly parallaxAgentsService: ParallaxAgentsService,
+    @Optional() private readonly stallClassifier: StallClassifierService,
   ) {
     this.mode = process.env.AGENT_RUNTIME_ENDPOINT ? 'remote' : 'local';
 
@@ -56,7 +58,13 @@ export class AgentExecutionService implements OnModuleDestroy {
       this.ptyManager = new PTYManager({
         maxLogLines: 2000,
         stallDetectionEnabled: true,
-        stallTimeoutMs: 30000,
+        stallTimeoutMs: 15_000,
+        ...(this.stallClassifier
+          ? {
+              onStallClassify: (sessionId: string, output: string, stallMs: number) =>
+                this.classifyStall(sessionId, output, stallMs),
+            }
+          : {}),
       });
 
       // Register all coding agent adapters
@@ -115,6 +123,29 @@ export class AgentExecutionService implements OnModuleDestroy {
         });
       });
 
+      this.ptyManager.on('blocking_prompt', (session, promptInfo) => {
+        const workspaceId = this.sessionWorkspaceMap.get(session.id);
+        if (promptInfo?.autoResponded) return;
+        this.logger.warn(`Blocking prompt detected: ${session.id}`);
+        this.eventEmitter.emit('parallax.blocking_prompt', {
+          workspaceId,
+          agentId: session.id,
+          runtimeSessionId: session.id,
+          promptInfo,
+        });
+      });
+
+      this.ptyManager.on('task_complete', (session, result) => {
+        const workspaceId = this.sessionWorkspaceMap.get(session.id);
+        this.logger.log(`Task complete detected: ${session.id}`);
+        this.eventEmitter.emit('parallax.task_complete', {
+          workspaceId,
+          agentId: session.id,
+          runtimeSessionId: session.id,
+          result,
+        });
+      });
+
       this.ptyManager.on('tool_running', (session, info) => {
         void this.handleToolRunningEvent(session.id, info);
       });
@@ -142,6 +173,16 @@ export class AgentExecutionService implements OnModuleDestroy {
     const workspaceId = this.sessionWorkspaceMap.get(sessionId);
     const autoInterruptEnabled = this.isAutoInterruptEnabled();
     const toolName = info.toolName || 'unknown';
+
+    // Skip status-line indicators that aren't actual tool execution.
+    // e.g. "Claude in Chrome enabled" is a startup status line, not an active
+    // tool — real tool use includes a [*_tool] suffix in the description.
+    if (this.isNonActionableToolIndicator(info)) {
+      this.logger.debug(
+        `Ignoring status-line tool indicator for session ${sessionId} (${info.description})`,
+      );
+      return;
+    }
 
     this.logger.warn(
       `Detected tool-running session ${sessionId} (tool=${toolName})`,
@@ -188,6 +229,33 @@ export class AgentExecutionService implements OnModuleDestroy {
         info,
       });
     }
+  }
+
+  private isNonActionableToolIndicator(info: ToolRunningInfo): boolean {
+    const tool = (info.toolName || '').toLowerCase();
+    const description = info.description || '';
+    const desc = description.toLowerCase();
+    const hasExplicitToolInvocation = /\[[a-z0-9_]+_tool\]/i.test(description);
+
+    // Claude startup status line:
+    // "Claude in Chrome enabled · /chrome"
+    // Never treat this as an active tool unless an explicit [*_tool] marker exists.
+    if (tool === 'chrome' && !hasExplicitToolInvocation) {
+      return true;
+    }
+
+    // Defensive ignore for startup/info bar snippets that can bleed into matcher input.
+    if (
+      !hasExplicitToolInvocation &&
+      (desc.includes('claude in chrome enabled') ||
+        desc.includes('? for shortcuts') ||
+        desc.includes('/chrome') ||
+        desc.includes('update available! run: brew upgrade claude-code'))
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   private tryInterruptSession(sessionId: string): boolean {
@@ -336,6 +404,109 @@ export class AgentExecutionService implements OnModuleDestroy {
   }
 
   /**
+   * Wait for a session to become ready (adapter detectReady fires).
+   * Resolves when `session_ready` fires for the given sessionId, or rejects on
+   * timeout / session_stopped / session_error.
+   */
+  waitForReady(
+    sessionId: string,
+    timeoutMs = 60_000,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (!this.ptyManager) {
+        return reject(new Error('PTYManager not initialized'));
+      }
+
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn();
+      };
+
+      const onReady = (session: any) => {
+        if (session.id === sessionId) settle(resolve);
+      };
+      const onStopped = (session: any, reason?: string) => {
+        if (session.id === sessionId)
+          settle(() => reject(new Error(`Session stopped before ready: ${reason || 'unknown'}`)));
+      };
+      const onError = (session: any, error?: string) => {
+        if (session.id === sessionId)
+          settle(() => reject(new Error(`Session error before ready: ${error || 'unknown'}`)));
+      };
+
+      const timer = setTimeout(() => {
+        settle(() => reject(new Error(`Timed out waiting for session ${sessionId} to become ready (${timeoutMs}ms)`)));
+      }, timeoutMs);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.ptyManager?.off('session_ready', onReady);
+        this.ptyManager?.off('session_stopped', onStopped);
+        this.ptyManager?.off('session_error', onError);
+      };
+
+      this.ptyManager.on('session_ready', onReady);
+      this.ptyManager.on('session_stopped', onStopped);
+      this.ptyManager.on('session_error', onError);
+    });
+  }
+
+  /**
+   * Send special keys to a session (local mode only)
+   */
+  sendKeys(sessionId: string, keys: string | string[]): void {
+    if (!this.ptyManager) {
+      throw new Error('PTYManager not initialized');
+    }
+    const session = (this.ptyManager as any).sessions?.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    session.sendKeys(keys);
+  }
+
+  /**
+   * Get the number of output lines in a session's buffer (local mode only).
+   * Returns 0 if the session is not found or not in local mode.
+   */
+  getOutputBufferLineCount(sessionId: string): number {
+    if (!this.ptyManager) return 0;
+    const session = (this.ptyManager as any).sessions?.get(sessionId);
+    if (!session) return 0;
+    try {
+      const buffer: string = session.getOutputBuffer();
+      return buffer ? buffer.split('\n').length : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Force a stall classification for a session — used by team completion
+   * checks when the PTY stall timer hasn't fired (e.g. terminal escape
+   * sequences keep the output "active").
+   */
+  async forceClassifySession(
+    sessionId: string,
+    context?: { agentType?: string; role?: string },
+  ): Promise<void> {
+    if (!this.ptyManager || !this.stallClassifier) return;
+    const session = (this.ptyManager as any).sessions?.get(sessionId);
+    if (!session) return;
+    try {
+      const buffer: string = session.getOutputBuffer?.() || '';
+      const output = buffer.slice(-2000);
+      if (!output) return;
+      await this.classifyStall(sessionId, output, 0);
+    } catch {
+      // best-effort
+    }
+  }
+
+  /**
    * Stop a running agent session
    */
   async stop(sessionId: string, workspaceId?: string): Promise<void> {
@@ -458,6 +629,66 @@ export class AgentExecutionService implements OnModuleDestroy {
       return { available: response.ok };
     } catch {
       return { available: false };
+    }
+  }
+
+  private async classifyStall(
+    sessionId: string,
+    output: string,
+    stallMs: number,
+  ): Promise<PTYStallClassification | null> {
+    if (!this.stallClassifier) return null;
+
+    try {
+      const classification = await this.stallClassifier.classify(output, stallMs);
+      const workspaceId = this.sessionWorkspaceMap.get(sessionId);
+
+      this.logger.log(
+        `Stall classification for ${sessionId}: ${classification.state} (confidence=${classification.confidence})`,
+      );
+
+      if (classification.confidence < this.stallClassifier.confidenceThreshold) {
+        return null;
+      }
+
+      this.eventEmitter.emit('parallax.stall_classified', {
+        workspaceId,
+        agentId: sessionId,
+        runtimeSessionId: sessionId,
+        classification,
+      });
+
+      // Emit additional Raven events for downstream listeners
+      if (classification.state === 'waiting_for_input') {
+        this.eventEmitter.emit('parallax.blocking_prompt', {
+          workspaceId,
+          agentId: sessionId,
+          runtimeSessionId: sessionId,
+          promptInfo: {
+            type: 'stall_detected',
+            prompt: classification.prompt,
+            suggestedResponse: classification.suggestedResponse,
+          },
+        });
+      } else if (classification.state === 'task_complete') {
+        this.eventEmitter.emit('parallax.task_complete', {
+          workspaceId,
+          agentId: sessionId,
+          runtimeSessionId: sessionId,
+          result: { reason: 'stall_classified_complete', reasoning: classification.reasoning },
+        });
+      }
+
+      // Map our internal classification to PTY manager's expected format
+      const ptyState = classification.state === 'tool_running' ? 'still_working' : classification.state;
+      return {
+        state: ptyState as PTYStallClassification['state'],
+        prompt: classification.prompt,
+        suggestedResponse: classification.suggestedResponse,
+      };
+    } catch (error: any) {
+      this.logger.warn(`Stall classification error for ${sessionId}: ${error?.message}`);
+      return null;
     }
   }
 

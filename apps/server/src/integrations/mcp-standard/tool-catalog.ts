@@ -1662,6 +1662,183 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
   },
 
   // ==========================================================================
+  // RESEARCH INTELLIGENCE (hypothesis, experiment, relationships)
+  // ==========================================================================
+  {
+    name: 'hypothesis_create',
+    description: 'Create a hypothesis page with typed metadata. Hypotheses are testable claims that experiments can validate or contradict.',
+    category: 'research',
+    tags: ['hypothesis', 'create', 'research', 'science', 'claim'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Hypothesis title' },
+        spaceId: { type: 'string', description: 'Space to create the hypothesis in' },
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        content: { type: 'string', description: 'Rich text content/description of the hypothesis' },
+        parentPageId: { type: 'string', description: 'Optional parent page ID for nesting' },
+        status: { type: 'string', description: 'Status: draft, proposed, testing, validated, invalidated, revised (default: draft)' },
+        confidence: { type: 'number', description: 'Confidence level 0-1' },
+        domainTags: { type: 'array', items: { type: 'string' }, description: 'Domain/topic tags' },
+        predictions: { type: 'array', items: { type: 'string' }, description: 'Testable predictions derived from this hypothesis' },
+      },
+      required: ['title', 'spaceId', 'workspaceId'],
+    },
+  },
+  {
+    name: 'hypothesis_update',
+    description: 'Update hypothesis status, confidence, and metadata',
+    category: 'research',
+    tags: ['hypothesis', 'update', 'research', 'status'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'ID of the hypothesis page to update' },
+        status: { type: 'string', description: 'New status: draft, proposed, testing, validated, invalidated, revised' },
+        confidence: { type: 'number', description: 'Updated confidence level 0-1' },
+        title: { type: 'string', description: 'Updated title' },
+        content: { type: 'string', description: 'Updated content' },
+        predictions: { type: 'array', items: { type: 'string' }, description: 'Updated testable predictions' },
+      },
+      required: ['pageId'],
+    },
+  },
+  {
+    name: 'hypothesis_get',
+    description: 'Get a hypothesis page with its evidence chain (linked experiments, validations, contradictions)',
+    category: 'research',
+    tags: ['hypothesis', 'get', 'read', 'evidence'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'ID of the hypothesis page' },
+      },
+      required: ['pageId'],
+    },
+  },
+  {
+    name: 'experiment_register',
+    description: 'Register a new experiment page, optionally linked to a hypothesis. Creates the experiment with planned status and sets up the TESTS_HYPOTHESIS relationship.',
+    category: 'research',
+    tags: ['experiment', 'create', 'register', 'research', 'test'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Experiment title' },
+        spaceId: { type: 'string', description: 'Space to create the experiment in' },
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        hypothesisId: { type: 'string', description: 'Optional hypothesis page ID this experiment tests' },
+        content: { type: 'string', description: 'Experiment description/protocol' },
+        parentPageId: { type: 'string', description: 'Optional parent page ID' },
+        method: { type: 'string', description: 'Methodology description' },
+        metrics: { type: 'object', description: 'Key metrics to track' },
+        status: { type: 'string', description: 'Initial status: planned, running, completed, failed (default: planned)' },
+        codeRef: { type: 'string', description: 'Optional reference to code (e.g. git SHA, file path)' },
+        domainTags: { type: 'array', items: { type: 'string' }, description: 'Domain/topic tags' },
+      },
+      required: ['title', 'spaceId', 'workspaceId'],
+    },
+  },
+  {
+    name: 'experiment_complete',
+    description: 'Complete an experiment with results. Records findings, creates VALIDATES or CONTRADICTS edges to the linked hypothesis based on passed/failed outcome.',
+    category: 'research',
+    tags: ['experiment', 'complete', 'results', 'evidence', 'findings'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'ID of the experiment page' },
+        results: { type: 'object', description: 'Experiment results data' },
+        passed: { type: 'boolean', description: 'Whether the experiment validated (true) or contradicted (false) the hypothesis' },
+        unexpectedObservations: { type: 'array', items: { type: 'string' }, description: 'Any unexpected findings' },
+        suggestedFollowUps: { type: 'array', items: { type: 'string' }, description: 'Suggested follow-up experiments' },
+      },
+      required: ['pageId', 'results'],
+    },
+  },
+  {
+    name: 'experiment_update',
+    description: 'Update experiment status, methodology, metrics, or content',
+    category: 'research',
+    tags: ['experiment', 'update', 'status', 'methodology'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'ID of the experiment page to update' },
+        title: { type: 'string', description: 'Updated title' },
+        content: { type: 'string', description: 'Updated content' },
+        status: { type: 'string', description: 'New status: planned, running, completed, failed' },
+        method: { type: 'string', description: 'Updated methodology' },
+        metrics: { type: 'object', description: 'Updated metrics' },
+        codeRef: { type: 'string', description: 'Updated code reference' },
+      },
+      required: ['pageId'],
+    },
+  },
+  {
+    name: 'intelligence_query',
+    description: 'Query the research intelligence graph to assemble a context bundle — finds related hypotheses, experiments, evidence, and knowledge relevant to a query',
+    category: 'research',
+    tags: ['intelligence', 'query', 'context', 'knowledge', 'graph', 'evidence'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Natural language query to search the knowledge graph' },
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        spaceId: { type: 'string', description: 'Optional space ID to scope the search' },
+        limit: { type: 'number', description: 'Maximum results (default: 10)' },
+      },
+      required: ['query', 'workspaceId'],
+    },
+  },
+  {
+    name: 'relationship_create',
+    description: 'Create a typed relationship between two pages in the research graph (e.g. TESTS_HYPOTHESIS, VALIDATES, CONTRADICTS, BUILDS_ON, RELATED_TO)',
+    category: 'research',
+    tags: ['relationship', 'create', 'graph', 'edge', 'link'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fromPageId: { type: 'string', description: 'Source page ID' },
+        toPageId: { type: 'string', description: 'Target page ID' },
+        type: { type: 'string', description: 'Relationship type: TESTS_HYPOTHESIS, VALIDATES, CONTRADICTS, BUILDS_ON, RELATED_TO' },
+        metadata: { type: 'object', description: 'Optional metadata for the relationship' },
+      },
+      required: ['fromPageId', 'toPageId', 'type'],
+    },
+  },
+  {
+    name: 'relationship_remove',
+    description: 'Remove a relationship between two pages in the research graph',
+    category: 'research',
+    tags: ['relationship', 'remove', 'delete', 'graph', 'edge'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fromPageId: { type: 'string', description: 'Source page ID' },
+        toPageId: { type: 'string', description: 'Target page ID' },
+        type: { type: 'string', description: 'Relationship type to remove' },
+      },
+      required: ['fromPageId', 'toPageId', 'type'],
+    },
+  },
+  {
+    name: 'relationship_list',
+    description: 'List relationships for a page in the research graph',
+    category: 'research',
+    tags: ['relationship', 'list', 'graph', 'edges', 'connections'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Page ID to list relationships for' },
+        type: { type: 'string', description: 'Optional filter by relationship type' },
+        direction: { type: 'string', description: 'Filter by direction: outgoing, incoming, both (default: both)' },
+      },
+      required: ['pageId'],
+    },
+  },
+
+  // ==========================================================================
   // NAVIGATION
   // ==========================================================================
   {

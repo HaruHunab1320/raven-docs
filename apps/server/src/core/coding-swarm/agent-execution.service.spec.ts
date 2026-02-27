@@ -253,6 +253,45 @@ describe('AgentExecutionService', () => {
         expect.any(Function),
       );
     });
+
+    it('should ignore non-actionable Claude Chrome status tool_running events', async () => {
+      // Map runtime session to workspace for event emission path.
+      (service as any).sessionWorkspaceMap.set('session-123', 'workspace-1');
+
+      await (service as any).handleToolRunningEvent('session-123', {
+        toolName: 'chrome',
+        description: 'Claude in Chrome enabled · /chrome',
+      });
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith(
+        'parallax.tool_running',
+        expect.anything(),
+      );
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith(
+        'parallax.tool_interrupted',
+        expect.anything(),
+      );
+    });
+
+    it('should emit tool_running for explicit tool invocation markers', async () => {
+      (service as any).sessionWorkspaceMap.set('session-456', 'workspace-1');
+      __mockPTYManager.getSession.mockReturnValue({
+        sendKeys: jest.fn(),
+      });
+
+      await (service as any).handleToolRunningEvent('session-456', {
+        toolName: 'chrome',
+        description: 'Claude in Chrome[javascript_tool]',
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'parallax.tool_running',
+        expect.objectContaining({
+          workspaceId: 'workspace-1',
+          agentId: 'session-456',
+        }),
+      );
+    });
   });
 });
 

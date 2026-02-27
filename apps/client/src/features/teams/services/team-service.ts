@@ -172,6 +172,16 @@ export async function resumeDeployment(
   return req.data;
 }
 
+export async function resetTeam(
+  deploymentId: string,
+): Promise<{ reset: number; deploymentId: string }> {
+  const req = await api.post<{ reset: number; deploymentId: string }>(
+    `${ENDPOINT}/deployments/reset`,
+    { deploymentId },
+  );
+  return req.data;
+}
+
 export async function teardownDeployment(
   deploymentId: string,
 ): Promise<{ success: boolean; deploymentId: string }> {

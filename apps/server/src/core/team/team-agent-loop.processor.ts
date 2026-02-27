@@ -63,6 +63,24 @@ export class TeamAgentLoopProcessor extends WorkerHost {
       });
 
       const runtimeSessionId = await this.ensureRuntimeSession(data);
+
+      // Wait for the agent CLI to finish booting before sending the task.
+      // Without this, task text gets typed into startup prompts/dialogs.
+      try {
+        await this.agentExecution.waitForReady(runtimeSessionId, 30_000);
+        this.logger.log(`Agent session ready: ${runtimeSessionId}`);
+      } catch (waitError: any) {
+        this.logger.warn(
+          `Session ${runtimeSessionId} did not become ready: ${waitError.message}; dispatching anyway`,
+        );
+      }
+
+      // Post-ready settle: let trailing config prompt auto-responses (enter keys)
+      // drain before we type the task. Without this, stray enter keys from the
+      // adapter's config/trust dialog resolution race with our dispatch input.
+      const settleMs = Number(process.env.TEAM_AGENT_READY_SETTLE_MS) || 1500;
+      await new Promise((r) => setTimeout(r, settleMs));
+
       await this.dispatchRuntimeTask(runtimeSessionId, data);
 
       await this.teamRepo.updateAgentRunStats(data.teamAgentId, {
@@ -166,12 +184,16 @@ export class TeamAgentLoopProcessor extends WorkerHost {
       const roleDef = Array.isArray(deploymentConfig?.roles)
         ? deploymentConfig.roles.find((r: any) => r?.role === agent.role)
         : null;
-      const triggerUserId = deployment?.deployedBy || data.agentUserId;
+      const triggerUserId = data.agentUserId || deployment?.deployedBy;
       const workspace = await this.workspaceRepo.findById(data.workspaceId);
       const agentSettings = resolveAgentSettings(workspace?.settings);
-      const defaultApprovalPreset = mapSwarmPermissionToApprovalPreset(
-        agentSettings.swarmPermissionLevel,
-      );
+      // Team agents default to 'permissive' — auto-approve file writes, web,
+      // and agent tools; only shell commands still require approval.
+      // Workspace-level setting overrides this if explicitly configured.
+      const workspacePreset = agentSettings.swarmPermissionLevel;
+      const defaultApprovalPreset = workspacePreset && workspacePreset !== 'standard'
+        ? mapSwarmPermissionToApprovalPreset(workspacePreset)
+        : 'permissive' as const;
 
       const agentType =
         this.normalizeAgentType(
@@ -194,7 +216,8 @@ export class TeamAgentLoopProcessor extends WorkerHost {
         mkdtempSync(join(tmpdir(), `raven-team-${data.teamAgentId.slice(0, 8)}-`));
       const workspaceCredentials = await this.resolveAgentCredentials(
         data.workspaceId,
-        triggerUserId || undefined,
+        data.agentUserId || undefined,
+        deployment?.deployedBy || undefined,
       );
       const prepExecutionId = data.teamAgentId;
       const explicitApprovalPreset = this.resolveApprovalPreset(
@@ -281,35 +304,118 @@ export class TeamAgentLoopProcessor extends WorkerHost {
     runtimeSessionId: string,
     data: TeamAgentLoopJob,
   ): Promise<void> {
-    const taskText = data.stepContext?.task || 'Continue assigned team workflow.';
-    const stepText = data.stepContext?.name || data.stepId || 'manual_run';
-    const targetText = data.targetExperimentId
-      ? `Target experiment: ${data.targetExperimentId}`
-      : data.targetTaskId
-        ? `Target task: ${data.targetTaskId}`
-        : 'No explicit target constraint.';
-    const prompt = [
-      `[Team Runtime] role=${data.role} step=${stepText}`,
-      targetText,
-      `Task: ${taskText}`,
-      `Allowed MCP methods: ${(data.capabilities || []).join(', ') || 'none'}`,
-      'Persist the work in Raven Docs using the allowed MCP methods. Record findings, updates, and artifacts as you go.',
-      'Work in this session and emit concise progress updates as you execute.',
-    ].join('\n');
+    const prompt = this.buildDispatchPrompt(data);
+    const maxRetries = 2;
+    const verifyDelayMs = Number(process.env.TEAM_DISPATCH_VERIFY_DELAY_MS) || 5000;
+    const minExpectedGrowth = Number(process.env.TEAM_DISPATCH_MIN_GROWTH_LINES) || 15;
 
-    await this.agentExecution.send(runtimeSessionId, prompt, data.workspaceId);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const beforeLines = this.agentExecution.getOutputBufferLineCount(runtimeSessionId);
+
+      await this.agentExecution.send(runtimeSessionId, prompt, data.workspaceId);
+
+      // Wait and verify the agent accepted the input (output grew)
+      await new Promise((r) => setTimeout(r, verifyDelayMs));
+
+      const afterLines = this.agentExecution.getOutputBufferLineCount(runtimeSessionId);
+      const growth = afterLines - beforeLines;
+
+      if (growth >= minExpectedGrowth) {
+        this.logger.log(
+          `Task accepted by session ${runtimeSessionId} (output grew by ${growth} lines)`,
+        );
+        return;
+      }
+
+      if (attempt < maxRetries) {
+        this.logger.warn(
+          `Output only grew by ${growth} lines after dispatch (attempt ${attempt + 1}/${maxRetries + 1}); retrying...`,
+        );
+        // Send enter in case text was written but enter was swallowed by a TUI render cycle
+        try {
+          this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+        } catch {
+          // best-effort
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    this.logger.warn(
+      `Task dispatch to ${runtimeSessionId} may not have been accepted after ${maxRetries + 1} attempts`,
+    );
+  }
+
+  private buildDispatchPrompt(data: TeamAgentLoopJob): string {
+    const caps = (data.capabilities || []).join(', ') || 'none';
+    const priorContext = this.buildPriorPhasesBlock(data.priorPhases);
+
+    // If the workflow step has a concrete task description, use it directly.
+    if (data.stepContext?.task && data.stepContext.task !== 'Execute one ad-hoc team loop') {
+      const target = data.targetExperimentId
+        ? `\nThe target experiment ID is ${data.targetExperimentId}.`
+        : data.targetTaskId
+          ? `\nThe target task ID is ${data.targetTaskId}.`
+          : '';
+      return [
+        data.stepContext.task,
+        target,
+        '',
+        `Use the Raven API tools listed in your CLAUDE.md to do this work. Your allowed tool categories: ${caps}.`,
+        'Save all findings and artifacts to Raven Docs so the team can see your progress.',
+        priorContext,
+      ].filter(Boolean).join('\n');
+    }
+
+    // Manual / ad-hoc run — build a concrete prompt from the agent's role context.
+    const targetLine = data.targetExperimentId
+      ? `Start by querying the Raven API for experiment ${data.targetExperimentId} to understand the current state, then do your work.`
+      : data.targetTaskId
+        ? `Start by querying the Raven API for task ${data.targetTaskId} to understand what needs to be done.`
+        : 'Start by using `search_tools` to discover available tools, then query for open tasks or experiments that match your capabilities.';
+
+    return [
+      `You are the "${data.role}" on this team. Your CLAUDE.md file describes your role, the Raven API, and how to call tools via HTTP.`,
+      '',
+      targetLine,
+      '',
+      `Your allowed tool categories: ${caps}.`,
+      `Use curl with $MCP_API_KEY to call the Raven API (see CLAUDE.md for examples). Save all findings, updates, and artifacts back to Raven Docs so the rest of the team can build on your work.`,
+      priorContext,
+    ].filter(Boolean).join('\n');
+  }
+
+  private buildPriorPhasesBlock(
+    priorPhases?: Array<{ stepId: string; role: string; summary: string }>,
+  ): string {
+    if (!priorPhases?.length) return '';
+    const lines = priorPhases.map(
+      (p) => `- ${p.role} (${p.stepId}): ${p.summary}`,
+    );
+    return [
+      '',
+      '## Prior workflow phases (completed):',
+      ...lines,
+      '',
+      'Use the Raven MCP tools to query for full details on any hypothesis, experiment, or doc page referenced above.',
+    ].join('\n');
   }
 
   private async resolveAgentCredentials(
     workspaceId: string,
-    triggerUserId?: string,
+    agentUserId?: string,
+    deployerUserId?: string,
   ): Promise<Record<string, string>> {
-    try {
-      return this.userService.resolveAgentProviderEnv(triggerUserId, workspaceId);
-    } catch (error: any) {
-      this.logger.warn(
-        `Failed to resolve agent credentials for workspace ${workspaceId}: ${error.message}`,
-      );
+    if (agentUserId) {
+      try {
+        const creds = this.userService.resolveAgentProviderEnv(agentUserId, workspaceId);
+        if (Object.keys(creds).length > 0) return creds;
+      } catch { /* fall through to deployer */ }
+    }
+    if (deployerUserId) {
+      try {
+        return this.userService.resolveAgentProviderEnv(deployerUserId, workspaceId);
+      } catch { /* return empty */ }
     }
     return {};
   }

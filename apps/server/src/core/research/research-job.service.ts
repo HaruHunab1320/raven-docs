@@ -465,7 +465,7 @@ export class ResearchJobService {
       let reportText = '';
       try {
         const response = await this.aiService.generateContent({
-          model: process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview',
+          model: this.aiService.getSlowModel(),
           contents: [{ role: 'user', parts: [{ text: reportPrompt }] }],
         });
         reportText =

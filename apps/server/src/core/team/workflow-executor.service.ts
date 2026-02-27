@@ -282,11 +282,11 @@ export class WorkflowExecutorService {
 
     switch (step.operation.kind) {
       case 'dispatch_agent_loop':
-        await this.dispatchAgentLoop(step, state, agents, deployment);
+        await this.dispatchAgentLoop(step, state, plan, agents, deployment);
         break;
 
       case 'invoke_coordinator':
-        await this.dispatchCoordinator(step, state, agents, deployment);
+        await this.dispatchCoordinator(step, state, plan, agents, deployment);
         break;
 
       case 'await_event':
@@ -338,6 +338,7 @@ export class WorkflowExecutorService {
   private async dispatchAgentLoop(
     step: RavenStepPlan,
     state: WorkflowState,
+    plan: RavenExecutionPlan,
     agents: any[],
     deployment: any,
   ): Promise<void> {
@@ -371,6 +372,8 @@ export class WorkflowExecutorService {
       {},
     );
 
+    const priorPhases = this.collectPriorPhases(step, state, plan);
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: agent.id,
       deploymentId: deployment.id,
@@ -387,6 +390,7 @@ export class WorkflowExecutorService {
       },
       targetTaskId: deploymentConfig.targetTaskId,
       targetExperimentId: deploymentConfig.targetExperimentId,
+      priorPhases: priorPhases.length > 0 ? priorPhases : undefined,
     };
 
     await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
@@ -399,6 +403,7 @@ export class WorkflowExecutorService {
   private async dispatchCoordinator(
     step: RavenStepPlan,
     state: WorkflowState,
+    plan: RavenExecutionPlan,
     agents: any[],
     deployment: any,
   ): Promise<void> {
@@ -428,6 +433,8 @@ export class WorkflowExecutorService {
       {},
     );
 
+    const priorPhases = this.collectPriorPhases(step, state, plan);
+
     const jobData: TeamAgentLoopJob = {
       teamAgentId: lead.id,
       deploymentId: deployment.id,
@@ -444,6 +451,7 @@ export class WorkflowExecutorService {
       },
       targetTaskId: deploymentConfig.targetTaskId,
       targetExperimentId: deploymentConfig.targetExperimentId,
+      priorPhases: priorPhases.length > 0 ? priorPhases : undefined,
     };
 
     await this.teamQueue.add(QueueJob.TEAM_AGENT_LOOP, jobData, {
@@ -497,7 +505,7 @@ export class WorkflowExecutorService {
       ].join('\n');
 
       const response = await this.aiService.generateContent({
-        model: process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview',
+        model: this.aiService.getSlowModel(),
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
 
@@ -549,7 +557,7 @@ export class WorkflowExecutorService {
         ].join('\n');
 
         const response = await this.aiService.generateContent({
-          model: process.env.GEMINI_AGENT_MODEL || 'gemini-3-pro-preview',
+          model: this.aiService.getSlowModel(),
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
 
@@ -699,5 +707,57 @@ export class WorkflowExecutorService {
     if (pattern === eventName) return true;
     if (eventName.includes(pattern) || pattern.includes(eventName)) return true;
     return false;
+  }
+
+  private collectPriorPhases(
+    currentStep: RavenStepPlan,
+    state: WorkflowState,
+    plan: RavenExecutionPlan,
+  ): Array<{ stepId: string; role: string; summary: string }> {
+    const flattened = this.flattenSteps(plan.steps);
+    const priors: Array<{ stepId: string; role: string; summary: string }> = [];
+
+    for (const step of flattened) {
+      if (step.stepId === currentStep.stepId) break;
+
+      const stepState = state.stepStates[step.stepId];
+      if (stepState?.status !== 'completed') continue;
+
+      const role =
+        step.operation.kind === 'dispatch_agent_loop'
+          ? step.operation.role
+          : step.operation.kind === 'invoke_coordinator'
+            ? 'coordinator'
+            : step.type;
+
+      const summary =
+        stepState.result?.summary ||
+        (step.operation.kind === 'dispatch_agent_loop'
+          ? step.operation.task
+          : step.operation.kind === 'invoke_coordinator'
+            ? step.operation.reason
+            : `Completed ${step.type} step`);
+
+      priors.push({ stepId: step.stepId, role, summary });
+    }
+
+    return priors;
+  }
+
+  private flattenSteps(steps: RavenStepPlan[]): RavenStepPlan[] {
+    const result: RavenStepPlan[] = [];
+    for (const step of steps) {
+      result.push(step);
+      if (step.children?.length) {
+        result.push(...this.flattenSteps(step.children));
+      }
+      if (step.thenBranch) {
+        result.push(...this.flattenSteps([step.thenBranch]));
+      }
+      if (step.elseBranch) {
+        result.push(...this.flattenSteps([step.elseBranch]));
+      }
+    }
+    return result;
   }
 }

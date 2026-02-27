@@ -224,6 +224,19 @@ export class TeamDeploymentRepo {
       .execute();
   }
 
+  async resetAgentStats(id: string) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({
+        lastRunSummary: 'Reset by user',
+        totalActions: 0,
+        totalErrors: 0,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', id)
+      .execute();
+  }
+
   async findAgentById(id: string) {
     return this.db
       .selectFrom('teamAgents')
@@ -294,6 +307,15 @@ export class TeamDeploymentRepo {
       .where('id', '=', id)
       .executeTakeFirst();
     return this.normalizeDeploymentRow(row) || null;
+  }
+
+  async findActiveDeployments() {
+    const rows = await this.db
+      .selectFrom('teamDeployments')
+      .selectAll()
+      .where('status', '=', 'active')
+      .execute();
+    return rows.map((row) => this.normalizeDeploymentRow(row));
   }
 
   async findActiveDeploymentsInWorkspace(workspaceId: string) {
