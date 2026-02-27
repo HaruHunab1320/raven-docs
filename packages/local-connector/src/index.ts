@@ -897,6 +897,96 @@ async function main() {
     return;
   }
 
+  if (command === 'quickstart') {
+    const defaultServerUrl = process.argv[3] || persisted.serverUrl || 'http://localhost:3000';
+    const defaultWorkspaceId = process.argv[4] || persisted.workspaceId || '';
+    const defaultRootDir = process.argv[5] || persisted.rootDir || process.cwd();
+    const defaultMode =
+      (process.argv[6] as PersistedConnectorConfig['mode']) || persisted.mode || 'bidirectional';
+    const defaultIntervalMs = process.argv[7] || String(persisted.intervalMs || 5000);
+    const defaultConnectorName = persisted.sourceName || 'local-connector';
+    const defaultSourceName = persisted.sourceName || 'Local Source';
+
+    const serverUrl = await promptInput('Server URL', { defaultValue: defaultServerUrl });
+    const workspaceId = await promptInput('Workspace ID', {
+      defaultValue: defaultWorkspaceId,
+    });
+    const jwt = await promptInput('JWT', { defaultValue: persisted.jwt || '' });
+    const rootDir = await promptInput('Local root directory', {
+      defaultValue: defaultRootDir,
+    });
+    const mode = (await promptInput(
+      'Mode (import_only|local_to_cloud|bidirectional)',
+      { defaultValue: defaultMode },
+    )) as PersistedConnectorConfig['mode'];
+    const intervalMs = Number(
+      await promptInput('Sync interval ms', { defaultValue: defaultIntervalMs }),
+    );
+    const connectorName = await promptInput('Connector name', {
+      defaultValue: defaultConnectorName,
+    });
+    const sourceName = await promptInput('Source name', {
+      defaultValue: defaultSourceName,
+    });
+
+    const nextConfig: PersistedConnectorConfig = {
+      ...persisted,
+      serverUrl,
+      workspaceId,
+      jwt,
+      rootDir,
+      mode,
+      intervalMs,
+      sourceName,
+    };
+    savePersistedConfig(nextConfig);
+
+    const quickConfig = mergeConfig(nextConfig);
+    requireApiConfig(quickConfig);
+
+    const registered = await post(quickConfig, 'connectors/register', {
+      name: connectorName,
+      platform: process.platform,
+      version: '0.1.0',
+    });
+    const connectorId = String((registered as Record<string, unknown>)?.id || '');
+    if (!connectorId) {
+      throw new Error('Failed to register connector');
+    }
+
+    const source = await post(quickConfig, 'sources', {
+      connectorId,
+      name: sourceName,
+      mode,
+      includePatterns: ['**/*.md'],
+      excludePatterns: ['**/.git/**', '**/node_modules/**'],
+    });
+    const sourceId = String((source as Record<string, unknown>)?.id || '');
+    if (!sourceId) {
+      throw new Error('Failed to create source');
+    }
+
+    savePersistedConfig({
+      ...nextConfig,
+      connectorId,
+      sourceId,
+    });
+
+    print({
+      ok: true,
+      message: 'Quickstart complete. Starting daemon...',
+      connectorId,
+      sourceId,
+      rootDir,
+      mode,
+      intervalMs,
+      configPath: CONFIG_PATH,
+    });
+
+    await runDaemon(quickConfig, sourceId, rootDir, intervalMs);
+    return;
+  }
+
   if (command === 'register') {
     requireApiConfig(config);
     const name = process.argv[3] || 'local-connector';
@@ -1064,6 +1154,7 @@ async function main() {
       '  pnpm --filter @raven-docs/local-connector start start [sourceId] [rootDir] [intervalMs]',
       '  pnpm --filter @raven-docs/local-connector start status',
       '  pnpm --filter @raven-docs/local-connector start doctor',
+      '  pnpm --filter @raven-docs/local-connector start quickstart [serverUrl] [workspaceId] [rootDir] [mode] [intervalMs]',
       '  pnpm --filter @raven-docs/local-connector start register [name]',
       '  pnpm --filter @raven-docs/local-connector start heartbeat <connectorId>',
       '  pnpm --filter @raven-docs/local-connector start create-source <connectorId> <name> [mode]',

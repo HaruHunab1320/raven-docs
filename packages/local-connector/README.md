@@ -18,6 +18,7 @@ pnpm --filter @raven-docs/local-connector start connect [connectorName] [sourceN
 pnpm --filter @raven-docs/local-connector start start [sourceId] [rootDir] [intervalMs]
 pnpm --filter @raven-docs/local-connector start status
 pnpm --filter @raven-docs/local-connector start doctor
+pnpm --filter @raven-docs/local-connector start quickstart [serverUrl] [workspaceId] [rootDir] [mode] [intervalMs]
 pnpm --filter @raven-docs/local-connector start register [name]
 pnpm --filter @raven-docs/local-connector start heartbeat <connectorId>
 pnpm --filter @raven-docs/local-connector start create-source <connectorId> <name> [mode]
@@ -42,6 +43,12 @@ pnpm --filter @raven-docs/local-connector start start
 Configuration is saved to:
 
 `~/.config/raven-sync/config.json`
+
+For an all-in-one guided flow:
+
+```bash
+pnpm --filter @raven-docs/local-connector start quickstart
+```
 
 ## Daemon Mode
 
