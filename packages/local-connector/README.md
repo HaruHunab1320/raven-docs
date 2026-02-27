@@ -13,6 +13,11 @@ Minimal CLI scaffold for Raven local sync development.
 ## Commands
 
 ```bash
+pnpm --filter @raven-docs/local-connector start init
+pnpm --filter @raven-docs/local-connector start connect [connectorName] [sourceName] [mode] [rootDir]
+pnpm --filter @raven-docs/local-connector start start [sourceId] [rootDir] [intervalMs]
+pnpm --filter @raven-docs/local-connector start status
+pnpm --filter @raven-docs/local-connector start doctor
 pnpm --filter @raven-docs/local-connector start register [name]
 pnpm --filter @raven-docs/local-connector start heartbeat <connectorId>
 pnpm --filter @raven-docs/local-connector start create-source <connectorId> <name> [mode]
@@ -23,6 +28,20 @@ pnpm --filter @raven-docs/local-connector start deltas <sourceId> [cursor] [limi
 pnpm --filter @raven-docs/local-connector start conflicts <sourceId>
 pnpm --filter @raven-docs/local-connector start daemon <sourceId> <rootDir> [intervalMs]
 ```
+
+## End-User CLI Flow
+
+For a low-friction CLI setup, run:
+
+```bash
+pnpm --filter @raven-docs/local-connector start init
+pnpm --filter @raven-docs/local-connector start connect
+pnpm --filter @raven-docs/local-connector start start
+```
+
+Configuration is saved to:
+
+`~/.config/raven-sync/config.json`
 
 ## Daemon Mode
 

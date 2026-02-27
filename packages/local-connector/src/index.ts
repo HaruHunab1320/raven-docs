@@ -10,12 +10,26 @@ import {
   existsSync,
   mkdirSync,
 } from 'fs';
+import { homedir } from 'os';
 import { basename, dirname, join, relative } from 'path';
+import { createInterface } from 'readline/promises';
 
 interface ConnectorConfig {
   serverUrl: string;
   workspaceId: string;
   jwt: string;
+}
+
+interface PersistedConnectorConfig {
+  serverUrl?: string;
+  workspaceId?: string;
+  jwt?: string;
+  connectorId?: string;
+  sourceId?: string;
+  sourceName?: string;
+  mode?: 'import_only' | 'local_to_cloud' | 'bidirectional';
+  rootDir?: string;
+  intervalMs?: number;
 }
 
 interface JsonObject {
@@ -75,19 +89,59 @@ const DEFAULT_STATE: DaemonState = {
 
 const DEFAULT_MAX_FILE_BYTES = Number(process.env.RAVEN_MAX_FILE_BYTES || 1_000_000);
 const DEFAULT_MAX_FILES_PER_SCAN = Number(process.env.RAVEN_MAX_FILES_PER_SCAN || 10_000);
+const CONFIG_DIR = join(homedir(), '.config', 'raven-sync');
+const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
-function getConfig(): ConnectorConfig {
-  const serverUrl = process.env.RAVEN_SERVER_URL || 'http://localhost:3000';
-  const workspaceId = process.env.RAVEN_WORKSPACE || '';
-  const jwt = process.env.RAVEN_JWT || '';
-
-  if (!workspaceId || !jwt) {
-    throw new Error(
-      'Missing config: set RAVEN_WORKSPACE and RAVEN_JWT environment variables',
-    );
+function loadPersistedConfig(): PersistedConnectorConfig {
+  if (!existsSync(CONFIG_PATH)) {
+    return {};
   }
 
+  try {
+    return JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) as PersistedConnectorConfig;
+  } catch {
+    return {};
+  }
+}
+
+function savePersistedConfig(config: PersistedConnectorConfig) {
+  mkdirSync(CONFIG_DIR, { recursive: true });
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+}
+
+function mergeConfig(persisted: PersistedConnectorConfig): ConnectorConfig {
+  const serverUrl = process.env.RAVEN_SERVER_URL || persisted.serverUrl || 'http://localhost:3000';
+  const workspaceId = process.env.RAVEN_WORKSPACE || persisted.workspaceId || '';
+  const jwt = process.env.RAVEN_JWT || persisted.jwt || '';
+
   return { serverUrl, workspaceId, jwt };
+}
+
+function requireApiConfig(config: ConnectorConfig) {
+  if (!config.workspaceId || !config.jwt) {
+    throw new Error(
+      'Missing auth config. Run `init` first or set RAVEN_WORKSPACE and RAVEN_JWT.',
+    );
+  }
+}
+
+async function promptInput(
+  label: string,
+  input: { defaultValue?: string; secret?: boolean } = {},
+): Promise<string> {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  const suffix = input.defaultValue ? ` [${input.defaultValue}]` : '';
+  const value = await rl.question(`${label}${suffix}: `);
+  rl.close();
+
+  const normalized = value.trim();
+  if (!normalized && input.defaultValue) {
+    return input.defaultValue;
+  }
+  return normalized;
 }
 
 function sha256(content: string): string {
@@ -625,9 +679,226 @@ async function runDaemon(
 
 async function main() {
   const command = process.argv[2];
-  const config = getConfig();
+  const persisted = loadPersistedConfig();
+  const config = mergeConfig(persisted);
+
+  if (command === 'init') {
+    const serverUrl = await promptInput('Server URL', {
+      defaultValue: persisted.serverUrl || 'http://localhost:3000',
+    });
+    const workspaceId = await promptInput('Workspace ID', {
+      defaultValue: persisted.workspaceId || '',
+    });
+    const jwt = await promptInput('JWT', {
+      defaultValue: persisted.jwt || '',
+    });
+    const rootDir = await promptInput('Default root directory', {
+      defaultValue: persisted.rootDir || process.cwd(),
+    });
+    const intervalRaw = await promptInput('Sync interval ms', {
+      defaultValue: String(persisted.intervalMs || 5000),
+    });
+
+    const next: PersistedConnectorConfig = {
+      ...persisted,
+      serverUrl,
+      workspaceId,
+      jwt,
+      rootDir,
+      intervalMs: Number(intervalRaw || 5000),
+    };
+    savePersistedConfig(next);
+    print({
+      ok: true,
+      message: 'Connector config saved',
+      configPath: CONFIG_PATH,
+      config: {
+        serverUrl: next.serverUrl,
+        workspaceId: next.workspaceId,
+        rootDir: next.rootDir,
+        intervalMs: next.intervalMs,
+      },
+    });
+    return;
+  }
+
+  if (command === 'connect') {
+    requireApiConfig(config);
+    const connectorName = process.argv[3]
+      || (await promptInput('Connector name', {
+        defaultValue: persisted.sourceName || 'local-connector',
+      }));
+    const sourceName = process.argv[4]
+      || (await promptInput('Source name', {
+        defaultValue: persisted.sourceName || 'Local Source',
+      }));
+    const mode = (process.argv[5] as PersistedConnectorConfig['mode'])
+      || (await promptInput('Mode (import_only|local_to_cloud|bidirectional)', {
+        defaultValue: persisted.mode || 'bidirectional',
+      })) as PersistedConnectorConfig['mode'];
+    const rootDir = process.argv[6]
+      || (await promptInput('Local root directory', {
+        defaultValue: persisted.rootDir || process.cwd(),
+      }));
+
+    const registered = await post(config, 'connectors/register', {
+      name: connectorName,
+      platform: process.platform,
+      version: '0.1.0',
+    });
+    const connectorId = String((registered as Record<string, unknown>)?.id || '');
+    if (!connectorId) {
+      throw new Error('Failed to register connector');
+    }
+
+    const source = await post(config, 'sources', {
+      connectorId,
+      name: sourceName,
+      mode: mode || 'bidirectional',
+      includePatterns: ['**/*.md'],
+      excludePatterns: ['**/.git/**', '**/node_modules/**'],
+    });
+    const sourceId = String((source as Record<string, unknown>)?.id || '');
+    if (!sourceId) {
+      throw new Error('Failed to create source');
+    }
+
+    const next: PersistedConnectorConfig = {
+      ...persisted,
+      serverUrl: config.serverUrl,
+      workspaceId: config.workspaceId,
+      jwt: config.jwt,
+      connectorId,
+      sourceId,
+      sourceName,
+      mode: mode || 'bidirectional',
+      rootDir,
+      intervalMs: persisted.intervalMs || 5000,
+    };
+    savePersistedConfig(next);
+
+    print({
+      ok: true,
+      connectorId,
+      sourceId,
+      mode: next.mode,
+      rootDir: next.rootDir,
+      configPath: CONFIG_PATH,
+    });
+    return;
+  }
+
+  if (command === 'start') {
+    requireApiConfig(config);
+    const sourceId = process.argv[3] || persisted.sourceId;
+    const rootDir = process.argv[4] || persisted.rootDir;
+    const intervalMs = process.argv[5]
+      ? Number(process.argv[5])
+      : Number(persisted.intervalMs || 5000);
+
+    if (!sourceId || !rootDir) {
+      throw new Error(
+        'Missing source/root. Run `connect` first or use: start <sourceId> <rootDir> [intervalMs]',
+      );
+    }
+
+    savePersistedConfig({
+      ...persisted,
+      serverUrl: config.serverUrl,
+      workspaceId: config.workspaceId,
+      jwt: config.jwt,
+      sourceId,
+      rootDir,
+      intervalMs,
+    });
+    await runDaemon(config, sourceId, rootDir, intervalMs);
+    return;
+  }
+
+  if (command === 'status') {
+    requireApiConfig(config);
+    const sources = await post(config, 'sources/list', {});
+    const sourceList = Array.isArray(sources) ? (sources as SourceSummary[]) : [];
+    const selected = sourceList.find((item) => item.id === persisted.sourceId);
+
+    print({
+      configPath: CONFIG_PATH,
+      serverUrl: config.serverUrl,
+      workspaceId: config.workspaceId,
+      connectorId: persisted.connectorId || null,
+      sourceId: persisted.sourceId || null,
+      rootDir: persisted.rootDir || null,
+      intervalMs: persisted.intervalMs || 5000,
+      source: selected || null,
+      totalSources: sourceList.length,
+    });
+    return;
+  }
+
+  if (command === 'doctor') {
+    const checks: Array<{ check: string; ok: boolean; detail?: string }> = [];
+    checks.push({
+      check: 'Config file exists',
+      ok: existsSync(CONFIG_PATH),
+      detail: CONFIG_PATH,
+    });
+
+    checks.push({
+      check: 'Workspace configured',
+      ok: Boolean(config.workspaceId),
+    });
+
+    checks.push({
+      check: 'JWT configured',
+      ok: Boolean(config.jwt),
+    });
+
+    const rootDir = persisted.rootDir;
+    checks.push({
+      check: 'Root directory configured',
+      ok: Boolean(rootDir),
+      detail: rootDir,
+    });
+    checks.push({
+      check: 'Root directory exists',
+      ok: Boolean(rootDir && existsSync(rootDir) && statSync(rootDir).isDirectory()),
+      detail: rootDir,
+    });
+
+    if (config.workspaceId && config.jwt) {
+      try {
+        const sources = await post(config, 'sources/list', {});
+        const sourceList = Array.isArray(sources) ? (sources as SourceSummary[]) : [];
+        const found = sourceList.some((item) => item.id === persisted.sourceId);
+        checks.push({
+          check: 'API auth/list sources',
+          ok: true,
+          detail: `${sourceList.length} sources`,
+        });
+        checks.push({
+          check: 'Configured source exists',
+          ok: Boolean(!persisted.sourceId || found),
+          detail: persisted.sourceId,
+        });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        checks.push({
+          check: 'API auth/list sources',
+          ok: false,
+          detail: message,
+        });
+      }
+    }
+
+    print({
+      ok: checks.every((item) => item.ok),
+      checks,
+    });
+    return;
+  }
 
   if (command === 'register') {
+    requireApiConfig(config);
     const name = process.argv[3] || 'local-connector';
     const result = await post(config, 'connectors/register', {
       name,
@@ -639,6 +910,7 @@ async function main() {
   }
 
   if (command === 'heartbeat') {
+    requireApiConfig(config);
     const connectorId = process.argv[3];
     if (!connectorId) {
       throw new Error('Usage: heartbeat <connectorId>');
@@ -649,6 +921,7 @@ async function main() {
   }
 
   if (command === 'create-source') {
+    requireApiConfig(config);
     const connectorId = process.argv[3];
     const name = process.argv[4];
     const mode = process.argv[5] || 'import_only';
@@ -671,12 +944,14 @@ async function main() {
   }
 
   if (command === 'list-sources') {
+    requireApiConfig(config);
     const result = await post(config, 'sources/list', {});
     print(result);
     return;
   }
 
   if (command === 'push-batch') {
+    requireApiConfig(config);
     const sourceId = process.argv[3];
     const relativePath = process.argv[4];
     const content = process.argv[5] || '';
@@ -703,6 +978,7 @@ async function main() {
   }
 
   if (command === 'sync-file') {
+    requireApiConfig(config);
     const sourceId = process.argv[3];
     const relativePath = process.argv[4];
     const localFilePath = process.argv[5];
@@ -736,6 +1012,7 @@ async function main() {
   }
 
   if (command === 'deltas') {
+    requireApiConfig(config);
     const sourceId = process.argv[3];
     const cursor = process.argv[4] ? Number(process.argv[4]) : 0;
     const limit = process.argv[5] ? Number(process.argv[5]) : 100;
@@ -754,6 +1031,7 @@ async function main() {
   }
 
   if (command === 'conflicts') {
+    requireApiConfig(config);
     const sourceId = process.argv[3];
     if (!sourceId) {
       throw new Error('Usage: conflicts <sourceId>');
@@ -765,6 +1043,7 @@ async function main() {
   }
 
   if (command === 'daemon') {
+    requireApiConfig(config);
     const sourceId = process.argv[3];
     const rootDir = process.argv[4];
     const intervalMs = process.argv[5] ? Number(process.argv[5]) : 5000;
@@ -780,6 +1059,11 @@ async function main() {
   process.stdout.write(
     [
       'Usage:',
+      '  pnpm --filter @raven-docs/local-connector start init',
+      '  pnpm --filter @raven-docs/local-connector start connect [connectorName] [sourceName] [mode] [rootDir]',
+      '  pnpm --filter @raven-docs/local-connector start start [sourceId] [rootDir] [intervalMs]',
+      '  pnpm --filter @raven-docs/local-connector start status',
+      '  pnpm --filter @raven-docs/local-connector start doctor',
       '  pnpm --filter @raven-docs/local-connector start register [name]',
       '  pnpm --filter @raven-docs/local-connector start heartbeat <connectorId>',
       '  pnpm --filter @raven-docs/local-connector start create-source <connectorId> <name> [mode]',
