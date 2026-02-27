@@ -40,6 +40,20 @@ export interface LocalSyncConflictPreview {
   }>;
 }
 
+export interface LocalSyncFile {
+  id: string;
+  sourceId: string;
+  relativePath: string;
+  contentType: string;
+  state: "ok" | "conflict" | "paused";
+  lastSyncedHash: string;
+  lastSyncedAt: string;
+}
+
+export interface LocalSyncFileContent extends LocalSyncFile {
+  content: string;
+}
+
 export async function listLocalSyncSources(): Promise<LocalSyncSource[]> {
   const req = (await api.post("/local-sync/sources/list", {})) as LocalSyncSource[];
   return req;
@@ -51,6 +65,34 @@ export async function listLocalSyncConflicts(
   const req = (await api.post("/local-sync/sources/conflicts", {
     sourceId,
   })) as LocalSyncConflict[];
+  return req;
+}
+
+export async function listLocalSyncFiles(sourceId: string): Promise<LocalSyncFile[]> {
+  const req = (await api.post("/local-sync/sources/files", {
+    sourceId,
+  })) as LocalSyncFile[];
+  return req;
+}
+
+export async function getLocalSyncFile(
+  sourceId: string,
+  relativePath: string,
+): Promise<LocalSyncFileContent> {
+  const req = (await api.post("/local-sync/sources/file", {
+    sourceId,
+    relativePath,
+  })) as LocalSyncFileContent;
+  return req;
+}
+
+export async function updateLocalSyncFile(params: {
+  sourceId: string;
+  relativePath: string;
+  content: string;
+  baseHash?: string;
+}) {
+  const req = await api.post("/local-sync/sources/file/update", params);
   return req;
 }
 
