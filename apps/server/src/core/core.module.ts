@@ -33,6 +33,7 @@ import { ResearchDashboardModule } from './research-dashboard/research-dashboard
 import { PatternDetectionModule } from './pattern-detection/pattern-detection.module';
 import { GitWorkspaceModule } from './git-workspace/git-workspace.module';
 import { CodingSwarmModule } from './coding-swarm/coding-swarm.module';
+import { LocalSyncModule } from './local-sync/local-sync.module';
 
 const modules = [
   UserModule,
@@ -61,6 +62,7 @@ const modules = [
   PatternDetectionModule,
   GitWorkspaceModule,
   CodingSwarmModule,
+  LocalSyncModule,
 ];
 
 @Module({
