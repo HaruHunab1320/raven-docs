@@ -12,6 +12,8 @@ describe('LocalSyncController', () => {
     createSource: jest.fn(),
     listSources: jest.fn(),
     getFiles: jest.fn(),
+    getFileContent: jest.fn(),
+    updateFileFromRaven: jest.fn(),
     pushBatch: jest.fn(),
     getDeltas: jest.fn(),
     getConflicts: jest.fn(),
@@ -122,6 +124,29 @@ describe('LocalSyncController', () => {
     expect(mockService.resolveConflict).toHaveBeenCalledWith({
       dto,
       workspaceId: 'ws-1',
+    });
+  });
+
+  it('updateSourceFile delegates to service with user context', async () => {
+    mockService.updateFileFromRaven.mockResolvedValue({ status: 'ok' });
+
+    const dto = {
+      sourceId: 'source-1',
+      relativePath: 'notes/a.md',
+      content: 'next',
+      baseHash: 'hash-1',
+    };
+
+    const result = await controller.updateSourceFile(dto as any, workspace, user);
+
+    expect(result).toEqual({ status: 'ok' });
+    expect(mockService.updateFileFromRaven).toHaveBeenCalledWith({
+      sourceId: 'source-1',
+      relativePath: 'notes/a.md',
+      content: 'next',
+      baseHash: 'hash-1',
+      workspaceId: 'ws-1',
+      userId: 'user-1',
     });
   });
 });

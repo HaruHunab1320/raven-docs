@@ -243,6 +243,14 @@ export class LocalSyncRepo {
     return result.rows.map((row) => this.mapFile(row));
   }
 
+  async deleteFileByPath(sourceId: string, relativePath: string) {
+    await sql`
+      DELETE FROM local_sync_files
+      WHERE source_id = ${sourceId}::uuid
+        AND relative_path = ${relativePath}
+    `.execute(this.db);
+  }
+
   async upsertFile(input: {
     sourceId: string;
     relativePath: string;

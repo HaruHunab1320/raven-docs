@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   ArrayMaxSize,
   IsArray,
   IsEnum,
@@ -93,6 +94,10 @@ export class PushBatchItemDto {
   @IsOptional()
   @IsString()
   baseHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDelete?: boolean;
 }
 
 export class PushBatchDto {
@@ -139,6 +144,28 @@ export class GetFileHistoryDto {
   relativePath: string;
 }
 
+export class GetSourceFileDto {
+  @IsUUID()
+  sourceId: string;
+
+  @IsString()
+  relativePath: string;
+}
+
+export class UpdateSourceFileDto {
+  @IsUUID()
+  sourceId: string;
+
+  @IsString()
+  relativePath: string;
+
+  @IsString()
+  content: string;
+
+  @IsOptional()
+  @IsString()
+  baseHash?: string;
+}
 
 export class GetConflictPreviewDto {
   @IsUUID()

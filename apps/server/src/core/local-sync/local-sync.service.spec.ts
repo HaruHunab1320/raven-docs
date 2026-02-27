@@ -17,6 +17,7 @@ describe('LocalSyncService', () => {
     setSourceCursor: jest.fn(),
     getFileByPath: jest.fn(),
     listFiles: jest.fn(),
+    deleteFileByPath: jest.fn(),
     upsertFile: jest.fn(),
     appendEvent: jest.fn(),
     listEventsAfter: jest.fn(),
@@ -169,6 +170,68 @@ describe('LocalSyncService', () => {
           conflictId: 'conflict-1',
           resolution: 'manual_merge',
         },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('handles delete item in pushBatch', async () => {
+    mockRepo.getSource.mockResolvedValue({
+      id: 'source-1',
+      workspaceId: 'ws-1',
+      status: 'active',
+    });
+    mockRepo.hasProcessedOperation.mockResolvedValue(false);
+    mockRepo.getFileByPath.mockResolvedValue({
+      id: 'file-1',
+      relativePath: 'notes/a.md',
+      contentType: 'text/markdown',
+      content: 'hello',
+      lastSyncedHash: 'h1',
+      lastRemoteHash: 'h1',
+      lastLocalHash: 'h1',
+      versions: [],
+    });
+    mockRepo.currentCursor.mockResolvedValue(4);
+
+    const result = await service.pushBatch({
+      workspaceId: 'ws-1',
+      dto: {
+        sourceId: 'source-1',
+        items: [
+          {
+            operationId: 'op-delete-1',
+            relativePath: 'notes/a.md',
+            content: '',
+            isDelete: true,
+            baseHash: 'h1',
+          },
+        ],
+      },
+    });
+
+    expect(result.applied).toBe(1);
+    expect(result.conflicts).toBe(0);
+    expect(mockRepo.deleteFileByPath).toHaveBeenCalledWith('source-1', 'notes/a.md');
+    expect(mockRepo.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'file.delete' }),
+    );
+  });
+
+  it('blocks raven updates for non-bidirectional sources', async () => {
+    mockRepo.getSource.mockResolvedValue({
+      id: 'source-1',
+      workspaceId: 'ws-1',
+      status: 'active',
+      mode: 'import_only',
+    });
+
+    await expect(
+      service.updateFileFromRaven({
+        sourceId: 'source-1',
+        relativePath: 'notes/a.md',
+        content: 'updated',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });

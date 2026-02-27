@@ -9,6 +9,7 @@ import {
   CreateLocalSyncSourceDto,
   GetConflictsDto,
   GetConflictPreviewDto,
+  GetSourceFileDto,
   GetFileHistoryDto,
   GetSourceDeltasDto,
   GetSourceFilesDto,
@@ -16,6 +17,7 @@ import {
   PushBatchDto,
   RegisterConnectorDto,
   ResolveConflictDto,
+  UpdateSourceFileDto,
 } from './dto/local-sync.dto';
 
 @Controller('local-sync')
@@ -78,6 +80,36 @@ export class LocalSyncController {
     return this.localSyncService.getFiles({
       sourceId: dto.sourceId,
       workspaceId: workspace.id,
+    });
+  }
+
+  @Post('sources/file')
+  @HttpCode(HttpStatus.OK)
+  getSourceFile(
+    @Body() dto: GetSourceFileDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.localSyncService.getFileContent({
+      sourceId: dto.sourceId,
+      relativePath: dto.relativePath,
+      workspaceId: workspace.id,
+    });
+  }
+
+  @Post('sources/file/update')
+  @HttpCode(HttpStatus.OK)
+  updateSourceFile(
+    @Body() dto: UpdateSourceFileDto,
+    @AuthWorkspace() workspace: Workspace,
+    @AuthUser() user: User,
+  ) {
+    return this.localSyncService.updateFileFromRaven({
+      sourceId: dto.sourceId,
+      relativePath: dto.relativePath,
+      content: dto.content,
+      baseHash: dto.baseHash,
+      workspaceId: workspace.id,
+      userId: user.id,
     });
   }
 

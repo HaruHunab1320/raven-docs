@@ -122,6 +122,71 @@ export class LocalSyncService {
         item.relativePath,
       );
 
+      if (item.isDelete) {
+        if (
+          current &&
+          item.baseHash &&
+          current.lastSyncedHash &&
+          item.baseHash !== current.lastSyncedHash
+        ) {
+          const conflict = await this.localSyncRepo.createConflict({
+            sourceId: source.id,
+            fileId: current.id,
+            relativePath: item.relativePath,
+            baseHash: item.baseHash,
+            localHash: item.contentHash || this.sha256(''),
+            remoteHash: current.lastRemoteHash,
+            localContent: '',
+            remoteContent: current.content,
+          });
+
+          await this.localSyncRepo.upsertFile({
+            sourceId: source.id,
+            relativePath: current.relativePath,
+            contentType: current.contentType,
+            content: current.content,
+            lastSyncedHash: current.lastSyncedHash,
+            lastLocalHash: current.lastLocalHash,
+            lastRemoteHash: current.lastRemoteHash,
+            state: 'conflict',
+            versions: current.versions,
+          });
+
+          await this.localSyncRepo.appendEvent({
+            sourceId: source.id,
+            type: 'conflict.opened',
+            relativePath: item.relativePath,
+            payload: {
+              conflictId: conflict.id,
+              localHash: conflict.localHash,
+              remoteHash: conflict.remoteHash,
+              reason: 'delete_mismatch',
+            },
+          });
+
+          await this.localSyncRepo.recordOperation(source.id, item.operationId);
+          openedConflicts += 1;
+          continue;
+        }
+
+        if (current) {
+          await this.localSyncRepo.deleteFileByPath(source.id, item.relativePath);
+        }
+
+        await this.localSyncRepo.appendEvent({
+          sourceId: source.id,
+          type: 'file.delete',
+          relativePath: item.relativePath,
+          payload: {
+            operationId: item.operationId,
+          },
+        });
+
+        await this.localSyncRepo.recordOperation(source.id, item.operationId);
+        applied += 1;
+        continue;
+      }
+
       const nextHash = item.contentHash || this.sha256(item.content);
 
       if (
@@ -251,6 +316,31 @@ export class LocalSyncService {
     return this.localSyncRepo.listOpenConflicts(source.id);
   }
 
+  async getFileContent(input: {
+    sourceId: string;
+    relativePath: string;
+    workspaceId: string;
+  }) {
+    const source = await this.requireSource(input.sourceId, input.workspaceId);
+    const file = await this.localSyncRepo.getFileByPath(source.id, input.relativePath);
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    return {
+      id: file.id,
+      sourceId: file.sourceId,
+      relativePath: file.relativePath,
+      contentType: file.contentType,
+      content: file.content,
+      state: file.state,
+      lastSyncedHash: file.lastSyncedHash,
+      lastSyncedAt: file.lastSyncedAt,
+      versions: file.versions,
+    };
+  }
+
   async getConflictPreview(input: {
     sourceId: string;
     conflictId: string;
@@ -364,6 +454,111 @@ export class LocalSyncService {
       status: resolved?.status || 'resolved',
       resolution: resolved?.resolution || input.dto.resolution,
       resolvedAt: resolved?.resolvedAt || new Date().toISOString(),
+    };
+  }
+
+  async updateFileFromRaven(input: {
+    sourceId: string;
+    relativePath: string;
+    content: string;
+    baseHash?: string;
+    workspaceId: string;
+    userId: string;
+  }) {
+    const source = await this.requireSource(input.sourceId, input.workspaceId);
+    if (source.mode !== 'bidirectional') {
+      throw new BadRequestException(
+        'Raven-side editing is only allowed for bidirectional sources',
+      );
+    }
+    if (source.status === 'paused') {
+      throw new BadRequestException('Source is paused');
+    }
+
+    const file = await this.localSyncRepo.getFileByPath(source.id, input.relativePath);
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    const nextHash = this.sha256(input.content);
+    if (input.baseHash && file.lastSyncedHash && input.baseHash !== file.lastSyncedHash) {
+      const conflict = await this.localSyncRepo.createConflict({
+        sourceId: source.id,
+        fileId: file.id,
+        relativePath: file.relativePath,
+        baseHash: input.baseHash,
+        localHash: file.lastLocalHash,
+        remoteHash: nextHash,
+        localContent: file.content,
+        remoteContent: input.content,
+      });
+
+      await this.localSyncRepo.upsertFile({
+        sourceId: source.id,
+        relativePath: file.relativePath,
+        contentType: file.contentType,
+        content: file.content,
+        lastSyncedHash: file.lastSyncedHash,
+        lastLocalHash: file.lastLocalHash,
+        lastRemoteHash: file.lastRemoteHash,
+        state: 'conflict',
+        versions: file.versions,
+      });
+
+      await this.localSyncRepo.appendEvent({
+        sourceId: source.id,
+        type: 'conflict.opened',
+        relativePath: file.relativePath,
+        payload: {
+          conflictId: conflict.id,
+          localHash: file.lastLocalHash,
+          remoteHash: nextHash,
+          reason: 'raven_edit_stale_base',
+        },
+      });
+
+      return {
+        status: 'conflict',
+        conflictId: conflict.id,
+      };
+    }
+
+    const versions: LocalSyncVersion[] = [...file.versions, {
+      hash: nextHash,
+      content: input.content,
+      recordedAt: new Date().toISOString(),
+      origin: 'raven',
+    }];
+
+    await this.localSyncRepo.upsertFile({
+      sourceId: source.id,
+      relativePath: file.relativePath,
+      contentType: file.contentType,
+      content: input.content,
+      lastSyncedHash: nextHash,
+      lastLocalHash: nextHash,
+      lastRemoteHash: nextHash,
+      state: 'ok',
+      versions,
+    });
+
+    await this.localSyncRepo.appendEvent({
+      sourceId: source.id,
+      type: 'file.upsert',
+      relativePath: file.relativePath,
+      payload: {
+        operationId: `raven-${input.userId}-${Date.now()}`,
+        hash: nextHash,
+        contentType: file.contentType,
+        content: input.content,
+        actor: 'raven',
+      },
+    });
+
+    return {
+      status: 'ok',
+      relativePath: file.relativePath,
+      hash: nextHash,
     };
   }
 
