@@ -155,6 +155,18 @@ RAG-powered access to documentation and reference material:
 
 [Learn more about Knowledge Tools](/mcp/tools/knowledge)
 
+### Local Sync
+
+Connect local markdown repositories directly to Raven:
+
+- **Connector daemon** - Sync local folders to Raven over authenticated API
+- **Modes** - Import-only, local-to-cloud, and bidirectional sync
+- **Conflict inbox** - Preview diffs and resolve with keep-local/keep-raven/manual merge
+- **File tree + editor** - Browse synced files and edit bidirectional sources in Raven settings
+- **Delete propagation** - Local and remote file deletions propagate through sync deltas
+
+[Learn more about Local Sync](/guides/local-sync)
+
 ### Behavioral Insights
 
 Sophisticated user profiling based on activity patterns:
