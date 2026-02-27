@@ -1,0 +1,16 @@
+{
+  "name": "@raven-docs/local-connector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local connector CLI scaffold for Raven local-sync",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.7.3"
+  }
+}
