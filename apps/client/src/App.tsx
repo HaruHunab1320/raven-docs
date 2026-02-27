@@ -41,6 +41,7 @@ import { TrashPage } from "@/features/space/pages/trash-page";
 import ApiKeys from "@/pages/settings/workspace/api-keys.tsx";
 import ParallaxAgentsSettings from "@/pages/settings/workspace/parallax-agents.tsx";
 import TeamsSettings from "@/pages/settings/workspace/teams";
+import LocalSyncSettings from "@/pages/settings/workspace/local-sync";
 import BugReportsPage from "@/features/bug-report/pages/bug-reports-page";
 import { useEffect } from "react";
 
@@ -519,6 +520,7 @@ export default function App() {
           <Route path={"/settings/api-keys"} element={<ApiKeys />} />
           <Route path={"/settings/agents"} element={<ParallaxAgentsSettings />} />
           <Route path={"/settings/teams"} element={<TeamsSettings />} />
+          <Route path={"/settings/local-sync"} element={<LocalSyncSettings />} />
           <Route path={"/settings/bug-reports"} element={<BugReportsPage />} />
           <Route path={"/navigation-test"} element={<NavigationTestPage />} />
           <Route path={"*"} element={<Error404 />} />

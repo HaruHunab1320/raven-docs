@@ -13,6 +13,7 @@ import {
   IconRobot,
   IconSitemap,
   IconBug,
+  IconArrowsExchange,
 } from "@tabler/icons-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -102,6 +103,12 @@ const groupedData: DataGroup[] = [
         label: "Teams",
         icon: IconSitemap,
         path: "/settings/teams",
+        isAdmin: true,
+      },
+      {
+        label: "Local Sync",
+        icon: IconArrowsExchange,
+        path: "/settings/local-sync",
         isAdmin: true,
       },
     ],
