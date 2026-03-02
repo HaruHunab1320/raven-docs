@@ -289,6 +289,58 @@ export class ExperimentHandler {
   }
 
   /**
+   * experiment.get — Get an experiment with its metadata and content
+   */
+  async get(params: any, userId: string): Promise<any> {
+    this.logger.debug(`Processing experiment.get for user ${userId}`);
+
+    if (!params.pageId) {
+      throw createInvalidParamsError('pageId is required');
+    }
+
+    try {
+      const page = await this.pageRepo.findById(params.pageId, {
+        includeContent: true,
+        includeSpace: true,
+      });
+      if (!page) {
+        throw createResourceNotFoundError('Page', params.pageId);
+      }
+      if (page.pageType !== 'experiment') {
+        throw createInvalidParamsError('Page is not an experiment');
+      }
+
+      const user = { id: userId } as User;
+      const ability = await this.spaceAbility.createForUser(
+        user,
+        page.spaceId,
+      );
+      if (ability.cannot(SpaceCaslAction.Read, SpaceCaslSubject.Page)) {
+        throw createPermissionDeniedError(
+          'You do not have permission to read this experiment',
+        );
+      }
+
+      return {
+        id: page.id,
+        title: page.title,
+        pageType: 'experiment',
+        metadata: page.metadata,
+        content: page.content,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error in experiment.get: ${error?.message || 'Unknown error'}`,
+        error?.stack,
+      );
+      if (error?.code && typeof error.code === 'number') {
+        throw error;
+      }
+      throw createInternalError(error?.message || String(error));
+    }
+  }
+
+  /**
    * experiment.update — Update experiment status and metadata
    */
   async update(params: any, userId: string): Promise<any> {

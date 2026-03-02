@@ -219,6 +219,9 @@ export class HypothesisHandler {
       if (params.approvedBy !== undefined) {
         updatedMetadata.approvedBy = params.approvedBy;
       }
+      if (params.confidence !== undefined) {
+        updatedMetadata.confidence = params.confidence;
+      }
 
       const updateData: any = { metadata: updatedMetadata };
       if (params.title) {

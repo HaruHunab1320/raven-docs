@@ -1475,6 +1475,8 @@ export class MCPService {
         return this.experimentHandler.complete(params, userId);
       case 'update':
         return this.experimentHandler.update(params, userId);
+      case 'get':
+        return this.experimentHandler.get(params, userId);
       default:
         throw createMethodNotFoundError(`experiment.${operation}`);
     }
