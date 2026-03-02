@@ -49,30 +49,17 @@ export class TeamRuntimeListener {
     await this.emitAndPublishTeamRuntimeEvent('team:agent_loop_failed', 'agent_loop_failed', data);
   }
 
-  @OnEvent('team.workflow.updated')
-  async handleWorkflowUpdated(data: {
+  @OnEvent('team.message_sent')
+  async handleMessageSent(data: {
     deploymentId: string;
-    currentPhase: string;
-    triggerReason?: string;
-    completedStepId?: string;
-    failedStepId?: string;
-    error?: string;
+    messageId: string;
+    fromAgentId: string;
+    fromRole: string;
+    toAgentId: string;
+    toRole: string;
+    agentSpawned: boolean;
   }) {
-    await this.emitAndPublishTeamRuntimeEvent('team:workflow_updated', 'workflow_updated', data);
-  }
-
-  @OnEvent('team.workflow.completed')
-  async handleWorkflowCompleted(data: { deploymentId: string }) {
-    await this.emitAndPublishTeamRuntimeEvent('team:workflow_completed', 'workflow_completed', data);
-  }
-
-  @OnEvent('team.workflow.failed')
-  async handleWorkflowFailed(data: {
-    deploymentId: string;
-    stepId?: string;
-    error?: string;
-  }) {
-    await this.emitAndPublishTeamRuntimeEvent('team:workflow_failed', 'workflow_failed', data);
+    await this.emitAndPublishTeamRuntimeEvent('team:message_sent', 'message_sent', data);
   }
 
   @OnEvent('team.agent_tool_running')
@@ -87,6 +74,23 @@ export class TeamRuntimeListener {
     await this.emitAndPublishTeamRuntimeEvent(
       'team:agent_tool_running',
       'agent_tool_running',
+      data,
+    );
+  }
+
+  @OnEvent('team.agent_login_required')
+  async handleAgentLoginRequired(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    stepId?: string;
+    url?: string;
+    instructions?: string;
+    loginUrl?: string;
+    runtimeSessionId: string;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:agent_login_required',
+      'agent_login_required',
       data,
     );
   }

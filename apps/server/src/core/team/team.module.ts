@@ -1,12 +1,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TeamDeploymentService } from './team-deployment.service';
 import { RoleAwareLoopService } from './role-aware-loop.service';
-import { TeamAgentLoopProcessor } from './team-agent-loop.processor';
-import { WorkflowExecutorService } from './workflow-executor.service';
-import { TeamCoordinatorListener } from './team-coordinator.listener';
+import { TeamMessagingService } from './team-messaging.service';
 import { TeamRuntimeListener } from './team-runtime.listener';
 import { TeamRuntimeSessionListener } from './team-runtime-session.listener';
-import { CoordinatorResponseService } from './coordinator-response.service';
 import { MainBrainEscalationService } from './main-brain-escalation.service';
 import { TeamTemplateValidationService } from './team-template-validation.service';
 import { TeamController } from './team.controller';
@@ -42,12 +39,9 @@ import { UserModule } from '../user/user.module';
   providers: [
     TeamDeploymentService,
     RoleAwareLoopService,
-    TeamAgentLoopProcessor,
-    WorkflowExecutorService,
-    TeamCoordinatorListener,
+    TeamMessagingService,
     TeamRuntimeListener,
     TeamRuntimeSessionListener,
-    CoordinatorResponseService,
     MainBrainEscalationService,
     TeamTemplateValidationService,
     TeamDeploymentRepo,
@@ -56,7 +50,7 @@ import { UserModule } from '../user/user.module';
   exports: [
     TeamDeploymentService,
     RoleAwareLoopService,
-    WorkflowExecutorService,
+    TeamMessagingService,
     TeamTemplateValidationService,
   ],
 })

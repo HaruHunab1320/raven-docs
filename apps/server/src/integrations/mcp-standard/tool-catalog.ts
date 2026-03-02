@@ -33,7 +33,8 @@ export type ToolCategory =
   | 'system'
   | 'context'
   | 'coding_swarm'
-  | 'github_issues';
+  | 'github_issues'
+  | 'team_messaging';
 
 export interface ToolCategoryInfo {
   id: ToolCategory;
@@ -125,6 +126,10 @@ export const TOOL_CATEGORIES: Record<ToolCategory, { name: string; description: 
   github_issues: {
     name: 'GitHub Issues',
     description: 'Create, read, update, and comment on GitHub issues',
+  },
+  team_messaging: {
+    name: 'Team Messaging',
+    description: 'Send messages to team members, read incoming messages, and view team roster',
   },
 };
 
@@ -339,7 +344,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         content: {
           type: 'object',
           description: 'Page content in ProseMirror format',
-          properties: { type: { type: 'string' }, content: { type: 'array' } },
+          properties: { type: { type: 'string' }, content: { type: 'array', items: {} } },
         },
         spaceId: { type: 'string', description: 'ID of the space' },
         workspaceId: { type: 'string', description: 'ID of the workspace' },
@@ -362,7 +367,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         content: {
           type: 'object',
           description: 'New content in ProseMirror format',
-          properties: { type: { type: 'string' }, content: { type: 'array' } },
+          properties: { type: { type: 'string' }, content: { type: 'array', items: {} } },
         },
         parentId: { type: 'string', description: 'New parent page ID' },
       },
@@ -468,7 +473,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         page: { type: 'number', description: 'Page number for pagination' },
         limit: { type: 'number', description: 'Number of items per page' },
       },
-      required: [],
     },
   },
   {
@@ -1065,7 +1069,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         page: { type: 'number', description: 'Page number for pagination' },
         limit: { type: 'number', description: 'Number of items per page' },
       },
-      required: [],
     },
   },
   {
@@ -1675,6 +1678,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         title: { type: 'string', description: 'Hypothesis title' },
         spaceId: { type: 'string', description: 'Space to create the hypothesis in' },
         workspaceId: { type: 'string', description: 'ID of the workspace' },
+        formalStatement: { type: 'string', description: 'Formal, precise testable statement of the hypothesis' },
         content: { type: 'string', description: 'Rich text content/description of the hypothesis' },
         parentPageId: { type: 'string', description: 'Optional parent page ID for nesting' },
         status: { type: 'string', description: 'Status: draft, proposed, testing, validated, invalidated, revised (default: draft)' },
@@ -1682,7 +1686,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         domainTags: { type: 'array', items: { type: 'string' }, description: 'Domain/topic tags' },
         predictions: { type: 'array', items: { type: 'string' }, description: 'Testable predictions derived from this hypothesis' },
       },
-      required: ['title', 'spaceId', 'workspaceId'],
+      required: ['title', 'spaceId', 'workspaceId', 'formalStatement'],
     },
   },
   {
@@ -1694,7 +1698,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'ID of the hypothesis page to update' },
-        status: { type: 'string', description: 'New status: draft, proposed, testing, validated, invalidated, revised' },
+        status: { type: 'string', description: 'New status: proposed, testing, validated, refuted, inconclusive, superseded' },
         confidence: { type: 'number', description: 'Updated confidence level 0-1' },
         title: { type: 'string', description: 'Updated title' },
         content: { type: 'string', description: 'Updated content' },
@@ -1712,6 +1716,19 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'ID of the hypothesis page' },
+      },
+      required: ['pageId'],
+    },
+  },
+  {
+    name: 'experiment_get',
+    description: 'Get an experiment page with its metadata, status, and content',
+    category: 'research',
+    tags: ['experiment', 'get', 'read', 'research'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'ID of the experiment page' },
       },
       required: ['pageId'],
     },
@@ -1887,7 +1904,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
           description: 'Maximum number of results (default: 20)',
         },
       },
-      required: [],
     },
   },
   {
@@ -1899,7 +1915,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {},
-      required: [],
     },
   },
   {
@@ -1912,7 +1927,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
       properties: {
         category: { type: 'string', description: 'Filter by category' },
       },
-      required: [],
     },
   },
   {
@@ -1941,7 +1955,7 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
       type: 'object',
       properties: {
         key: { type: 'string', description: 'Context key' },
-        value: { type: 'any', description: 'Value to store' },
+        value: { description: 'Value to store' },
         ttlSeconds: { type: 'number', description: 'Time-to-live in seconds' },
       },
       required: ['key', 'value'],
@@ -1981,7 +1995,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {},
-      required: [],
     },
   },
   {
@@ -1992,7 +2005,6 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {},
-      required: [],
     },
   },
   // ==========================================================================
@@ -2177,6 +2189,52 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
         issueNumber: { type: 'number', description: 'Issue number' },
       },
       required: ['workspaceId', 'repoUrl', 'issueNumber'],
+    },
+  },
+  // --- Team Messaging ---
+  {
+    name: 'team_send_message',
+    description: 'Send a message to another team member by agent ID or role name. Used to assign work, report results, or coordinate. Messages are delivered to the target agent — if the agent is not running, it will be spawned automatically.',
+    category: 'team_messaging',
+    tags: ['team', 'message', 'send', 'communicate', 'assign', 'coordinate'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        to: {
+          type: 'string',
+          description: 'Target agent ID or role name (e.g. "researcher", "analyst"). Role names resolve to the first available agent of that role.',
+        },
+        message: {
+          type: 'string',
+          description: 'The message to send. For task assignments, be specific about what needs to be done and where to save results.',
+        },
+      },
+      required: ['to', 'message'],
+    },
+  },
+  {
+    name: 'team_read_messages',
+    description: 'Read messages sent to you by other team members. Returns an array of messages with sender info. Use unreadOnly=true to only see new messages.',
+    category: 'team_messaging',
+    tags: ['team', 'message', 'read', 'inbox', 'check', 'poll'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        unreadOnly: {
+          type: 'boolean',
+          description: 'If true, only return unread messages. Defaults to false.',
+        },
+      },
+    },
+  },
+  {
+    name: 'team_list_team',
+    description: 'List your team members with their roles, statuses, and whether you can message them. Useful for understanding your team structure before assigning work.',
+    category: 'team_messaging',
+    tags: ['team', 'roster', 'list', 'members', 'status', 'org'],
+    inputSchema: {
+      type: 'object',
+      properties: {},
     },
   },
 ];

@@ -324,7 +324,7 @@ export class TeamController {
     @Body() dto: TeamDeploymentIdDto,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    return this.deploymentService.startWorkflow(workspace.id, dto.deploymentId);
+    return this.deploymentService.triggerTeamRun(workspace.id, dto.deploymentId);
   }
 
   @Post('classify-stall')

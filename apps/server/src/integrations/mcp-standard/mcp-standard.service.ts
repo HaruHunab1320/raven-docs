@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { MCPService } from '../mcp/mcp.service';
 import {
   TOOL_CATALOG,
@@ -8,6 +8,7 @@ import {
   ToolCategory,
   ToolCategoryInfo,
 } from './tool-catalog';
+import { TeamMessagingService } from '../../core/team/team-messaging.service';
 
 /**
  * Tool search parameters
@@ -53,7 +54,10 @@ export interface ToolSearchResult {
 export class MCPStandardService {
   private readonly logger = new Logger(MCPStandardService.name);
 
-  constructor(private readonly mcpService: MCPService) {}
+  constructor(
+    private readonly mcpService: MCPService,
+    @Optional() private readonly teamMessaging?: TeamMessagingService,
+  ) {}
 
   /**
    * Initialize MCP connection
@@ -93,12 +97,13 @@ export class MCPStandardService {
       tools = tools.filter((t) => t.category === params.category);
     }
 
-    // Return in standard MCP format (without internal metadata)
+    // Return in standard MCP format — include category so bridges can filter
     return {
-      tools: tools.map(({ name, description, inputSchema }) => ({
+      tools: tools.map(({ name, description, inputSchema, category }) => ({
         name,
         description,
         inputSchema,
+        category,
       })),
     };
   }
@@ -2355,6 +2360,7 @@ export class MCPStandardService {
       'hypothesis_create': 'hypothesis.create',
       'hypothesis_update': 'hypothesis.update',
       'hypothesis_get': 'hypothesis.get',
+      'experiment_get': 'experiment.get',
       'experiment_register': 'experiment.register',
       'experiment_complete': 'experiment.complete',
       'experiment_update': 'experiment.update',
@@ -2413,6 +2419,11 @@ export class MCPStandardService {
           },
         ],
       };
+    }
+
+    // Handle team messaging tools directly (need caller identification from user)
+    if (name === 'team_send_message' || name === 'team_read_messages' || name === 'team_list_team') {
+      return this.handleTeamMessagingTool(name, args, user);
     }
 
     const method = toolToMethod[name];
@@ -2719,5 +2730,74 @@ export class MCPStandardService {
     }
     
     throw new Error(`Unknown prompt: ${name}`);
+  }
+
+  /**
+   * Handle team messaging tools (team_send_message, team_read_messages, team_list_team).
+   * These need caller identification from the MCP user (pseudo-user).
+   */
+  private async handleTeamMessagingTool(name: string, args: any, user: any) {
+    if (!this.teamMessaging) {
+      return {
+        content: [{ type: 'text' as const, text: 'Error: Team messaging service is not available.' }],
+        isError: true,
+      };
+    }
+
+    try {
+      // Resolve the calling agent from the MCP user
+      const userId = user?.id || user?.user?.id;
+      if (!userId) {
+        return {
+          content: [{ type: 'text' as const, text: 'Error: Could not identify calling agent. No user context.' }],
+          isError: true,
+        };
+      }
+
+      const callerAgent = await this.teamMessaging.resolveCallerAgent(userId);
+      if (!callerAgent) {
+        return {
+          content: [{ type: 'text' as const, text: 'Error: You are not a team agent. Team messaging tools are only available to agents in an active team deployment.' }],
+          isError: true,
+        };
+      }
+
+      let result: any;
+
+      switch (name) {
+        case 'team_send_message':
+          result = await this.teamMessaging.sendMessage(
+            callerAgent.id,
+            args.to,
+            args.message,
+          );
+          break;
+
+        case 'team_read_messages':
+          result = await this.teamMessaging.readMessages(callerAgent.id, {
+            unreadOnly: args.unreadOnly,
+          });
+          break;
+
+        case 'team_list_team':
+          result = await this.teamMessaging.getTeamRoster(callerAgent.id);
+          break;
+
+        default:
+          return {
+            content: [{ type: 'text' as const, text: `Error: Unknown team messaging tool: ${name}` }],
+            isError: true,
+          };
+      }
+
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: 'text' as const, text: `Error: ${err?.message || 'Unknown error'}` }],
+        isError: true,
+      };
+    }
   }
 }

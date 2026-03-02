@@ -27,6 +27,7 @@ export class TeamDeploymentRepo {
     next.orgPattern = this.parseJsonLike(next.orgPattern);
     next.executionPlan = this.parseJsonLike(next.executionPlan);
     next.workflowState = this.parseJsonLike(next.workflowState);
+    next.messages = this.parseJsonLike(next.messages);
     return next as T;
   }
 
@@ -253,6 +254,37 @@ export class TeamDeploymentRepo {
       .executeTakeFirst();
   }
 
+  async findAgentByUserId(userId: string) {
+    return this.db
+      .selectFrom('teamAgents')
+      .selectAll()
+      .innerJoin(
+        'teamDeployments',
+        'teamDeployments.id',
+        'teamAgents.deploymentId',
+      )
+      .where('teamAgents.userId', '=', userId)
+      .where('teamDeployments.status', 'in', ['active', 'paused'])
+      .select([
+        'teamAgents.id',
+        'teamAgents.deploymentId',
+        'teamAgents.workspaceId',
+        'teamAgents.userId',
+        'teamAgents.role',
+        'teamAgents.instanceNumber',
+        'teamAgents.status',
+        'teamAgents.systemPrompt',
+        'teamAgents.capabilities',
+        'teamAgents.agentType',
+        'teamAgents.workdir',
+        'teamAgents.runtimeSessionId',
+        'teamAgents.terminalSessionId',
+        'teamAgents.currentStepId',
+        'teamAgents.reportsToAgentId',
+      ])
+      .executeTakeFirst();
+  }
+
   /**
    * Atomic task claiming — assigns a task to an agent only if unassigned.
    * Returns the task if claimed, null if already taken.
@@ -283,6 +315,19 @@ export class TeamDeploymentRepo {
       .executeTakeFirst();
 
     return result || null;
+  }
+
+  // --- Messages ---
+
+  async updateMessages(id: string, messages: any[]) {
+    return this.db
+      .updateTable('teamDeployments')
+      .set({
+        messages: JSON.stringify(messages),
+        updatedAt: new Date(),
+      })
+      .where('id', '=', id)
+      .execute();
   }
 
   // --- Workflow State ---

@@ -3,9 +3,8 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { InjectKysely } from 'nestjs-kysely';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import { TeamTemplateRepo } from '../../database/repos/team/team-template.repo';
@@ -15,34 +14,14 @@ import { SpaceMemberService } from '../space/services/space-member.service';
 import { SpaceRole } from '../../common/helpers/types/permission';
 import { resolveIntelligenceSettings } from '../workspace/intelligence-defaults';
 import { WorkspaceRepo } from '@raven-docs/db/repos/workspace/workspace.repo';
-import { QueueName, QueueJob } from '../../integrations/queue/constants';
-import { compileOrgPattern } from './raven-compile-target';
-import { WorkflowExecutorService } from './workflow-executor.service';
 import { ensurePersistenceCapabilities } from './capability-guards';
 import { TerminalSessionService } from '../terminal/terminal-session.service';
+import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
+import { TeamMessagingService } from './team-messaging.service';
 import type { OrgPattern } from './org-chart.types';
+import { cleanupScratchDirs } from './team-scratch-dir';
 import type { WorkflowState } from './workflow-state.types';
 import type { KyselyDB } from '../../database/types/kysely.types';
-
-export interface TeamAgentLoopJob {
-  teamAgentId: string;
-  deploymentId: string;
-  workspaceId: string;
-  spaceId: string;
-  agentUserId: string;
-  role: string;
-  systemPrompt: string;
-  capabilities: string[];
-  stepId?: string;
-  stepContext?: { name: string; task: string };
-  targetTaskId?: string;
-  targetExperimentId?: string;
-  priorPhases?: Array<{
-    stepId: string;
-    role: string;
-    summary: string;
-  }>;
-}
 
 export type TeamMemoryPolicy = 'none' | 'carry_all';
 
@@ -57,10 +36,9 @@ export class TeamDeploymentService {
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly workspaceService: WorkspaceService,
     private readonly spaceMemberService: SpaceMemberService,
-    private readonly workflowExecutor: WorkflowExecutorService,
     private readonly terminalSessionService: TerminalSessionService,
-    @InjectQueue(QueueName.TEAM_QUEUE)
-    private readonly teamQueue: Queue,
+    @Optional() private readonly agentExecution: AgentExecutionService,
+    @Optional() private readonly teamMessaging: TeamMessagingService,
     @InjectKysely() private readonly db: KyselyDB,
   ) {}
 
@@ -144,7 +122,7 @@ export class TeamDeploymentService {
         const roleWorkdir =
           (roleDef as any).workdir ||
           process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
-          process.cwd();
+          null;
         const agent = await this.teamRepo.createAgent({
           deploymentId: deployment.id,
           workspaceId,
@@ -270,13 +248,9 @@ export class TeamDeploymentService {
   }
 
   /**
-   * Trigger a team run — resets agents and workflow state, then starts the
-   * workflow executor so steps are dispatched in the order defined by the
-   * execution plan (coordinator first, then workers sequentially/parallel
-   * as the plan dictates).
-   *
-   * Falls back to a parallel "manual run" of all agents only when no
-   * execution plan exists (legacy template-based deployments).
+   * Trigger a team run — resets agents, then spawns the coordinator agent
+   * and sends it the initial task message. The coordinator drives the team
+   * by messaging workers via team_send_message.
    */
   async triggerTeamRun(workspaceId: string, deploymentId: string) {
     const deployment = await this.teamRepo.findById(deploymentId);
@@ -292,6 +266,13 @@ export class TeamDeploymentService {
     const targetExperimentId = deploymentConfig.targetExperimentId as
       | string
       | undefined;
+    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
+
+    if (!targetExperimentId && !targetTaskId) {
+      throw new BadRequestException(
+        'Cannot trigger a team run without a target. Assign a target experiment or task first.',
+      );
+    }
 
     if (targetExperimentId) {
       await this.updateTargetExperimentStatus(
@@ -306,77 +287,48 @@ export class TeamDeploymentService {
       );
     }
 
-    // If the deployment has an execution plan, reset and use the workflow executor
+    // Reset agents back to idle
+    await this.resetTeam(workspaceId, deploymentId);
+
+    // Find the coordinator (lead agent — no reportsToAgentId)
+    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
+    const coordinator = agents.find((a) => !a.reportsToAgentId);
+
+    if (!coordinator) {
+      throw new BadRequestException(
+        'No coordinator agent found in this deployment. At least one agent must have no reportsTo.',
+      );
+    }
+
+    if (!this.teamMessaging) {
+      throw new BadRequestException(
+        'Team messaging service is not available.',
+      );
+    }
+
+    // Build and send the initial task message to the coordinator
+    const initialMessage = this.teamMessaging.buildInitialTaskMessage(
+      deployment,
+      agents,
+    );
+    await this.teamMessaging.sendMessage('system', coordinator.id, initialMessage);
+
+    // Update workflow state to running
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
-    const hasExecutionPlan = !!stateRow?.executionPlan;
-
-    if (hasExecutionPlan) {
-      await this.resetTeam(workspaceId, deploymentId);
-      // resetTeam reactivates the deployment if paused, and resets workflow to idle
-      await this.startWorkflow(workspaceId, deploymentId);
-
-      this.logger.log(
-        `Triggered workflow-based team run for deployment ${deploymentId}`,
-      );
-      return { triggered: 'workflow', deploymentId };
-    }
-
-    // Fallback: no execution plan — dispatch all agents in parallel (legacy)
-    return this.triggerManualRunAllAgents(deployment, deploymentConfig);
-  }
-
-  private async triggerManualRunAllAgents(
-    deployment: any,
-    deploymentConfig: any,
-  ) {
-    const agents = await this.teamRepo.getAgentsByDeployment(deployment.id);
-    const jobs = [];
-    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
-    const targetExperimentId = deploymentConfig.targetExperimentId as
-      | string
-      | undefined;
-
-    for (const agent of agents) {
-      if (agent.status === 'paused' || !agent.userId) continue;
-
-      await this.teamRepo.updateAgentCurrentStep(agent.id, 'manual_run');
-
-      const jobData: TeamAgentLoopJob = {
-        teamAgentId: agent.id,
-        deploymentId: deployment.id,
-        workspaceId: deployment.workspaceId,
-        spaceId: deployment.spaceId,
-        agentUserId: agent.userId,
-        role: agent.role,
-        systemPrompt: agent.systemPrompt,
-        capabilities: ensurePersistenceCapabilities(agent.capabilities as string[]),
-        stepId: 'manual_run',
-        stepContext: {
-          name: 'manual-run',
-          task: 'Execute one ad-hoc team loop',
-        },
-        targetTaskId,
-        targetExperimentId,
-      };
-
-      const job = await this.teamQueue.add(
-        QueueJob.TEAM_AGENT_LOOP,
-        jobData,
-        {
-          attempts: 1,
-          removeOnComplete: { count: 50 },
-          removeOnFail: { count: 20 },
-        },
-      );
-
-      jobs.push({ agentId: agent.id, role: agent.role, jobId: job.id });
-    }
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
+    state.currentPhase = 'running';
+    state.startedAt = new Date().toISOString();
+    state.coordinatorInvocations = (state.coordinatorInvocations || 0) + 1;
+    await this.teamRepo.updateWorkflowState(deploymentId, state as any);
 
     this.logger.log(
-      `Triggered ${jobs.length} manual agent loops for deployment ${deployment.id}`,
+      `Triggered team run for deployment ${deploymentId}: coordinator=${coordinator.role} (${coordinator.id.slice(0, 8)})`,
     );
 
-    return { triggered: jobs.length, jobs };
+    return { triggered: 'messaging', deploymentId, coordinatorId: coordinator.id };
   }
 
   /**
@@ -404,17 +356,6 @@ export class TeamDeploymentService {
       throw new NotFoundException('Deployment not found');
     }
 
-    // If workflow hasn't started yet, resume should continue execution behavior.
-    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
-    const state =
-      typeof stateRow?.workflowState === 'string'
-        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
-        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
-
-    if (!state.currentPhase || state.currentPhase === 'idle' || state.currentPhase === 'paused') {
-      await this.startWorkflow(workspaceId, deploymentId);
-    }
-
     return deployment;
   }
 
@@ -434,7 +375,16 @@ export class TeamDeploymentService {
     for (const agent of agents) {
       if (agent.status === 'paused') continue; // respect explicitly paused agents
 
-      // Terminate any lingering terminal sessions
+      // Stop the PTY process first (kills the actual claude process)
+      if (agent.runtimeSessionId && this.agentExecution) {
+        try {
+          await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
+        } catch {
+          // best-effort — process may already be dead
+        }
+      }
+
+      // Then clean up the terminal session DB record
       if (agent.terminalSessionId) {
         try {
           await this.terminalSessionService.terminate(agent.terminalSessionId);
@@ -451,6 +401,15 @@ export class TeamDeploymentService {
       });
       await this.teamRepo.resetAgentStats(agent.id);
       resetCount++;
+    }
+
+    // Clean up scratch directories for this deployment
+    try {
+      cleanupScratchDirs(deploymentId);
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to clean up scratch dirs for deployment ${deploymentId}: ${err?.message}`,
+      );
     }
 
     // Reactivate deployment if it was paused (e.g. auto-paused on errors)
@@ -524,7 +483,31 @@ export class TeamDeploymentService {
       | string
       | undefined;
 
+    // Stop all running agent PTY processes + terminal sessions
+    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
+    for (const agent of agents) {
+      if (agent.runtimeSessionId && this.agentExecution) {
+        try {
+          await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
+        } catch { /* best-effort */ }
+      }
+      if (agent.terminalSessionId) {
+        try {
+          await this.terminalSessionService.terminate(agent.terminalSessionId);
+        } catch { /* best-effort */ }
+      }
+    }
+
     await this.teamRepo.updateStatus(deploymentId, 'torn_down');
+
+    // Clean up scratch directories for this deployment
+    try {
+      cleanupScratchDirs(deploymentId);
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to clean up scratch dirs for deployment ${deploymentId}: ${err?.message}`,
+      );
+    }
 
     // Also mark workflow as torn_down so the UI phase badge updates
     const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
@@ -557,7 +540,8 @@ export class TeamDeploymentService {
             : ((page.metadata as Record<string, any>) || {});
         const currentStatus = String(metadata.status || '').toLowerCase();
 
-        if (currentStatus === 'running' || currentStatus === 'active') {
+        // Reset experiment to 'planned' unless it already reached a terminal state
+        if (currentStatus !== 'completed' && currentStatus !== 'failed') {
           await this.updateTargetExperimentStatus(
             deployment.workspaceId,
             deployment.spaceId,
@@ -637,9 +621,11 @@ export class TeamDeploymentService {
       throw new NotFoundException('Workspace not found');
     }
     const intelligence = resolveIntelligenceSettings(workspace.settings);
-    const executionPlan = compileOrgPattern(orgPattern);
     const memoryPolicy = opts?.memoryPolicy || 'none';
     const sourceAgentUsers = opts?.sourceAgentUsers || new Map<string, string>();
+
+    // Extract role definitions from the org pattern structure
+    const roles = orgPattern.structure.roles;
 
     // Create the deployment record
     const deployment = await this.teamRepo.createDeployment({
@@ -661,21 +647,22 @@ export class TeamDeploymentService {
       } as any,
       deployedBy,
       orgPattern: orgPattern as any,
-      executionPlan: executionPlan as any,
     });
 
     const agents = [];
     const agentsByRole: Record<string, any> = {};
 
     // Create agent instances per role
-    for (const [roleId, roleDef] of Object.entries(executionPlan.roles)) {
-      const count = roleDef.minInstances;
+    for (const [roleId, roleDef] of Object.entries(roles)) {
+      const count = roleDef.minInstances || 1;
+
+      const roleName = roleDef.name || roleId;
 
       for (let i = 1; i <= count; i++) {
         const agentName =
           count > 1
-            ? `${orgPattern.name} - ${roleDef.name} #${i}`
-            : `${orgPattern.name} - ${roleDef.name}`;
+            ? `${orgPattern.name} - ${roleName} #${i}`
+            : `${orgPattern.name} - ${roleName}`;
 
         const key = this.buildRoleInstanceKey(roleId, i);
         const reusedUserId =
@@ -714,8 +701,8 @@ export class TeamDeploymentService {
         }
 
         const systemPrompt = [
-          `You are "${roleDef.name}", part of the "${orgPattern.name}" team.`,
-          orgPattern.structure.roles[roleId]?.description || '',
+          `You are "${roleName}", part of the "${orgPattern.name}" team.`,
+          roleDef.description || '',
           `Your capabilities: ${ensurePersistenceCapabilities(roleDef.capabilities).join(', ')}`,
         ]
           .filter(Boolean)
@@ -724,19 +711,18 @@ export class TeamDeploymentService {
         const normalizedCapabilities = ensurePersistenceCapabilities(
           roleDef.capabilities,
         );
-        const roleMetadata =
-          orgPattern.structure.roles[roleId]?.metadata || {};
+        const roleMetadata = roleDef.metadata || {};
         const roleAgentType =
-          (roleDef as any).agentType ||
+          roleDef.agentType ||
           (roleMetadata as any).agentType ||
           intelligence.defaultTeamAgentType ||
           process.env.TEAM_AGENT_DEFAULT_TYPE ||
           'claude-code';
         const roleWorkdir =
-          (roleDef as any).workdir ||
+          roleDef.workdir ||
           (roleMetadata as any).workdir ||
           process.env.TEAM_AGENT_DEFAULT_WORKDIR ||
-          process.cwd();
+          null;
         const agent = await this.teamRepo.createAgent({
           deploymentId: deployment.id,
           workspaceId,
@@ -757,7 +743,7 @@ export class TeamDeploymentService {
     }
 
     // Set reportsTo chains
-    for (const [roleId, roleDef] of Object.entries(executionPlan.roles)) {
+    for (const [roleId, roleDef] of Object.entries(roles)) {
       if (!roleDef.reportsTo || !agentsByRole[roleDef.reportsTo]) continue;
 
       const parentAgent = agentsByRole[roleDef.reportsTo][0];
@@ -783,81 +769,7 @@ export class TeamDeploymentService {
       `Deployed org-pattern "${orgPattern.name}" with ${agents.length} agents to space ${spaceId} (memoryPolicy=${memoryPolicy})`,
     );
 
-    return { deployment, agents, executionPlan };
-  }
-
-  /**
-   * Start the workflow for a deployment — sets phase to 'running' and advances.
-   */
-  async startWorkflow(workspaceId: string, deploymentId: string) {
-    const deployment = await this.teamRepo.findById(deploymentId);
-    if (!deployment || deployment.workspaceId !== workspaceId) {
-      throw new NotFoundException('Deployment not found');
-    }
-
-    const stateRow = await this.teamRepo.getWorkflowState(deploymentId);
-    if (!stateRow) {
-      throw new NotFoundException('Deployment not found');
-    }
-
-    const state =
-      typeof stateRow.workflowState === 'string'
-        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
-        : ((stateRow.workflowState || {}) as unknown as WorkflowState);
-    state.currentPhase = 'running';
-    state.startedAt = new Date().toISOString();
-    state.coordinatorInvocations = state.coordinatorInvocations || 0;
-    state.stepStates = state.stepStates || {};
-
-    await this.teamRepo.updateWorkflowState(deploymentId, state as any);
-
-    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
-    const targetExperimentId = deploymentConfig.targetExperimentId as
-      | string
-      | undefined;
-    if (targetExperimentId) {
-      await this.updateTargetExperimentStatus(
-        deployment.workspaceId,
-        deployment.spaceId,
-        targetExperimentId,
-        'running',
-        {
-          activeTeamDeploymentId: deployment.id,
-          workflowStartedAt: state.startedAt,
-        },
-      );
-    }
-
-    await this.workflowExecutor.advance(deploymentId, {
-      reason: 'workflow_started',
-    });
-
-    return { started: true, deploymentId };
-  }
-
-  async updateTargetExperimentFromWorkflow(
-    deploymentId: string,
-    nextStatus: 'completed' | 'failed',
-  ) {
-    const deployment = await this.teamRepo.findById(deploymentId);
-    if (!deployment) return;
-
-    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
-    const targetExperimentId = deploymentConfig.targetExperimentId as
-      | string
-      | undefined;
-    if (!targetExperimentId) return;
-
-    await this.updateTargetExperimentStatus(
-      deployment.workspaceId,
-      deployment.spaceId,
-      targetExperimentId,
-      nextStatus,
-      {
-        activeTeamDeploymentId: deployment.id,
-        workflowFinishedAt: new Date().toISOString(),
-      },
-    );
+    return { deployment, agents };
   }
 
   /**

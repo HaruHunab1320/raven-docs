@@ -610,6 +610,7 @@ export interface TeamDeployments {
   orgPattern: Json | null;
   executionPlan: Json | null;
   workflowState: Generated<Json>;
+  messages: Generated<Json>;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
   tornDownAt: Timestamp | null;

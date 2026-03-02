@@ -5,15 +5,23 @@ import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WorkspacePreparationService } from '../coding-swarm/workspace-preparation.service';
 import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
-import { CoordinatorResponseService } from './coordinator-response.service';
-import { MainBrainEscalationService } from './main-brain-escalation.service';
+import { TeamMessagingService } from './team-messaging.service';
 
 const COMPLETION_CHECK_INTERVAL_MS = 20_000;
+
+interface AuthFlowState {
+  status: 'in_progress' | 'completed' | 'failed';
+  loginUrl?: string;
+  loginSessionId?: string;
+  waitingAgentIds: string[];
+  startedAt: number;
+}
 
 @Injectable()
 export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TeamRuntimeSessionListener.name);
   private completionCheckTimer: ReturnType<typeof setInterval> | null = null;
+  private activeAuthFlows = new Map<string, AuthFlowState>();
 
   constructor(
     private readonly teamRepo: TeamDeploymentRepo,
@@ -21,8 +29,7 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     private readonly eventEmitter: EventEmitter2,
     private readonly workspacePreparationService: WorkspacePreparationService,
     private readonly agentExecution: AgentExecutionService,
-    @Optional() private readonly coordinatorResponse: CoordinatorResponseService,
-    @Optional() private readonly mainBrainEscalation: MainBrainEscalationService,
+    @Optional() private readonly teamMessaging: TeamMessagingService,
   ) {}
 
   onModuleInit() {
@@ -32,11 +39,18 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     );
   }
 
-  onModuleDestroy() {
+  async onModuleDestroy() {
     if (this.completionCheckTimer) {
       clearInterval(this.completionCheckTimer);
       this.completionCheckTimer = null;
     }
+
+    for (const [, flow] of this.activeAuthFlows) {
+      if (flow.loginSessionId) {
+        try { await this.agentExecution.stop(flow.loginSessionId); } catch { /* best-effort */ }
+      }
+    }
+    this.activeAuthFlows.clear();
   }
 
   /**
@@ -75,6 +89,7 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     agentId?: string;
     reason?: string;
     exitCode?: number;
+    loginDetected?: boolean;
   }) {
     const runtimeSessionId = data.agentId;
     if (!runtimeSessionId) return;
@@ -84,6 +99,16 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     if (!teamAgent) return;
 
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) {
+      return;
+    }
+
+    // If login was detected on exit, the login_required handler already
+    // marked the agent as error and emitted the appropriate events.
+    // Skip the normal idle/completed flow to avoid overriding that state.
+    if (data.loginDetected) {
+      this.logger.log(
+        `Skipping normal stop handling for ${teamAgent.id} — login_required already handled`,
+      );
       return;
     }
 
@@ -301,6 +326,259 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     });
   }
 
+  @OnEvent('parallax.login_required')
+  async handleLoginRequired(data: {
+    workspaceId?: string;
+    agentId?: string;
+    url?: string;
+    instructions?: string;
+  }) {
+    const runtimeSessionId = data.agentId;
+    if (!runtimeSessionId) return;
+
+    const teamAgent = await this.teamRepo.findAgentByRuntimeSessionId(runtimeSessionId);
+    if (!teamAgent) return;
+    if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) return;
+
+    // Guard: if agent is already in error state from a previous login event, skip
+    if (teamAgent.status === 'error') {
+      this.logger.log(
+        `Agent ${teamAgent.id} already in error state — skipping duplicate login_required`,
+      );
+      return;
+    }
+
+    // --- Auth coordination: only one agent per deployment+agentType triggers login ---
+    const authKey = `${teamAgent.deploymentId}:${teamAgent.agentType || 'claude'}`;
+    const existingFlow = this.activeAuthFlows.get(authKey);
+
+    if (existingFlow && existingFlow.status === 'in_progress') {
+      // Another agent is already handling login — just queue this one
+      existingFlow.waitingAgentIds.push(teamAgent.id);
+      this.logger.log(
+        `Agent ${teamAgent.id} queued behind active auth flow for ${authKey}`,
+      );
+      // Still mark this agent as error so the UI shows the auth banner
+      await this.teamRepo.updateAgentStatus(teamAgent.id, 'error');
+      await this.teamRepo.updateAgentCurrentStep(teamAgent.id, null);
+      await this.teamRepo.updateAgentRunStats(teamAgent.id, {
+        lastRunAt: new Date(),
+        lastRunSummary: existingFlow.loginUrl
+          ? `Authentication required — sign in at ${existingFlow.loginUrl}`
+          : 'Authentication required — waiting for team auth',
+        actionsExecuted: 0,
+        errorsEncountered: 1,
+      });
+      // Kill this agent's runtime session (no point keeping it alive)
+      if (runtimeSessionId) {
+        try { await this.agentExecution.stop(runtimeSessionId); } catch { /* best-effort */ }
+      }
+      return;
+    }
+
+    // Register this flow
+    this.activeAuthFlows.set(authKey, {
+      status: 'in_progress',
+      waitingAgentIds: [],
+      startedAt: Date.now(),
+    });
+
+    const stepId = teamAgent.currentStepId || undefined;
+
+    // --- Auto-login: drive the /login flow to extract an auth URL ---
+    // The original session is usually dead by the time we get here (Claude
+    // exits immediately in task mode when not logged in).  Try the existing
+    // session first; if that fails, spawn a fresh interactive session.
+    let loginUrl: string | undefined;
+    let loginSessionId: string | undefined;
+
+    // Step 1: try the existing (possibly dead) session
+    try {
+      this.logger.log(
+        `Attempting auto-login on existing session ${runtimeSessionId}`,
+      );
+      await this.agentExecution.send(runtimeSessionId, '/login');
+      await new Promise((r) => setTimeout(r, 2000));
+      this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+      await new Promise((r) => setTimeout(r, 3000));
+
+      loginUrl = this.extractAuthUrl(
+        this.agentExecution.getOutputBuffer(runtimeSessionId),
+      );
+      if (loginUrl) {
+        loginSessionId = runtimeSessionId;
+        this.logger.log(
+          `Extracted login URL from existing session: ${loginUrl}`,
+        );
+      }
+    } catch {
+      this.logger.log(
+        `Existing session ${runtimeSessionId} is dead — will spawn temporary login session`,
+      );
+    }
+
+    // Step 2: if no URL yet, spawn a fresh interactive Claude session for login.
+    // Key: pass adapterConfig.interactive = true so the adapter does NOT add
+    // --print (which causes Claude to exit immediately when not logged in).
+    if (!loginUrl) {
+      try {
+        const tempResult = await this.agentExecution.spawn(
+          teamAgent.workspaceId,
+          {
+            type: teamAgent.agentType || 'claude',
+            name: `login-${teamAgent.id.slice(-8)}`,
+            workdir: process.env.HOME || '/tmp',
+            inheritProcessEnv: true,
+            adapterConfig: { interactive: true },
+          },
+        );
+        loginSessionId = tempResult.id;
+        this.logger.log(
+          `Spawned temporary login session ${loginSessionId} for agent ${teamAgent.id}`,
+        );
+
+        // Wait for the interactive REPL to start (no task = stays alive)
+        await new Promise((r) => setTimeout(r, 4000));
+
+        await this.agentExecution.send(loginSessionId, '/login');
+        await new Promise((r) => setTimeout(r, 2000));
+        this.agentExecution.sendKeys(loginSessionId, 'enter');
+        await new Promise((r) => setTimeout(r, 3000));
+
+        loginUrl = this.extractAuthUrl(
+          this.agentExecution.getOutputBuffer(loginSessionId),
+        );
+
+        // Retry once if URL not yet in buffer (Claude may be slow to render)
+        if (!loginUrl) {
+          await new Promise((r) => setTimeout(r, 3000));
+          loginUrl = this.extractAuthUrl(
+            this.agentExecution.getOutputBuffer(loginSessionId),
+          );
+        }
+
+        if (loginUrl) {
+          this.logger.log(
+            `Extracted login URL from temp session: ${loginUrl}`,
+          );
+        } else {
+          this.logger.warn(
+            `Failed to extract login URL from temp session ${loginSessionId}`,
+          );
+          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
+          loginSessionId = undefined;
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to spawn temp login session: ${err?.message || 'unknown'}`,
+        );
+        if (loginSessionId) {
+          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
+          loginSessionId = undefined;
+        }
+      }
+    }
+
+    // Update the auth flow state with the extracted URL and session
+    const currentFlow = this.activeAuthFlows.get(authKey);
+    if (currentFlow) {
+      currentFlow.loginUrl = loginUrl;
+      currentFlow.loginSessionId = loginSessionId;
+    }
+
+    // --- Mark agent as error and clean up ---
+    await this.teamRepo.updateAgentStatus(teamAgent.id, 'error');
+    await this.teamRepo.updateAgentCurrentStep(teamAgent.id, null);
+    await this.teamRepo.updateAgentRunStats(teamAgent.id, {
+      lastRunAt: new Date(),
+      lastRunSummary: loginUrl
+        ? `Authentication required — sign in at ${loginUrl}`
+        : 'Authentication required — run "claude login" to authenticate',
+      actionsExecuted: 0,
+      errorsEncountered: 1,
+    });
+
+    if (loginUrl && loginSessionId) {
+      // Keep the login session alive so the OAuth callback can complete.
+      // Null out runtimeSessionId to prevent duplicate event processing.
+      await this.teamRepo.updateAgentRuntimeSession(teamAgent.id, {
+        runtimeSessionId: null,
+        terminalSessionId: teamAgent.terminalSessionId,
+      });
+      await this.cleanupTeamApiKey(teamAgent.deploymentId, teamAgent.id, teamAgent.userId);
+
+      // Monitor in the background: detect "Login successful. Press Enter to
+      // continue…" and send Enter so the OAuth token is persisted.
+      void this.waitForLoginCompletion(loginSessionId, teamAgent.id, authKey, teamAgent.deploymentId);
+    } else {
+      // No URL extracted — full cleanup (kill session)
+      await this.teamRepo.updateAgentRuntimeSession(teamAgent.id, {
+        runtimeSessionId: null,
+        terminalSessionId: null,
+      });
+      await this.cleanupTeamApiKey(teamAgent.deploymentId, teamAgent.id, teamAgent.userId);
+
+      try {
+        await this.agentExecution.stop(runtimeSessionId);
+      } catch {
+        // best-effort
+      }
+
+      if (teamAgent.terminalSessionId) {
+        try {
+          await this.terminalSessionService.terminate(teamAgent.terminalSessionId);
+        } catch {
+          // best-effort
+        }
+      }
+    }
+
+    try {
+      await this.teamRepo.appendRunLog(teamAgent.deploymentId, {
+        id: `${Date.now()}-${teamAgent.id}`,
+        timestamp: new Date().toISOString(),
+        deploymentId: teamAgent.deploymentId,
+        teamAgentId: teamAgent.id,
+        role: teamAgent.role,
+        stepId,
+        summary: `Agent requires authentication — ${data.instructions || 'login required'}`,
+        actionsExecuted: 0,
+        errorsEncountered: 1,
+        actions: [{ method: 'runtime.login_required', status: 'failed', error: 'Authentication required' }],
+      });
+    } catch {
+      // best-effort
+    }
+
+    this.eventEmitter.emit('team.agent_login_required', {
+      deploymentId: teamAgent.deploymentId,
+      teamAgentId: teamAgent.id,
+      stepId,
+      url: data.url,
+      instructions: data.instructions,
+      loginUrl,
+      runtimeSessionId,
+    });
+
+    // Emit loop failure so the workflow doesn't retry this step
+    if (stepId) {
+      this.eventEmitter.emit('team.agent_loop.failed', {
+        deploymentId: teamAgent.deploymentId,
+        teamAgentId: teamAgent.id,
+        stepId,
+        error: 'Authentication required — run "claude login" to authenticate',
+      });
+    }
+
+    // Auto-pause the deployment — login_required affects all agents
+    // since they share the same authentication context
+    await this.autoPauseIfAllErrored(teamAgent.deploymentId);
+
+    this.logger.warn(
+      `Agent ${teamAgent.id} (${teamAgent.role}) requires authentication — loginUrl=${loginUrl || 'none'}`,
+    );
+  }
+
   @OnEvent('parallax.blocking_prompt')
   async handleBlockingPrompt(data: {
     workspaceId?: string;
@@ -315,75 +593,52 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     if (!teamAgent) return;
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) return;
 
-    // Skip startup/config prompts — these are handled by PTY auto-response rules
-    // and resolve themselves. Only filter when the agent hasn't started a step yet;
-    // once actively executing, all blocking prompts should be escalated.
+    // Login prompts are handled by handleLoginRequired — skip here
     const promptType = data.promptInfo?.type || '';
+    if (promptType === 'login') {
+      return;
+    }
+
+    // Skip startup/config prompts — these are handled by PTY auto-response rules
     if (!teamAgent.currentStepId && ['config', 'permission', 'trust'].includes(promptType)) {
       return;
     }
 
-    // Coordinator itself is blocked — escalate to main brain
-    if (!teamAgent.reportsToAgentId) {
-      if (!this.mainBrainEscalation) {
-        this.logger.warn(`MainBrainEscalationService not available — cannot handle coordinator blocking prompt for ${teamAgent.id}`);
-        return;
+    // Check for pending messages and deliver them if available.
+    // This wakes up idle agents that have received new work via team_send_message.
+    if (this.teamMessaging) {
+      try {
+        const delivered = await this.teamMessaging.deliverPendingMessages(teamAgent.id);
+        if (delivered > 0) {
+          this.logger.log(
+            `Delivered ${delivered} pending messages to agent ${teamAgent.id} on blocking_prompt`,
+          );
+          this.eventEmitter.emit('team.agent_blocking_prompt', {
+            deploymentId: teamAgent.deploymentId,
+            teamAgentId: teamAgent.id,
+            stepId: teamAgent.currentStepId || undefined,
+            promptInfo: data.promptInfo,
+            messagesDelivered: delivered,
+            runtimeSessionId,
+          });
+          return;
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to deliver pending messages to ${teamAgent.id}: ${err?.message}`,
+        );
       }
-
-      const escalationResult = await this.mainBrainEscalation.handleCoordinatorBlocked({
-        teamAgentId: teamAgent.id,
-        deploymentId: teamAgent.deploymentId,
-        runtimeSessionId,
-        promptInfo: data.promptInfo || { type: 'unknown' },
-      });
-
-      this.eventEmitter.emit('team.agent_blocking_prompt', {
-        deploymentId: teamAgent.deploymentId,
-        teamAgentId: teamAgent.id,
-        stepId: teamAgent.currentStepId || undefined,
-        promptInfo: data.promptInfo,
-        mainBrainResponded: escalationResult.responded,
-        surfacedToUser: escalationResult.surfacedToUser,
-        runtimeSessionId,
-      });
-
-      if (escalationResult.responded) {
-        this.logger.log(`Main brain handled coordinator blocking prompt for ${teamAgent.id}`);
-      } else if (escalationResult.surfacedToUser) {
-        this.logger.warn(`Main brain surfaced coordinator prompt to user for ${teamAgent.id}`);
-      } else {
-        this.logger.warn(`Main brain escalation failed for coordinator ${teamAgent.id}: ${escalationResult.error}`);
-      }
-      return;
     }
 
-    if (!this.coordinatorResponse) {
-      this.logger.warn(`CoordinatorResponseService not available — cannot handle blocking prompt for ${teamAgent.id}`);
-      return;
-    }
-
-    const result = await this.coordinatorResponse.handleBlockedAgent({
-      teamAgentId: teamAgent.id,
-      deploymentId: teamAgent.deploymentId,
-      runtimeSessionId,
-      promptInfo: data.promptInfo || { type: 'unknown' },
-    });
-
-    // Emit team event for UI visibility regardless of coordinator outcome
+    // No pending messages — emit event for UI visibility and let stall
+    // classifier handle truly stuck agents
     this.eventEmitter.emit('team.agent_blocking_prompt', {
       deploymentId: teamAgent.deploymentId,
       teamAgentId: teamAgent.id,
       stepId: teamAgent.currentStepId || undefined,
       promptInfo: data.promptInfo,
-      coordinatorResponded: result.responded,
       runtimeSessionId,
     });
-
-    if (result.responded) {
-      this.logger.log(`Coordinator handled blocking prompt for agent ${teamAgent.id}`);
-    } else {
-      this.logger.warn(`Coordinator did not respond to agent ${teamAgent.id}: ${result.error}`);
-    }
   }
 
   @OnEvent('parallax.stall_classified')
@@ -457,6 +712,145 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
         actions: [{ method: 'runtime.task_complete', status: 'executed' }],
       },
     });
+  }
+
+  /**
+   * Strip ANSI escape codes from PTY output and look for an auth URL.
+   * Prefers claude.ai / anthropic.com URLs, falls back to the last URL found.
+   */
+  private extractAuthUrl(output: string): string | undefined {
+    if (!output) return undefined;
+    const stripped = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    const urlMatch = stripped.match(/https?:\/\/[^\s\x1b)]+/g);
+    if (!urlMatch) return undefined;
+    return (
+      urlMatch.find(
+        (u) => u.includes('claude.ai') || u.includes('anthropic.com'),
+      ) || urlMatch[urlMatch.length - 1]
+    );
+  }
+
+  /**
+   * After the auto-login flow extracts an auth URL, poll the PTY output
+   * for "Login successful" / "Logged in as". When detected, send Enter
+   * to dismiss the "Press Enter to continue…" prompt so the session
+   * returns to an idle state ready for the next reset/dispatch.
+   */
+  private async waitForLoginCompletion(
+    runtimeSessionId: string,
+    teamAgentId: string,
+    authKey: string,
+    deploymentId: string,
+    maxWaitMs = 300_000,
+  ): Promise<void> {
+    const CHECK_INTERVAL_MS = 5_000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise((r) => setTimeout(r, CHECK_INTERVAL_MS));
+
+      try {
+        const output = this.agentExecution.getOutputBuffer(runtimeSessionId);
+        if (!output) {
+          // Session may have been killed (e.g. user reset) — stop polling
+          this.logger.log(
+            `Login monitor: session ${runtimeSessionId} buffer empty — stopping`,
+          );
+          this.activeAuthFlows.delete(authKey);
+          return;
+        }
+
+        const stripped = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+
+        if (
+          stripped.includes('Login successful') ||
+          stripped.includes('Logged in as')
+        ) {
+          this.logger.log(
+            `Login monitor: detected successful login for agent ${teamAgentId} — sending Enter`,
+          );
+          this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+
+          // Small delay then send another Enter in case the first was swallowed
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+          } catch {
+            // session may have already moved on
+          }
+
+          // Mark auth flow as completed
+          const flow = this.activeAuthFlows.get(authKey);
+          if (flow) {
+            flow.status = 'completed';
+          }
+
+          // Kill the login session now that auth is complete
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            await this.agentExecution.stop(runtimeSessionId);
+          } catch {
+            // best-effort
+          }
+
+          // Auto-restart the deployment so all agents benefit from the new auth
+          try {
+            await this.autoRestartDeployment(deploymentId);
+          } catch (err: any) {
+            this.logger.warn(`Failed to auto-restart after auth: ${err?.message}`);
+          }
+
+          this.activeAuthFlows.delete(authKey);
+          return;
+        }
+      } catch {
+        // Session gone — stop polling
+        this.activeAuthFlows.delete(authKey);
+        return;
+      }
+    }
+
+    // Timed out waiting for login — kill the orphaned session and clean up flow
+    this.activeAuthFlows.delete(authKey);
+    this.logger.warn(
+      `Login monitor: timed out waiting for login completion (agent ${teamAgentId}) — killing session`,
+    );
+    try {
+      await this.agentExecution.stop(runtimeSessionId);
+    } catch {
+      // best-effort
+    }
+  }
+
+  private async autoRestartDeployment(deploymentId: string): Promise<void> {
+    const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
+
+    for (const agent of agents) {
+      if (agent.status === 'error') {
+        // Kill any lingering runtime sessions
+        if (agent.runtimeSessionId) {
+          try { await this.agentExecution.stop(agent.runtimeSessionId); } catch { /* best-effort */ }
+        }
+        await this.teamRepo.updateAgentStatus(agent.id, 'idle');
+        await this.teamRepo.updateAgentRuntimeSession(agent.id, {
+          runtimeSessionId: null,
+          terminalSessionId: null,
+        });
+      }
+    }
+
+    // Reactivate deployment if paused
+    const deployment = await this.teamRepo.findById(deploymentId);
+    if (deployment?.status === 'paused') {
+      await this.teamRepo.updateStatus(deploymentId, 'active');
+    }
+
+    // Emit event so workflow executor re-dispatches
+    this.eventEmitter.emit('team.auth_completed', { deploymentId });
+
+    this.logger.log(
+      `Auto-restarted deployment ${deploymentId} after successful authentication`,
+    );
   }
 
   private async autoPauseIfAllErrored(deploymentId: string): Promise<void> {
