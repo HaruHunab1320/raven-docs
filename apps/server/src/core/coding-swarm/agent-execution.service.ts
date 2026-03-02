@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PTYManager, TerminalAttachment, ToolRunningInfo, StallClassification as PTYStallClassification } from 'pty-manager';
+import { PTYManager, TerminalAttachment, ToolRunningInfo, StallClassification as PTYStallClassification, type AutoResponseRule } from 'pty-manager';
 import { PTYConsoleBridge } from 'pty-console';
 import { createAllAdapters, checkAdapters } from 'coding-agent-adapters';
 import * as fs from 'fs';
@@ -21,6 +21,11 @@ export interface AgentSpawnConfig {
   env?: Record<string, string>;
   adapterConfig?: Record<string, unknown>;
   timeout?: number;
+  /** Override adapter's readySettleMs — ms of output silence after
+   *  detectReady before the session is considered ready for input. */
+  readySettleMs?: number;
+  /** When false, the spawned agent only gets explicit env vars — no parent process secrets leak. */
+  inheritProcessEnv?: boolean;
 }
 
 @Injectable()
@@ -93,11 +98,57 @@ export class AgentExecutionService implements OnModuleDestroy {
         this.logger.log(
           `Agent session stopped: ${session.id} (${reason})`,
         );
+
+        // Check output buffer for login patterns that the stall timer never caught
+        // (e.g. Claude exits immediately with "Not logged in · Please run /login")
+        let loginDetected = false;
+        const ptySession = this.ptyManager.getSession(session.id);
+        if (ptySession) {
+          try {
+            const outputBuffer = ptySession.getOutputBuffer();
+
+            // Try adapter detection first (covers all adapter-specific patterns)
+            const adapter = this.ptyManager.adapters.get(session.type);
+            if (adapter) {
+              const loginResult = adapter.detectLogin(outputBuffer);
+              if (loginResult?.required) {
+                loginDetected = true;
+              }
+            }
+
+            // Fallback: direct pattern match for common login-required strings
+            // that older adapter versions may not recognize
+            if (!loginDetected) {
+              const stripped = outputBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+              if (
+                stripped.includes('Not logged in') ||
+                stripped.includes('Please run /login') ||
+                stripped.includes('please log in') ||
+                stripped.includes('run /login')
+              ) {
+                loginDetected = true;
+              }
+            }
+
+            if (loginDetected) {
+              this.logger.warn(`Agent login required (detected on exit): ${session.id}`);
+              this.eventEmitter.emit('parallax.login_required', {
+                workspaceId,
+                agentId: session.id,
+                instructions: 'Claude Code requires authentication. Run "claude login" in your terminal.',
+              });
+            }
+          } catch {
+            // Best-effort — don't block the stopped handler
+          }
+        }
+
         this.eventEmitter.emit('parallax.agent_stopped', {
           workspaceId,
           agentId: session.id,
           reason,
           exitCode: session.exitCode,
+          loginDetected,
         });
         this.sessionWorkspaceMap.delete(session.id);
       });
@@ -335,6 +386,8 @@ export class AgentExecutionService implements OnModuleDestroy {
           env: spawnEnv,
           adapterConfig: config.adapterConfig,
           timeout: config.timeout,
+          readySettleMs: config.readySettleMs,
+          inheritProcessEnv: config.inheritProcessEnv,
         });
       } catch (error: any) {
         const rawMessage = String(error?.message || '');
@@ -382,7 +435,20 @@ export class AgentExecutionService implements OnModuleDestroy {
       if (!this.ptyManager) {
         throw new Error('PTYManager not initialized');
       }
-      this.ptyManager.send(sessionId, message);
+      const session = this.ptyManager.getSession(sessionId);
+      if (!session) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+      // Flatten newlines to spaces — Claude Code enters multi-line mode on
+      // \n which makes Enter add a newline instead of submitting.
+      const flattened = message.replace(/\n+/g, ' ').trim();
+      // Write text first, then wait for the TUI to process the paste before
+      // pressing Enter.  ptyManager.send() only waits 50ms which is too short
+      // for Claude Code's Ink-based TUI to digest a large paste.
+      session.writeRaw(flattened);
+      const enterDelayMs = Number(process.env.AGENT_SEND_ENTER_DELAY_MS) || 500;
+      await new Promise((r) => setTimeout(r, enterDelayMs));
+      session.sendKeys('enter');
       return;
     }
 
@@ -466,6 +532,32 @@ export class AgentExecutionService implements OnModuleDestroy {
       throw new Error(`Session not found: ${sessionId}`);
     }
     session.sendKeys(keys);
+  }
+
+  /**
+   * Add a per-session auto-response rule (local mode only).
+   * Rules are checked before adapter-level rules when a blocking prompt is detected.
+   */
+  addAutoResponseRule(sessionId: string, rule: AutoResponseRule): void {
+    if (!this.ptyManager) {
+      throw new Error('PTYManager not initialized');
+    }
+    this.ptyManager.addAutoResponseRule(sessionId, rule);
+  }
+
+  /**
+   * Get the raw output buffer for a session (local mode only).
+   * Returns an empty string if the session is not found or not in local mode.
+   */
+  getOutputBuffer(sessionId: string): string {
+    if (!this.ptyManager) return '';
+    const session = (this.ptyManager as any).sessions?.get(sessionId);
+    if (!session) return '';
+    try {
+      return session.getOutputBuffer() || '';
+    } catch {
+      return '';
+    }
   }
 
   /**
@@ -588,7 +680,7 @@ export class AgentExecutionService implements OnModuleDestroy {
           return () => this.consoleBridge?.off('session_output', handler);
         },
         write: (data: string) => {
-          this.consoleBridge?.sendMessage(sessionId, data);
+          this.consoleBridge?.writeRaw(sessionId, data);
         },
         resize: (cols: number, rows: number) => {
           this.consoleBridge?.resize(sessionId, cols, rows);
