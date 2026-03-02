@@ -39,6 +39,7 @@ const ThemeContext = createContext<ThemeContextType>({
   setThemeById: () => {},
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useRavenDocsTheme = () => useContext(ThemeContext);
 
 interface ThemeProviderProps {
@@ -255,6 +256,7 @@ export function RavenDocsThemeProvider({ children }: ThemeProviderProps) {
 }
 
 // Utility hook for other components to access theme colors
+// eslint-disable-next-line react-refresh/only-export-components
 export function useThemeColors() {
   const { activeTheme } = useRavenDocsTheme();
   const { colorScheme } = useMantineColorScheme();

@@ -166,6 +166,7 @@ export function BoardProvider({
 }
 
 // Custom hook to use the board context
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBoardContext() {
   const context = useContext(BoardContext);
   if (context === undefined) {

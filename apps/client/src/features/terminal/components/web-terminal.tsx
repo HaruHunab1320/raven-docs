@@ -194,7 +194,6 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-attach when connected
