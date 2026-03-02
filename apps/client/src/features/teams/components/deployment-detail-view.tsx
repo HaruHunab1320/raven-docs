@@ -6,38 +6,36 @@ import {
   Text,
   Badge,
   Button,
-  Table,
   Divider,
   Loader,
   Select,
+  Alert,
+  Anchor,
 } from "@mantine/core";
 import {
-  IconPlayerPlay,
   IconPlayerPause,
   IconBolt,
   IconArrowLeft,
-  IconTerminal2,
-  IconPlayerStop,
   IconRefresh,
+  IconAlertTriangle,
+  IconPlayerPlay,
 } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useDeploymentStatus,
   usePauseDeploymentMutation,
   useResumeDeploymentMutation,
-  useStartWorkflowMutation,
   useRedeployTeamMutation,
   useAssignDeploymentTaskMutation,
   useResetTeamMutation,
 } from "../hooks/use-team-queries";
 import { useTeamLiveUpdates } from "../hooks/use-team-live-updates";
+import { useAgentActivity } from "../hooks/use-agent-activity";
 import { useActiveExperiments } from "@/features/intelligence/hooks/use-intelligence-queries";
 import { useDisclosure } from "@mantine/hooks";
-import { WorkflowProgressBar } from "./workflow-progress-bar";
-import { WorkflowExecutionGraph } from "./workflow-execution-graph";
+import { WorkflowTerminalReactFlow } from "./workflow-terminal-reactflow";
 import { RenameTeamModal } from "./rename-team-modal";
-import type { WorkflowState, StepState, OrgPattern, TeamAgent } from "../types/team.types";
-import { WebTerminal } from "@/features/terminal";
+import type { OrgPattern } from "../types/team.types";
 import {
   getTerminalSessions,
   terminateSession,
@@ -60,6 +58,7 @@ function statusColor(status: string) {
       return "yellow";
     case "completed":
       return "teal";
+    case "error":
     case "failed":
       return "red";
     case "torn_down":
@@ -260,137 +259,6 @@ function orgPatternFromAgents(agents: Array<Record<string, any>>): OrgPattern | 
   };
 }
 
-function formatCurrentStep(stepId: string | null): string {
-  if (!stepId) return "-";
-  if (stepId === "manual_run") return "manual run";
-  return stepId;
-}
-
-function parseExecutionPlan(value: unknown): Record<string, any> | null {
-  if (!value) return null;
-  try {
-    return typeof value === "string"
-      ? (JSON.parse(value) as Record<string, any>)
-      : (value as Record<string, any>);
-  } catch {
-    return null;
-  }
-}
-
-function parseWorkflowState(value: unknown): WorkflowState | null {
-  if (!value) return null;
-  try {
-    const parsed =
-      typeof value === "string"
-        ? JSON.parse(value)
-        : (value as Record<string, any>);
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed as WorkflowState;
-  } catch {
-    return null;
-  }
-}
-
-function getStepLabel(step: Record<string, any>): string {
-  const kind = step?.operation?.kind;
-  switch (kind) {
-    case "dispatch_agent_loop":
-      return `assign ${step?.operation?.role || "agent"}${
-        step?.operation?.task ? `: ${step.operation.task}` : ""
-      }`;
-    case "invoke_coordinator":
-      return `coordinator: ${step?.operation?.reason || "decision"}`;
-    case "aggregate_results":
-      return `aggregate (${step?.operation?.method || "merge"})`;
-    case "await_event":
-      return `wait for event (${step?.operation?.eventPattern || "*"})`;
-    case "evaluate_condition":
-      return `condition: ${step?.operation?.check || "evaluate"}`;
-    default:
-      return step?.type || "step";
-  }
-}
-
-function augmentWithAgentStatus(
-  plan: Record<string, any> | null,
-  state: WorkflowState | null,
-  agents: TeamAgent[],
-): WorkflowState | null {
-  if (!plan?.steps?.length || !agents?.length) return state;
-
-  // Build role -> live status from agents
-  const roleStatus = new Map<string, "running" | "failed">();
-  for (const agent of agents) {
-    if (agent.status === "running") {
-      roleStatus.set(agent.role, "running");
-    } else if (
-      agent.status === "error" &&
-      roleStatus.get(agent.role) !== "running"
-    ) {
-      roleStatus.set(agent.role, "failed");
-    }
-  }
-
-  if (roleStatus.size === 0) return state;
-
-  const base: WorkflowState = state || {
-    currentPhase: "idle",
-    stepStates: {},
-    coordinatorInvocations: 0,
-  };
-
-  const merged: WorkflowState = {
-    ...base,
-    stepStates: { ...base.stepStates },
-  };
-
-  const fill = (steps: Array<Record<string, any>>) => {
-    for (const step of steps) {
-      if (!step?.stepId) continue;
-
-      const current = merged.stepStates[step.stepId]?.status;
-      if (!current || current === "pending") {
-        const role = step.operation?.role;
-        const derived = role ? roleStatus.get(role) : undefined;
-
-        if (derived) {
-          merged.stepStates[step.stepId] = {
-            ...(merged.stepStates[step.stepId] || {}),
-            status: derived,
-          } as StepState;
-        }
-      }
-
-      if (step.children) fill(step.children);
-      if (step.thenBranch) fill([step.thenBranch]);
-      if (step.elseBranch) fill([step.elseBranch]);
-    }
-  };
-
-  fill(plan.steps);
-  return merged;
-}
-
-function collectStepRows(
-  steps: Array<Record<string, any>>,
-  rows: Array<{ stepId: string; label: string }>,
-) {
-  for (const step of steps || []) {
-    if (step?.stepId) {
-      rows.push({ stepId: step.stepId, label: getStepLabel(step) });
-    }
-    if (Array.isArray(step?.children) && step.children.length > 0) {
-      collectStepRows(step.children, rows);
-    }
-    if (step?.thenBranch) {
-      collectStepRows([step.thenBranch], rows);
-    }
-    if (step?.elseBranch) {
-      collectStepRows([step.elseBranch], rows);
-    }
-  }
-}
-
 export function DeploymentDetailView({
   deploymentId,
   onBack,
@@ -400,7 +268,6 @@ export function DeploymentDetailView({
   const { data, isLoading } = useDeploymentStatus(deploymentId);
   const pauseMutation = usePauseDeploymentMutation();
   const resumeMutation = useResumeDeploymentMutation();
-  const startMutation = useStartWorkflowMutation();
   const redeployMutation = useRedeployTeamMutation();
   const assignTaskMutation = useAssignDeploymentTaskMutation();
   const resetMutation = useResetTeamMutation();
@@ -409,11 +276,9 @@ export function DeploymentDetailView({
   const [targetExperimentId, setTargetExperimentId] = useState<string | null>(
     "",
   );
-  const [openTerminalAgentId, setOpenTerminalAgentId] = useState<string | null>(
-    null,
-  );
   const deployment = data?.deployment;
   useTeamLiveUpdates(deployment?.spaceId || "", deploymentId);
+  const agentActivity = useAgentActivity(deploymentId);
   const { data: experiments } = useActiveExperiments(deployment?.spaceId || "");
   const { data: terminalSessions = [] } = useQuery({
     queryKey: ["terminal-sessions", "workspace", deployment?.workspaceId],
@@ -451,15 +316,6 @@ export function DeploymentDetailView({
     return byAgent;
   }, [terminalSessions]);
 
-  useEffect(() => {
-    if (
-      openTerminalAgentId &&
-      !terminalSessionByAgentId.has(openTerminalAgentId)
-    ) {
-      setOpenTerminalAgentId(null);
-    }
-  }, [openTerminalAgentId, terminalSessionByAgentId]);
-
   const plannedExperimentOptions = (experiments || [])
     .filter((e) => e.metadata?.status === "planned")
     .map((e) => ({
@@ -484,28 +340,12 @@ export function DeploymentDetailView({
   }
 
   const { agents } = data;
-  const roleTotals = agents.reduce<Record<string, number>>((acc, agent) => {
-    acc[agent.role] = (acc[agent.role] || 0) + 1;
-    return acc;
-  }, {});
-  const executionPlan = parseExecutionPlan((deployment as any).executionPlan);
-  const stepRows: Array<{ stepId: string; label: string }> = [];
-  if (Array.isArray(executionPlan?.steps)) {
-    collectStepRows(executionPlan.steps as Array<Record<string, any>>, stepRows);
-  }
-  const stepLabelMap = new Map(stepRows.map((s) => [s.stepId, s.label]));
-  const workflowState = parseWorkflowState(deployment.workflowState);
-  const liveWorkflowState = augmentWithAgentStatus(executionPlan, workflowState, agents);
-  const runLogs = Array.isArray(workflowState?.runLogs)
-    ? workflowState!.runLogs.slice().reverse()
-    : [];
   const orgPattern =
     parseOrgPattern((deployment as any).orgPattern) ||
     parseOrgPattern(deployment.config) ||
     orgPatternFromExecutionPlan((deployment as any).executionPlan) ||
     orgPatternFromLegacyConfig(deployment.config) ||
     orgPatternFromAgents(agents as Array<Record<string, any>>);
-  const phase = workflowState?.currentPhase || "idle";
 
   return (
     <Stack gap="md" onClick={(e) => e.stopPropagation()}>
@@ -532,21 +372,8 @@ export function DeploymentDetailView({
               <Badge color={statusColor(deployment.status)} variant="light">
                 {deployment.status}
               </Badge>
-              <Badge color={statusColor(phase)} variant="outline">
-                {phase}
-              </Badge>
             </Group>
             <Group gap="xs">
-              {phase === "idle" && deployment.status === "active" && (
-                <Button
-                  size="xs"
-                  leftSection={<IconPlayerPlay size={14} />}
-                  onClick={() => startMutation.mutate(deploymentId)}
-                  loading={startMutation.isPending}
-                >
-                  Start Workflow
-                </Button>
-              )}
               <Button size="xs" variant="subtle" onClick={openRename}>
                 Rename
               </Button>
@@ -557,18 +384,16 @@ export function DeploymentDetailView({
                 );
                 return (
                   <>
-                    {hasErrors && (
-                      <Button
-                        size="xs"
-                        variant="light"
-                        color="blue"
-                        leftSection={<IconRefresh size={14} />}
-                        onClick={() => resetMutation.mutate(deploymentId)}
-                        loading={resetMutation.isPending}
-                      >
-                        Reset Team
-                      </Button>
-                    )}
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconRefresh size={14} />}
+                      onClick={() => resetMutation.mutate(deploymentId)}
+                      loading={resetMutation.isPending}
+                    >
+                      Reset Team
+                    </Button>
                     {deployment.status === "active" && (
                       <>
                         <Button
@@ -680,197 +505,56 @@ export function DeploymentDetailView({
               Team is currently constrained to task `{currentTargetTaskId}`.
             </Text>
           )}
-
-          {liveWorkflowState && Object.keys(liveWorkflowState.stepStates).length > 0 && (
-            <>
-              <Divider />
-              <Text size="sm" fw={500}>
-                Workflow Progress
-              </Text>
-              <WorkflowProgressBar stepStates={liveWorkflowState.stepStates} />
-            </>
-          )}
         </Stack>
       </Card>
 
-      <Card withBorder radius="md" p="md">
-        <Stack gap="sm">
-          <Text fw={600} size="sm">
-            Agents ({agents.length})
+      {(Object.values(agentActivity).some((a) => a.type === "login_required") ||
+        agents.some(
+          (a) =>
+            a.status === "error" &&
+            a.lastRunSummary &&
+            /auth|login|logged in|not logged/i.test(a.lastRunSummary),
+        )) && (
+        <Alert
+          variant="light"
+          color="red"
+          icon={<IconAlertTriangle size={16} />}
+          title="Authentication required"
+        >
+          <Text size="sm">
+            One or more agents require authentication.{" "}
+            {(() => {
+              const loginUrl = Object.values(agentActivity).find(
+                (a) => a.loginUrl,
+              )?.loginUrl;
+              return loginUrl ? (
+                <>
+                  <Anchor href={loginUrl} target="_blank" size="sm">
+                    Sign in with your Claude account
+                  </Anchor>{" "}
+                  to authenticate. The team will restart automatically after sign-in.
+                </>
+              ) : (
+                <>
+                  <Anchor href="/settings/workspace" size="sm">
+                    Connect your provider credentials
+                  </Anchor>{" "}
+                  in workspace settings, then reset the team to retry.
+                </>
+              );
+            })()}
           </Text>
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Slot</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Current Step</Table.Th>
-                <Table.Th>Terminal</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {agents.map((agent) => (
-                <Table.Tr key={agent.id}>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {agent.role}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">
-                      {agent.instanceNumber}/{roleTotals[agent.role] || 1}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      size="sm"
-                      color={statusColor(agent.status)}
-                      variant="light"
-                    >
-                      {agent.status}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
-                      {(() => {
-                        const stepId = formatCurrentStep(agent.currentStepId);
-                        if (!agent.currentStepId || agent.currentStepId === "manual_run") {
-                          return stepId;
-                        }
-                        const label = stepLabelMap.get(agent.currentStepId);
-                        return label ? `${agent.currentStepId} (${label})` : stepId;
-                      })()}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {(() => {
-                      const session = terminalSessionByAgentId.get(agent.id);
-                      if (!session) {
-                        return (
-                          <Text size="xs" c="dimmed">
-                            no session
-                          </Text>
-                        );
-                      }
-                      const isOpen = openTerminalAgentId === agent.id;
-                      return (
-                        <Group gap={6}>
-                          <Badge size="xs" variant="light">
-                            {session.status}
-                          </Badge>
-                          <Button
-                            size="xs"
-                            variant={isOpen ? "filled" : "light"}
-                            leftSection={<IconTerminal2 size={12} />}
-                            onClick={() =>
-                              setOpenTerminalAgentId(isOpen ? null : agent.id)
-                            }
-                          >
-                            {isOpen ? "Hide" : "Open"}
-                          </Button>
-                          <Button
-                            size="xs"
-                            color="red"
-                            variant="subtle"
-                            leftSection={<IconPlayerStop size={12} />}
-                            onClick={() =>
-                              terminateTerminalMutation.mutate(session.id)
-                            }
-                            loading={terminateTerminalMutation.isPending}
-                          >
-                            Stop
-                          </Button>
-                        </Group>
-                      );
-                    })()}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+        </Alert>
+      )}
 
-          {openTerminalAgentId &&
-            terminalSessionByAgentId.get(openTerminalAgentId) && (
-              <>
-                <Divider />
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>
-                    Agent Terminal: {openTerminalAgentId}
-                  </Text>
-                  <WebTerminal
-                    sessionId={terminalSessionByAgentId.get(openTerminalAgentId)!.id}
-                    height={360}
-                  />
-                </Stack>
-              </>
-            )}
-        </Stack>
-      </Card>
-
-      <Card withBorder radius="md" p="md">
-        <Stack gap="sm">
-          <Text fw={600} size="sm">
-            Workflow
-          </Text>
-          {stepRows.length > 0 ? (
-            <>
-              <WorkflowExecutionGraph
-                executionPlan={(deployment as any).executionPlan}
-                workflowState={liveWorkflowState}
-                orgPattern={orgPattern}
-                compact={compact}
-              />
-              <Divider />
-              <Text fw={600} size="sm">
-                Steps
-              </Text>
-              <Stack gap={2}>
-                {stepRows.map((step) => (
-                  <Text key={step.stepId} size="xs" c="dimmed">
-                    {step.stepId}: {step.label}
-                  </Text>
-                ))}
-              </Stack>
-            </>
-          ) : (
-            <Text size="sm" c="dimmed">
-              No workflow graph available.
-            </Text>
-          )}
-        </Stack>
-      </Card>
-
-      <Card withBorder radius="md" p="md">
-        <Stack gap="sm">
-          <Text fw={600} size="sm">
-            Team Run Logs
-          </Text>
-          {runLogs.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No team run logs yet.
-            </Text>
-          ) : (
-            <Stack gap="xs" style={{ maxHeight: 400, overflowY: "auto" }}>
-              {runLogs.slice(0, 50).map((entry) => (
-                <Card key={entry.id} withBorder radius="sm" p="sm">
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text size="sm" fw={500}>
-                        {entry.role}
-                        {entry.stepId ? ` (${entry.stepId})` : ""}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {new Date(entry.timestamp).toLocaleString()}
-                      </Text>
-                    </Group>
-                    <Text size="xs">{entry.summary}</Text>
-                  </Stack>
-                </Card>
-              ))}
-            </Stack>
-          )}
-        </Stack>
-      </Card>
+      <WorkflowTerminalReactFlow
+        agents={agents}
+        orgPattern={orgPattern}
+        agentActivity={agentActivity}
+        terminalSessionByAgentId={terminalSessionByAgentId}
+        onTerminateSession={(sid) => terminateTerminalMutation.mutate(sid)}
+        height={compact ? 620 : 760}
+      />
 
       <RenameTeamModal
         opened={renameOpened}

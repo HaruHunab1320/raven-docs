@@ -86,6 +86,7 @@ export function useTeamLiveUpdates(spaceId: string, deploymentId?: string) {
     socket?.on("team:workflow_completed", handleTeamRuntimeEvent);
     socket?.on("team:workflow_failed", handleTeamRuntimeEvent);
     socket?.on("team:agent_blocking_prompt", handleTeamRuntimeEvent);
+    socket?.on("team:agent_login_required", handleTeamRuntimeEvent);
     socket?.on("team:stall_classified", handleTeamRuntimeEvent);
     socket?.on("team:agent_tool_running", handleTeamRuntimeEvent);
     socket?.on("team:agent_tool_interrupted", handleTeamRuntimeEvent);
@@ -102,6 +103,7 @@ export function useTeamLiveUpdates(spaceId: string, deploymentId?: string) {
       socket?.off("team:workflow_completed", handleTeamRuntimeEvent);
       socket?.off("team:workflow_failed", handleTeamRuntimeEvent);
       socket?.off("team:agent_blocking_prompt", handleTeamRuntimeEvent);
+      socket?.off("team:agent_login_required", handleTeamRuntimeEvent);
       socket?.off("team:stall_classified", handleTeamRuntimeEvent);
       socket?.off("team:agent_tool_running", handleTeamRuntimeEvent);
       socket?.off("team:agent_tool_interrupted", handleTeamRuntimeEvent);
