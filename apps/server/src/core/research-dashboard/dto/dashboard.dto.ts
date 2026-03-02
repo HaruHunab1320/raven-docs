@@ -76,3 +76,15 @@ export class PatternActionDto {
   @IsUUID()
   id: string;
 }
+
+export class CampaignsDto {
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+}
+
+export class AttentionItemsDto {
+  @IsUUID()
+  @IsOptional()
+  spaceId?: string;
+}

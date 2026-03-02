@@ -23,6 +23,7 @@ interface Props {
   spaceId: string;
   experimentId?: string;
   experimentTitle?: string;
+  experimentRepoUrl?: string;
 }
 
 const AGENT_TYPES = [
@@ -64,6 +65,7 @@ export function LaunchSwarmModal({
   spaceId,
   experimentId,
   experimentTitle,
+  experimentRepoUrl,
 }: Props) {
   const { data: workspace } = useCurrentWorkspace();
   const { data: experiments } = useActiveExperiments(spaceId);
@@ -115,6 +117,14 @@ export function LaunchSwarmModal({
       mapWorkspaceDefaultToSwarmAgentType(workspaceDefault),
     );
   }, [opened, workspace?.settings, form]);
+
+  useEffect(() => {
+    if (!opened) return;
+    if (form.isTouched("repoUrl")) return;
+    if (experimentRepoUrl) {
+      form.setFieldValue("repoUrl", experimentRepoUrl);
+    }
+  }, [opened, experimentRepoUrl, form]);
 
   useEffect(() => {
     if (!opened) return;

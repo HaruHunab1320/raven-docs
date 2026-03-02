@@ -9,7 +9,7 @@ import {
   Checkbox,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePageMutation } from "@/features/page/queries/page-query";
 import {
@@ -22,7 +22,7 @@ interface Props {
   opened: boolean;
   onClose: () => void;
   spaceId: string;
-  onLaunchSwarm?: (experimentId: string, title: string) => void;
+  onLaunchSwarm?: (experimentId: string, title: string, repoUrl?: string) => void;
 }
 
 const STATUS_OPTIONS = [
@@ -51,11 +51,22 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
       status: "planned",
       method: "",
       codeRef: "",
+      repoUrl: "",
     },
     validate: {
       title: (v) => (v.trim() ? null : "Title is required"),
     },
   });
+
+  useEffect(() => {
+    const selectedId = form.values.hypothesisId;
+    if (!selectedId || form.isTouched("repoUrl")) return;
+    const hypothesis = (hypotheses ?? []).find((h) => h.id === selectedId);
+    const repoUrl = (hypothesis?.metadata as any)?.repoUrl;
+    if (repoUrl) {
+      form.setFieldValue("repoUrl", repoUrl);
+    }
+  }, [form.values.hypothesisId, hypotheses, form]);
 
   const invalidateQueries = () =>
     Promise.all([
@@ -86,6 +97,7 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
           unexpectedObservations: [],
           suggestedFollowUps: [],
           codeRef: values.codeRef || null,
+          repoUrl: values.repoUrl || null,
         },
       } as any);
 
@@ -101,7 +113,7 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
 
         if (launchAgent && onLaunchSwarm) {
           onClose();
-          onLaunchSwarm(page.id, title);
+          onLaunchSwarm(page.id, title, values.repoUrl || undefined);
         } else if (!addAnotherRef.current) {
           onClose();
         }
@@ -154,6 +166,12 @@ export function CreateExperimentModal({ opened, onClose, spaceId, onLaunchSwarm 
             label="Code Reference"
             placeholder="Link to code or notebook (optional)"
             {...form.getInputProps("codeRef")}
+          />
+
+          <TextInput
+            label="Repository URL"
+            placeholder="https://github.com/org/repo.git (optional)"
+            {...form.getInputProps("repoUrl")}
           />
 
           {onLaunchSwarm && (

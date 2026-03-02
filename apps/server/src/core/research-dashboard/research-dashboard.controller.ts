@@ -20,6 +20,8 @@ import {
   DomainGraphDto,
   PatternListDto,
   PatternActionDto,
+  CampaignsDto,
+  AttentionItemsDto,
 } from './dto/dashboard.dto';
 
 @Controller('research-dashboard')
@@ -118,6 +120,24 @@ export class ResearchDashboardController {
       status: dto.status,
       patternType: dto.patternType,
     });
+  }
+
+  @Post('campaigns')
+  @HttpCode(HttpStatus.OK)
+  async getCampaigns(
+    @Body() dto: CampaignsDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.dashboardService.getCampaigns(workspace.id, dto.spaceId);
+  }
+
+  @Post('attention-items')
+  @HttpCode(HttpStatus.OK)
+  async getAttentionItems(
+    @Body() dto: AttentionItemsDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.dashboardService.getAttentionItems(workspace.id, dto.spaceId);
   }
 
   @Post('patterns/acknowledge')

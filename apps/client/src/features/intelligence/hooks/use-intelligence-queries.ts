@@ -15,6 +15,10 @@ export const INTELLIGENCE_KEYS = {
   domainGraph: (spaceId: string) =>
     ["intelligence-domain-graph", spaceId] as const,
   patterns: (spaceId: string) => ["intelligence-patterns", spaceId] as const,
+  campaigns: (spaceId: string) =>
+    ["intelligence-campaigns", spaceId] as const,
+  attentionItems: (spaceId: string) =>
+    ["intelligence-attention-items", spaceId] as const,
 };
 
 export function useIntelligenceStats(spaceId: string) {
@@ -84,6 +88,24 @@ export function usePatternDetections(spaceId: string) {
   return useQuery({
     queryKey: INTELLIGENCE_KEYS.patterns(spaceId),
     queryFn: () => intelligenceService.getPatterns({ spaceId }),
+    enabled: !!spaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useCampaigns(spaceId: string) {
+  return useQuery({
+    queryKey: INTELLIGENCE_KEYS.campaigns(spaceId),
+    queryFn: () => intelligenceService.getCampaigns({ spaceId }),
+    enabled: !!spaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useAttentionItems(spaceId: string) {
+  return useQuery({
+    queryKey: INTELLIGENCE_KEYS.attentionItems(spaceId),
+    queryFn: () => intelligenceService.getAttentionItems({ spaceId }),
     enabled: !!spaceId,
     staleTime: 30_000,
   });

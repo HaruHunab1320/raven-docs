@@ -5,17 +5,15 @@ import {
   Title,
   Text,
   Tabs,
-  SimpleGrid,
   ActionIcon,
   Loader,
-  Card,
   Badge,
   Menu,
   Button,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePageTabs } from "@/features/page/hooks/use-page-tabs";
 import {
@@ -28,12 +26,13 @@ import {
   IconSitemap,
 } from "@tabler/icons-react";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
-import { HypothesisScoreboard } from "../components/hypothesis-scoreboard";
+import { AttentionBar } from "../components/attention-bar";
+import { CampaignOverview } from "../components/campaign-overview";
+import { NeedsAttentionSection } from "../components/needs-attention-section";
 import { ActiveExperimentsList } from "../components/active-experiments-list";
 import { HypothesesList } from "../components/hypotheses-list";
 import { OpenQuestionsQueue } from "../components/open-questions-queue";
 import { RecentFindingsTimeline } from "../components/recent-findings-timeline";
-import { ContradictionAlerts } from "../components/contradiction-alerts";
 import { DomainGraphVisualization } from "../components/domain-graph-visualization";
 import { PatternAlertsPanel } from "../components/pattern-alerts-panel";
 import { CreateHypothesisModal } from "../components/create-hypothesis-modal";
@@ -87,12 +86,14 @@ export default function IntelligenceDashboardPage() {
   const [swarmExperimentTitle, setSwarmExperimentTitle] = useState<
     string | undefined
   >();
+  const [swarmRepoUrl, setSwarmRepoUrl] = useState<string | undefined>();
 
   useSwarmSocket(spaceId);
 
-  const handleLaunchSwarm = (experimentId?: string, title?: string) => {
+  const handleLaunchSwarm = (experimentId?: string, title?: string, repoUrl?: string) => {
     setSwarmExperimentId(experimentId);
     setSwarmExperimentTitle(title);
+    setSwarmRepoUrl(repoUrl);
     openSwarm();
   };
 
@@ -100,7 +101,12 @@ export default function IntelligenceDashboardPage() {
     closeSwarm();
     setSwarmExperimentId(undefined);
     setSwarmExperimentTitle(undefined);
+    setSwarmRepoUrl(undefined);
   };
+
+  const handleNavigateToTab = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -129,6 +135,12 @@ export default function IntelligenceDashboardPage() {
       queryClient.invalidateQueries({
         queryKey: INTELLIGENCE_KEYS.patterns(spaceId),
       }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.campaigns(spaceId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: INTELLIGENCE_KEYS.attentionItems(spaceId),
+      }),
     ]);
     setRefreshing(false);
   };
@@ -140,7 +152,7 @@ export default function IntelligenceDashboardPage() {
           <Stack gap={6}>
             <Title order={2}>Research Intelligence</Title>
             <Text size="sm" c="dimmed">
-              Hypothesis scoreboard, experiments, open questions, and pattern
+              Campaign overview, experiments, open questions, and pattern
               detection.
             </Text>
           </Stack>
@@ -201,14 +213,15 @@ export default function IntelligenceDashboardPage() {
           </Group>
         </Group>
 
-        <HypothesisScoreboard
+        <AttentionBar
           spaceId={spaceId}
-          onNewHypothesis={openHypothesis}
+          onNavigateToTab={handleNavigateToTab}
         />
 
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
             <Tabs.Tab value="overview">Overview</Tabs.Tab>
+            <Tabs.Tab value="activity">Activity</Tabs.Tab>
             <Tabs.Tab value="hypotheses">Hypotheses</Tabs.Tab>
             <Tabs.Tab value="experiments">Experiments</Tabs.Tab>
             <Tabs.Tab value="questions">Open Questions</Tabs.Tab>
@@ -219,13 +232,14 @@ export default function IntelligenceDashboardPage() {
           </Tabs.List>
 
           <Tabs.Panel value="overview" pt="md">
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              <RecentFindingsTimeline spaceId={spaceId} />
-              <Stack gap="md">
-                <ContradictionAlerts spaceId={spaceId} />
-                <PatternAlertsPanel spaceId={spaceId} />
-              </Stack>
-            </SimpleGrid>
+            <Stack gap="md">
+              <NeedsAttentionSection spaceId={spaceId} />
+              <CampaignOverview spaceId={spaceId} />
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="activity" pt="md">
+            <RecentFindingsTimeline spaceId={spaceId} />
           </Tabs.Panel>
 
           <Tabs.Panel value="experiments" pt="md">
@@ -255,6 +269,7 @@ export default function IntelligenceDashboardPage() {
               nodes={domainGraph?.nodes || []}
               edges={domainGraph?.edges || []}
               isLoading={isDomainGraphLoading}
+              spaceId={spaceId}
             />
             <Text size="xs" c="dimmed" mt="xs">
               Graph visualization will populate as typed pages and
@@ -298,6 +313,7 @@ export default function IntelligenceDashboardPage() {
         spaceId={spaceId}
         experimentId={swarmExperimentId}
         experimentTitle={swarmExperimentTitle}
+        experimentRepoUrl={swarmRepoUrl}
       />
       <DeployTeamModal
         opened={deployTeamOpened}

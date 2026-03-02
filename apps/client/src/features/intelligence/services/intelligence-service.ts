@@ -7,6 +7,8 @@ import type {
   TypedPageSummary,
   DomainGraphData,
   PatternDetection,
+  CampaignsResponse,
+  AttentionItem,
 } from "../types/intelligence.types";
 
 const ENDPOINT = "research-dashboard";
@@ -94,4 +96,24 @@ export async function acknowledgePattern(params: {
 
 export async function dismissPattern(params: { id: string }): Promise<void> {
   await api.post(`${ENDPOINT}/patterns/dismiss`, params);
+}
+
+export async function getCampaigns(params: {
+  spaceId?: string;
+}): Promise<CampaignsResponse> {
+  const req = await api.post<CampaignsResponse>(
+    `${ENDPOINT}/campaigns`,
+    params,
+  );
+  return req.data;
+}
+
+export async function getAttentionItems(params: {
+  spaceId?: string;
+}): Promise<AttentionItem[]> {
+  const req = await api.post<AttentionItem[]>(
+    `${ENDPOINT}/attention-items`,
+    params,
+  );
+  return req.data;
 }

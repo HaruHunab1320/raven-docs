@@ -50,6 +50,7 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
       domainTags: [] as string[],
       predictions: [] as string[],
       successCriteria: "",
+      repoUrl: "",
     },
     validate: {
       title: (v) => (v.trim() ? null : "Title is required"),
@@ -84,6 +85,7 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
           priority: values.priority,
           domainTags: values.domainTags,
           successCriteria: values.successCriteria || null,
+          repoUrl: values.repoUrl || null,
           registeredBy: null,
           approvedBy: null,
         },
@@ -161,6 +163,12 @@ export function CreateHypothesisModal({ opened, onClose, spaceId }: Props) {
             placeholder="How will this hypothesis be validated? (optional)"
             minRows={2}
             {...form.getInputProps("successCriteria")}
+          />
+
+          <TextInput
+            label="Repository URL"
+            placeholder="https://github.com/org/repo.git (optional)"
+            {...form.getInputProps("repoUrl")}
           />
 
           <Group justify="flex-end" mt="md">

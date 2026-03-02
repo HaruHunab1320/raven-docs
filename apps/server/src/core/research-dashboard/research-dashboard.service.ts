@@ -504,6 +504,259 @@ export class ResearchDashboardService {
     }));
   }
 
+  async getCampaigns(workspaceId: string, spaceId?: string) {
+    // Fetch all hypotheses
+    const hypotheses = await this.getHypotheses(workspaceId, spaceId);
+
+    // Fetch all experiments (no status filter)
+    const allExperiments = await this.db
+      .selectFrom('pages')
+      .select([
+        'pages.id',
+        'pages.title',
+        'pages.pageType',
+        'pages.metadata',
+        'pages.slugId',
+        'pages.updatedAt',
+      ])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'experiment')
+      .where('pages.deletedAt', 'is', null)
+      .$if(!!spaceId, (qb) => qb.where('pages.spaceId', '=', spaceId!))
+      .orderBy('pages.updatedAt', 'desc')
+      .execute();
+
+    const experiments = allExperiments.map((r) => ({
+      id: r.id,
+      title: r.title,
+      pageType: r.pageType,
+      metadata:
+        typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata,
+      slugId: r.slugId,
+      updatedAt: r.updatedAt,
+    }));
+
+    // Group experiments by hypothesisId
+    const hypothesisIdSet = new Set(hypotheses.map((h) => h.id));
+    const experimentsByHypothesis = new Map<string, typeof experiments>();
+    const uncategorized: typeof experiments = [];
+
+    for (const exp of experiments) {
+      const hypothesisId = exp.metadata?.hypothesisId as string | undefined;
+      if (hypothesisId && hypothesisIdSet.has(hypothesisId)) {
+        const group = experimentsByHypothesis.get(hypothesisId) || [];
+        group.push(exp);
+        experimentsByHypothesis.set(hypothesisId, group);
+      } else {
+        uncategorized.push(exp);
+      }
+    }
+
+    // Fetch contradictions
+    let contradictionEdges: { from: string; to: string; type: string; fromTitle: string; fromType: string | null; toTitle: string; toType: string | null }[] = [];
+    try {
+      contradictionEdges = await this.getContradictions(workspaceId, spaceId);
+    } catch {
+      // Graph may not be available
+    }
+
+    // Build campaigns
+    const campaigns = hypotheses.map((hypothesis) => {
+      const exps = experimentsByHypothesis.get(hypothesis.id) || [];
+      const relatedPageIds = new Set([
+        hypothesis.id,
+        ...exps.map((e) => e.id),
+      ]);
+      const contradictions = contradictionEdges.filter(
+        (c) => relatedPageIds.has(c.from) || relatedPageIds.has(c.to),
+      );
+
+      const rollup = {
+        experimentsTotal: exps.length,
+        experimentsRunning: exps.filter(
+          (e) => e.metadata?.status === 'running',
+        ).length,
+        experimentsCompleted: exps.filter(
+          (e) => e.metadata?.status === 'completed',
+        ).length,
+        experimentsFailed: exps.filter(
+          (e) => e.metadata?.status === 'failed',
+        ).length,
+        contradictionsCount: contradictions.length,
+      };
+
+      return {
+        hypothesis,
+        experiments: exps,
+        contradictions,
+        rollup,
+      };
+    });
+
+    return { campaigns, uncategorized };
+  }
+
+  async getAttentionItems(workspaceId: string, spaceId?: string) {
+    const items: {
+      type: string;
+      severity: string;
+      title: string;
+      description: string;
+      entityId: string;
+      relatedHypothesisId?: string;
+      updatedAt: string;
+    }[] = [];
+
+    // 1. Failed experiments
+    const failedExperiments = await this.db
+      .selectFrom('pages')
+      .select([
+        'pages.id',
+        'pages.title',
+        'pages.metadata',
+        'pages.updatedAt',
+      ])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'experiment')
+      .where('pages.deletedAt', 'is', null)
+      .$if(!!spaceId, (qb) => qb.where('pages.spaceId', '=', spaceId!))
+      .where(sql`pages.metadata->>'status'`, '=', 'failed')
+      .orderBy('pages.updatedAt', 'desc')
+      .limit(20)
+      .execute();
+
+    for (const exp of failedExperiments) {
+      const metadata =
+        typeof exp.metadata === 'string'
+          ? JSON.parse(exp.metadata)
+          : exp.metadata;
+      items.push({
+        type: 'stalled_experiment',
+        severity: 'high',
+        title: `Experiment failed: ${exp.title || 'Untitled'}`,
+        description: 'This experiment has failed and may need investigation.',
+        entityId: exp.id,
+        relatedHypothesisId: metadata?.hypothesisId,
+        updatedAt: (exp.updatedAt as any)?.toISOString?.() || String(exp.updatedAt),
+      });
+    }
+
+    // 2. Stalled experiments (running but not updated in 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const stalledExperiments = await this.db
+      .selectFrom('pages')
+      .select([
+        'pages.id',
+        'pages.title',
+        'pages.metadata',
+        'pages.updatedAt',
+      ])
+      .where('pages.workspaceId', '=', workspaceId)
+      .where('pages.pageType', '=', 'experiment')
+      .where('pages.deletedAt', 'is', null)
+      .$if(!!spaceId, (qb) => qb.where('pages.spaceId', '=', spaceId!))
+      .where(sql`pages.metadata->>'status'`, '=', 'running')
+      .where('pages.updatedAt', '<', sevenDaysAgo)
+      .orderBy('pages.updatedAt', 'asc')
+      .limit(20)
+      .execute();
+
+    for (const exp of stalledExperiments) {
+      const metadata =
+        typeof exp.metadata === 'string'
+          ? JSON.parse(exp.metadata)
+          : exp.metadata;
+      items.push({
+        type: 'stalled_experiment',
+        severity: 'medium',
+        title: `Stalled experiment: ${exp.title || 'Untitled'}`,
+        description:
+          'This experiment has been running for over 7 days without updates.',
+        entityId: exp.id,
+        relatedHypothesisId: metadata?.hypothesisId,
+        updatedAt: (exp.updatedAt as any)?.toISOString?.() || String(exp.updatedAt),
+      });
+    }
+
+    // 3. Unresolved contradictions
+    try {
+      const contradictions = await this.getContradictions(workspaceId, spaceId);
+      for (const c of contradictions) {
+        items.push({
+          type: 'contradiction',
+          severity: 'high',
+          title: `Contradiction: ${c.fromTitle} vs ${c.toTitle}`,
+          description: `A contradiction exists between these findings.`,
+          entityId: c.from,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // Graph may not be available
+    }
+
+    // 4. High-priority open questions
+    const openQuestions = await this.getOpenQuestions(
+      workspaceId,
+      spaceId,
+    );
+    const highPriorityQuestions = openQuestions.filter(
+      (q) =>
+        q.priority !== null &&
+        (Number(q.priority) >= 3 || q.priority === 'urgent' || q.priority === 'high'),
+    );
+
+    for (const q of highPriorityQuestions.slice(0, 10)) {
+      items.push({
+        type: 'blocking_question',
+        severity: 'medium',
+        title: `Open question: ${q.title}`,
+        description: 'This high-priority question may be blocking progress.',
+        entityId: q.id,
+        updatedAt: (q.updatedAt as any)?.toISOString?.() || String(q.updatedAt),
+      });
+    }
+
+    // 5. Unacknowledged patterns (high/medium severity)
+    try {
+      const patterns = await this.getPatterns(workspaceId, {
+        spaceId,
+        status: 'detected',
+      });
+      const importantPatterns = patterns.filter(
+        (p) => p.severity === 'high' || p.severity === 'medium',
+      );
+
+      for (const p of importantPatterns.slice(0, 10)) {
+        items.push({
+          type: 'pattern',
+          severity: p.severity as string,
+          title: `Pattern: ${p.title}`,
+          description: `A ${p.severity}-severity ${p.patternType} pattern needs review.`,
+          entityId: p.id,
+          updatedAt: String(p.detectedAt),
+        });
+      }
+    } catch {
+      // Patterns may not be available
+    }
+
+    // Sort by severity (high first)
+    const severityOrder: Record<string, number> = {
+      high: 0,
+      medium: 1,
+      low: 2,
+    };
+    items.sort(
+      (a, b) =>
+        (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3),
+    );
+
+    return items;
+  }
+
   async acknowledgePattern(id: string) {
     return this.patternRepo.updateStatus(id, 'acknowledged');
   }

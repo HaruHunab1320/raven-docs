@@ -74,6 +74,36 @@ export interface DomainGraphData {
   edges: GraphEdge[];
 }
 
+export interface CampaignRollup {
+  experimentsTotal: number;
+  experimentsRunning: number;
+  experimentsCompleted: number;
+  experimentsFailed: number;
+  contradictionsCount: number;
+}
+
+export interface ResearchCampaign {
+  hypothesis: TypedPageSummary;
+  experiments: TypedPageSummary[];
+  contradictions: Contradiction[];
+  rollup: CampaignRollup;
+}
+
+export interface CampaignsResponse {
+  campaigns: ResearchCampaign[];
+  uncategorized: TypedPageSummary[];
+}
+
+export interface AttentionItem {
+  type: 'stalled_experiment' | 'contradiction' | 'blocking_question' | 'pattern';
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  entityId: string;
+  relatedHypothesisId?: string;
+  updatedAt: string;
+}
+
 export interface PatternDetection {
   id: string;
   patternType: string;
