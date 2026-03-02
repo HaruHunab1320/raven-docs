@@ -192,6 +192,26 @@ export async function teardownDeployment(
   return req.data;
 }
 
+export async function takeoverAgent(
+  agentId: string,
+): Promise<{ success: boolean; agentId: string }> {
+  const req = await api.post<{ success: boolean; agentId: string }>(
+    `${ENDPOINT}/deployments/agent/takeover`,
+    { agentId },
+  );
+  return req.data;
+}
+
+export async function releaseAgent(
+  agentId: string,
+): Promise<{ success: boolean; agentId: string }> {
+  const req = await api.post<{ success: boolean; agentId: string }>(
+    `${ENDPOINT}/deployments/agent/release`,
+    { agentId },
+  );
+  return req.data;
+}
+
 export async function startWorkflow(
   deploymentId: string,
 ): Promise<{ started: boolean; deploymentId: string }> {

@@ -4,7 +4,7 @@ import { atom, useAtom } from "jotai";
 import { socketAtom } from "@/features/websocket/atoms/socket-atom";
 
 export interface AgentActivity {
-  type: "idle" | "running" | "tool_running" | "blocked" | "stalled" | "login_required";
+  type: "idle" | "running" | "tool_running" | "blocked" | "stalled" | "login_required" | "user_takeover";
   detail?: string;
   loginUrl?: string;
   timestamp: number;
@@ -108,6 +108,25 @@ export function useAgentActivity(deploymentId?: string) {
       }
     };
 
+    const handleAgentTakeover = (event: any) => {
+      if (event?.deploymentId !== deploymentIdRef.current) return;
+      if (event.teamAgentId) {
+        if (event.userTakeover) {
+          updateAgent(event.teamAgentId, {
+            type: "user_takeover",
+            detail: "You're driving",
+            timestamp: Date.now(),
+          });
+        } else {
+          updateAgent(event.teamAgentId, {
+            type: "running",
+            detail: "Released",
+            timestamp: Date.now(),
+          });
+        }
+      }
+    };
+
     socket.on("team:agent_tool_running", handleToolRunning);
     socket.on("team:agent_tool_interrupted", handleToolRunning);
     socket.on("team:agent_blocking_prompt", handleBlocking);
@@ -116,6 +135,7 @@ export function useAgentActivity(deploymentId?: string) {
     socket.on("team:agent_loop_started", handleLoopStarted);
     socket.on("team:agent_loop_completed", handleLoopCompleted);
     socket.on("team:agent_loop_failed", handleLoopFailed);
+    socket.on("team:agent_takeover", handleAgentTakeover);
 
     return () => {
       socket.off("team:agent_tool_running", handleToolRunning);
@@ -126,6 +146,7 @@ export function useAgentActivity(deploymentId?: string) {
       socket.off("team:agent_loop_started", handleLoopStarted);
       socket.off("team:agent_loop_completed", handleLoopCompleted);
       socket.off("team:agent_loop_failed", handleLoopFailed);
+      socket.off("team:agent_takeover", handleAgentTakeover);
     };
   }, [socket, deploymentId, updateAgent]);
 

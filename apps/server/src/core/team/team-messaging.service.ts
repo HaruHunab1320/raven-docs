@@ -123,9 +123,9 @@ export class TeamMessagingService {
 
     await this.appendMessage(deploymentId, msg);
 
-    // Spawn target agent if not running
+    // Spawn target agent if not running (skip if user has taken over)
     let agentSpawned = false;
-    if (toAgent.status === 'idle' && !toAgent.runtimeSessionId) {
+    if (toAgent.status === 'idle' && !toAgent.runtimeSessionId && !toAgent.userTakeover) {
       try {
         await this.ensureAgentRunning(toAgent, deploymentId, message);
         agentSpawned = true;
@@ -134,8 +134,9 @@ export class TeamMessagingService {
           `Failed to spawn agent ${toAgent.id} (${toAgent.role}): ${err?.message}`,
         );
       }
-    } else if (toAgent.runtimeSessionId) {
+    } else if (toAgent.runtimeSessionId && !toAgent.userTakeover) {
       // If agent is running and at a blocking prompt, deliver immediately
+      // (skip if user has taken over — messages queue until release)
       await this.deliverPendingMessages(toAgent.id);
     }
 

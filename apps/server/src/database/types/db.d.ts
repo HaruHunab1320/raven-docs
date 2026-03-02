@@ -636,6 +636,7 @@ export interface TeamAgents {
   lastRunSummary: string | null;
   totalActions: Generated<number>;
   totalErrors: Generated<number>;
+  userTakeover: Generated<boolean>;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
 }

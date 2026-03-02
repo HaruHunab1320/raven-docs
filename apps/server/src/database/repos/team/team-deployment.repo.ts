@@ -414,6 +414,24 @@ export class TeamDeploymentRepo {
       .executeTakeFirst();
   }
 
+  async updateAgentUserTakeover(agentId: string, userTakeover: boolean) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({ userTakeover, updatedAt: new Date() })
+      .where('id', '=', agentId)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  async clearAllUserTakeovers(deploymentId: string) {
+    return this.db
+      .updateTable('teamAgents')
+      .set({ userTakeover: false, updatedAt: new Date() })
+      .where('deploymentId', '=', deploymentId)
+      .where('userTakeover', '=', true)
+      .execute();
+  }
+
   async appendRunLog(
     deploymentId: string,
     entry: TeamRunLogEntry,

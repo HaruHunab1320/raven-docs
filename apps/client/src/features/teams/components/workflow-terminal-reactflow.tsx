@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, useEffect, useMemo, useRef } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionIcon,
   Badge,
@@ -8,7 +8,7 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import { IconPlayerStop } from "@tabler/icons-react";
+import { IconArrowsMaximize, IconArrowsMinimize, IconHandGrab, IconHandOff, IconPlayerStop } from "@tabler/icons-react";
 import {
   Background,
   Controls,
@@ -43,6 +43,9 @@ const AgentLiveDataContext = createContext<{
   agentActivity: Record<string, AgentActivity>;
   terminalSessionByAgentId: Map<string, TerminalSession>;
   onTerminateSession?: (sessionId: string) => void;
+  onFocusAgent?: (agentId: string) => void;
+  onTakeoverAgent?: (agentId: string) => void;
+  onReleaseAgent?: (agentId: string) => void;
 }>({
   agentActivity: {},
   terminalSessionByAgentId: new Map(),
@@ -68,6 +71,8 @@ function activityTone(activity?: AgentActivity): {
       return { border: "orange", badge: "orange", label: activity.detail || "Stalled" };
     case "login_required":
       return { border: "red", badge: "red", label: "Login required" };
+    case "user_takeover":
+      return { border: "violet", badge: "violet", label: "You're driving" };
     default:
       return { border: "gray", badge: "gray", label: "Idle" };
   }
@@ -82,12 +87,13 @@ function activityTone(activity?: AgentActivity): {
 const AgentTerminalNode = memo(function AgentTerminalNode({
   data,
 }: NodeProps<Node<AgentTerminalNodeData>>) {
-  const { agentActivity, terminalSessionByAgentId, onTerminateSession } =
+  const { agentActivity, terminalSessionByAgentId, onTerminateSession, onFocusAgent, onTakeoverAgent, onReleaseAgent } =
     useContext(AgentLiveDataContext);
 
   const activity = agentActivity[data.agent.id];
   const session = terminalSessionByAgentId.get(data.agent.id);
   const tone = activityTone(activity);
+  const isTakenOver = activity?.type === "user_takeover";
 
   return (
     <>
@@ -113,18 +119,56 @@ const AgentTerminalNode = memo(function AgentTerminalNode({
                 {tone.label}
               </Badge>
             </Group>
-            {session && onTerminateSession && (
-              <Tooltip label="Stop session" withArrow>
-                <ActionIcon
-                  size="xs"
-                  variant="subtle"
-                  color="red"
-                  onClick={() => onTerminateSession(session.id)}
-                >
-                  <IconPlayerStop size={12} />
-                </ActionIcon>
-              </Tooltip>
-            )}
+            <Group gap={4} wrap="nowrap">
+              {session && !isTakenOver && onTakeoverAgent && (
+                <Tooltip label="Take over agent" withArrow>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="violet"
+                    onClick={() => onTakeoverAgent(data.agent.id)}
+                  >
+                    <IconHandGrab size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {isTakenOver && onReleaseAgent && (
+                <Tooltip label="Release agent" withArrow>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="green"
+                    onClick={() => onReleaseAgent(data.agent.id)}
+                  >
+                    <IconHandOff size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {session && onFocusAgent && (
+                <Tooltip label="Expand terminal" withArrow>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => onFocusAgent(data.agent.id)}
+                  >
+                    <IconArrowsMaximize size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {session && onTerminateSession && (
+                <Tooltip label="Stop session" withArrow>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => onTerminateSession(session.id)}
+                  >
+                    <IconPlayerStop size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
           </Group>
 
           {session ? (
@@ -234,6 +278,8 @@ interface Props {
   agentActivity: Record<string, AgentActivity>;
   terminalSessionByAgentId: Map<string, TerminalSession>;
   onTerminateSession?: (sessionId: string) => void;
+  onTakeoverAgent?: (agentId: string) => void;
+  onReleaseAgent?: (agentId: string) => void;
   height?: number;
 }
 
@@ -243,8 +289,16 @@ export function WorkflowTerminalReactFlow({
   agentActivity,
   terminalSessionByAgentId,
   onTerminateSession,
+  onTakeoverAgent,
+  onReleaseAgent,
   height = 720,
 }: Props) {
+  const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null);
+
+  const onFocusAgent = useCallback((agentId: string) => {
+    setFocusedAgentId(agentId);
+  }, []);
+
   // Nodes only rebuild when agents or orgPattern change (structural).
   // Volatile data (activity, sessions) flows through AgentLiveDataContext.
   const { nodes, edges } = useMemo(() => {
@@ -325,8 +379,8 @@ export function WorkflowTerminalReactFlow({
   // data actually changes (the identities of agentActivity / sessions /
   // callback already reflect real changes from the parent).
   const liveData = useMemo(
-    () => ({ agentActivity, terminalSessionByAgentId, onTerminateSession }),
-    [agentActivity, terminalSessionByAgentId, onTerminateSession],
+    () => ({ agentActivity, terminalSessionByAgentId, onTerminateSession, onFocusAgent, onTakeoverAgent, onReleaseAgent }),
+    [agentActivity, terminalSessionByAgentId, onTerminateSession, onFocusAgent, onTakeoverAgent, onReleaseAgent],
   );
 
   if (!agents.length) {
@@ -334,6 +388,105 @@ export function WorkflowTerminalReactFlow({
       <Text size="sm" c="dimmed">
         No agents are currently provisioned for this deployment.
       </Text>
+    );
+  }
+
+  // Focused / expanded view for a single agent
+  const focusedAgent = focusedAgentId ? agents.find((a) => a.id === focusedAgentId) : null;
+  const focusedSession = focusedAgentId ? terminalSessionByAgentId.get(focusedAgentId) : undefined;
+  const focusedActivity = focusedAgentId ? agentActivity[focusedAgentId] : undefined;
+
+  // Auto-dismiss if the focused agent disappears
+  if (focusedAgentId && !focusedAgent) {
+    setFocusedAgentId(null);
+  }
+
+  if (focusedAgent) {
+    const tone = activityTone(focusedActivity);
+    const isFocusedTakenOver = focusedActivity?.type === "user_takeover";
+    return (
+      <Paper
+        withBorder
+        radius="md"
+        p="sm"
+        style={{
+          height,
+          width: "100%",
+          borderColor: `var(--mantine-color-${tone.border}-6)`,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Group justify="space-between" mb="xs" wrap="nowrap">
+          <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Text size="sm" fw={600} truncate>
+              {focusedAgent.role}
+            </Text>
+            <Badge size="xs" variant="light" color={tone.badge}>
+              {tone.label}
+            </Badge>
+          </Group>
+          <Group gap={4} wrap="nowrap">
+            {focusedSession && !isFocusedTakenOver && onTakeoverAgent && (
+              <Tooltip label="Take over agent" withArrow>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="violet"
+                  onClick={() => onTakeoverAgent(focusedAgent.id)}
+                >
+                  <IconHandGrab size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {isFocusedTakenOver && onReleaseAgent && (
+              <Tooltip label="Release agent" withArrow>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="green"
+                  onClick={() => onReleaseAgent(focusedAgent.id)}
+                >
+                  <IconHandOff size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {focusedSession && onTerminateSession && (
+              <Tooltip label="Stop session" withArrow>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => onTerminateSession(focusedSession.id)}
+                >
+                  <IconPlayerStop size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <Tooltip label="Back to graph" withArrow>
+              <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="gray"
+                onClick={() => setFocusedAgentId(null)}
+              >
+                <IconArrowsMinimize size={12} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Group>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {focusedSession ? (
+            <WebTerminal sessionId={focusedSession.id} height="100%" />
+          ) : (
+            <Paper withBorder radius="sm" p="md" bg="gray.0">
+              <Text size="xs" c="dimmed">
+                No active terminal session for this agent.
+              </Text>
+            </Paper>
+          )}
+        </div>
+      </Paper>
     );
   }
 

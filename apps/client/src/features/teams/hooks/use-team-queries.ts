@@ -418,6 +418,60 @@ export function useRenameDeploymentMutation() {
   });
 }
 
+export function useTakeoverAgentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (agentId: string) =>
+      teamService.takeoverAgent(agentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      queryClient.invalidateQueries({
+        queryKey: ["team-deployment-status"],
+      });
+      notifications.show({
+        title: "Agent Takeover",
+        message: "You are now driving this agent",
+        color: "violet",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message:
+          error.response?.data?.message || "Failed to take over agent",
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useReleaseAgentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (agentId: string) =>
+      teamService.releaseAgent(agentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+      queryClient.invalidateQueries({
+        queryKey: ["team-deployment-status"],
+      });
+      notifications.show({
+        title: "Agent Released",
+        message: "Agent returned to automated workflow",
+        color: "green",
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        title: "Error",
+        message:
+          error.response?.data?.message || "Failed to release agent",
+        color: "red",
+      });
+    },
+  });
+}
+
 export function useAssignDeploymentTaskMutation() {
   const queryClient = useQueryClient();
   return useMutation({

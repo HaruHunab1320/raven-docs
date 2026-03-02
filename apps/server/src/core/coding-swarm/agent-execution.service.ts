@@ -119,6 +119,7 @@ export class AgentExecutionService implements OnModuleDestroy {
             // Fallback: direct pattern match for common login-required strings
             // that older adapter versions may not recognize
             if (!loginDetected) {
+              // eslint-disable-next-line no-control-regex
               const stripped = outputBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
               if (
                 stripped.includes('Not logged in') ||

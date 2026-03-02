@@ -142,6 +142,19 @@ export class TeamRuntimeListener {
     );
   }
 
+  @OnEvent('team.agent_takeover')
+  async handleAgentTakeover(data: {
+    deploymentId: string;
+    teamAgentId: string;
+    userTakeover: boolean;
+  }) {
+    await this.emitAndPublishTeamRuntimeEvent(
+      'team:agent_takeover',
+      'agent_takeover',
+      data,
+    );
+  }
+
   @OnEvent('team.agent_tool_interrupted')
   async handleAgentToolInterrupted(data: {
     deploymentId: string;

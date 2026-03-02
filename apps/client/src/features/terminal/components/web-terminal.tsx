@@ -230,7 +230,11 @@ export function WebTerminal({
     <Paper
       withBorder={!compact}
       radius={compact ? "sm" : "md"}
-      style={{ overflow: "hidden", position: "relative" }}
+      style={{
+        overflow: "hidden",
+        position: "relative",
+        ...(height === "100%" && { height: "100%", display: "flex", flexDirection: "column" as const }),
+      }}
     >
       {/* Terminal header — hidden in compact mode */}
       {!compact && (
@@ -287,7 +291,9 @@ export function WebTerminal({
       <Box
         ref={terminalRef}
         style={{
-          height: typeof height === "number" ? `${height}px` : height,
+          ...(height === "100%"
+            ? { flex: 1, minHeight: 0 }
+            : { height: typeof height === "number" ? `${height}px` : height }),
           backgroundColor: "#1a1b26",
         }}
       />

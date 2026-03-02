@@ -6,6 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
 import { TeamTemplateRepo } from '../../database/repos/team/team-template.repo';
 import { UserRepo } from '@raven-docs/db/repos/user/user.repo';
@@ -40,6 +41,7 @@ export class TeamDeploymentService {
     @Optional() private readonly agentExecution: AgentExecutionService,
     @Optional() private readonly teamMessaging: TeamMessagingService,
     @InjectKysely() private readonly db: KyselyDB,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -360,6 +362,70 @@ export class TeamDeploymentService {
   }
 
   /**
+   * Take over an agent — sets userTakeover flag so the orchestrator
+   * leaves it alone while the user drives it interactively.
+   */
+  async takeoverAgent(workspaceId: string, agentId: string) {
+    const agent = await this.teamRepo.findAgentById(agentId);
+    if (!agent || agent.workspaceId !== workspaceId) {
+      throw new NotFoundException('Agent not found');
+    }
+    if (!agent.runtimeSessionId) {
+      throw new BadRequestException('Agent has no active session to take over');
+    }
+    if (agent.userTakeover) {
+      throw new BadRequestException('Agent is already taken over');
+    }
+
+    await this.teamRepo.updateAgentUserTakeover(agentId, true);
+
+    this.eventEmitter.emit('team.agent_takeover', {
+      deploymentId: agent.deploymentId,
+      teamAgentId: agentId,
+      userTakeover: true,
+    });
+
+    this.logger.log(`User took over agent ${agentId} (${agent.role})`);
+    return { success: true, agentId };
+  }
+
+  /**
+   * Release an agent — clears userTakeover flag and flushes any
+   * messages that queued while the user was driving.
+   */
+  async releaseAgent(workspaceId: string, agentId: string) {
+    const agent = await this.teamRepo.findAgentById(agentId);
+    if (!agent || agent.workspaceId !== workspaceId) {
+      throw new NotFoundException('Agent not found');
+    }
+    if (!agent.userTakeover) {
+      throw new BadRequestException('Agent is not taken over');
+    }
+
+    await this.teamRepo.updateAgentUserTakeover(agentId, false);
+
+    // Flush any messages that queued while the user was driving
+    if (this.teamMessaging) {
+      try {
+        await this.teamMessaging.deliverPendingMessages(agentId);
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to flush pending messages on release for agent ${agentId}: ${err?.message}`,
+        );
+      }
+    }
+
+    this.eventEmitter.emit('team.agent_takeover', {
+      deploymentId: agent.deploymentId,
+      teamAgentId: agentId,
+      userTakeover: false,
+    });
+
+    this.logger.log(`User released agent ${agentId} (${agent.role})`);
+    return { success: true, agentId };
+  }
+
+  /**
    * Full team reset — terminates all terminal/runtime sessions, clears all
    * agent state back to clean idle, resets stats, and reactivates the deployment.
    */
@@ -368,6 +434,9 @@ export class TeamDeploymentService {
     if (!deployment || deployment.workspaceId !== workspaceId) {
       throw new NotFoundException('Deployment not found');
     }
+
+    // Clear all user takeover flags before resetting agents
+    await this.teamRepo.clearAllUserTakeovers(deploymentId);
 
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
     let resetCount = 0;
@@ -482,6 +551,9 @@ export class TeamDeploymentService {
     const targetExperimentId = deploymentConfig.targetExperimentId as
       | string
       | undefined;
+
+    // Clear all user takeover flags before tearing down
+    await this.teamRepo.clearAllUserTakeovers(deploymentId);
 
     // Stop all running agent PTY processes + terminal sessions
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);

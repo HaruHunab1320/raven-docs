@@ -169,3 +169,8 @@ export class AssignTeamTaskDto {
   @IsOptional()
   experimentId?: string;
 }
+
+export class AgentTakeoverDto {
+  @IsUUID()
+  agentId: string;
+}

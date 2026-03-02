@@ -69,7 +69,8 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
           if (
             agent.status === 'running' &&
             agent.currentStepId &&
-            agent.runtimeSessionId
+            agent.runtimeSessionId &&
+            !agent.userTakeover
           ) {
             await this.agentExecution.forceClassifySession(
               agent.runtimeSessionId,
@@ -100,6 +101,11 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
 
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) {
       return;
+    }
+
+    // If agent was taken over by user, clear the flag before normal cleanup
+    if (teamAgent.userTakeover) {
+      await this.teamRepo.updateAgentUserTakeover(teamAgent.id, false);
     }
 
     // If login was detected on exit, the login_required handler already
@@ -593,6 +599,19 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     if (!teamAgent) return;
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) return;
 
+    // User is driving this agent — emit event for UI but don't auto-deliver
+    if (teamAgent.userTakeover) {
+      this.eventEmitter.emit('team.agent_blocking_prompt', {
+        deploymentId: teamAgent.deploymentId,
+        teamAgentId: teamAgent.id,
+        stepId: teamAgent.currentStepId || undefined,
+        promptInfo: data.promptInfo,
+        userTakeover: true,
+        runtimeSessionId,
+      });
+      return;
+    }
+
     // Login prompts are handled by handleLoginRequired — skip here
     const promptType = data.promptInfo?.type || '';
     if (promptType === 'login') {
@@ -655,6 +674,9 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     if (!teamAgent) return;
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) return;
 
+    // User is driving — skip stall classification
+    if (teamAgent.userTakeover) return;
+
     this.eventEmitter.emit('team.stall_classified', {
       deploymentId: teamAgent.deploymentId,
       teamAgentId: teamAgent.id,
@@ -677,6 +699,9 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     const teamAgent = await this.teamRepo.findAgentByRuntimeSessionId(runtimeSessionId);
     if (!teamAgent) return;
     if (data.workspaceId && data.workspaceId !== teamAgent.workspaceId) return;
+
+    // User is driving — skip task completion handling
+    if (teamAgent.userTakeover) return;
 
     const stepId = teamAgent.currentStepId || undefined;
     if (!stepId) return;
@@ -720,7 +745,9 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
    */
   private extractAuthUrl(output: string): string | undefined {
     if (!output) return undefined;
+    // eslint-disable-next-line no-control-regex
     const stripped = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    // eslint-disable-next-line no-control-regex
     const urlMatch = stripped.match(/https?:\/\/[^\s\x1b)]+/g);
     if (!urlMatch) return undefined;
     return (
@@ -760,6 +787,7 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
           return;
         }
 
+        // eslint-disable-next-line no-control-regex
         const stripped = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
 
         if (

@@ -29,6 +29,7 @@ import {
   RedeployTeamDto,
   RenameTeamDto,
   AssignTeamTaskDto,
+  AgentTakeoverDto,
 } from './dto/team.dto';
 import { OrgPattern } from './org-chart.types';
 import { TeamTemplateValidationService } from './team-template-validation.service';
@@ -316,6 +317,24 @@ export class TeamController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.deploymentService.teardownTeam(workspace.id, dto.deploymentId);
+  }
+
+  @Post('deployments/agent/takeover')
+  @HttpCode(HttpStatus.OK)
+  async takeoverAgent(
+    @Body() dto: AgentTakeoverDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.takeoverAgent(workspace.id, dto.agentId);
+  }
+
+  @Post('deployments/agent/release')
+  @HttpCode(HttpStatus.OK)
+  async releaseAgent(
+    @Body() dto: AgentTakeoverDto,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.deploymentService.releaseAgent(workspace.id, dto.agentId);
   }
 
   @Post('deployments/workflow/start')

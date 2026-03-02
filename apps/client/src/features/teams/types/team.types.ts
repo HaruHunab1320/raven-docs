@@ -122,6 +122,7 @@ export interface TeamAgent {
   lastRunSummary: string | null;
   totalActions: number;
   totalErrors: number;
+  userTakeover: boolean;
   createdAt: string;
   updatedAt: string;
 }

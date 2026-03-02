@@ -28,6 +28,8 @@ import {
   useRedeployTeamMutation,
   useAssignDeploymentTaskMutation,
   useResetTeamMutation,
+  useTakeoverAgentMutation,
+  useReleaseAgentMutation,
 } from "../hooks/use-team-queries";
 import { useTeamLiveUpdates } from "../hooks/use-team-live-updates";
 import { useAgentActivity } from "../hooks/use-agent-activity";
@@ -271,6 +273,8 @@ export function DeploymentDetailView({
   const redeployMutation = useRedeployTeamMutation();
   const assignTaskMutation = useAssignDeploymentTaskMutation();
   const resetMutation = useResetTeamMutation();
+  const takeoverMutation = useTakeoverAgentMutation();
+  const releaseMutation = useReleaseAgentMutation();
   const [renameOpened, { open: openRename, close: closeRename }] =
     useDisclosure(false);
   const [targetExperimentId, setTargetExperimentId] = useState<string | null>(
@@ -553,6 +557,8 @@ export function DeploymentDetailView({
         agentActivity={agentActivity}
         terminalSessionByAgentId={terminalSessionByAgentId}
         onTerminateSession={(sid) => terminateTerminalMutation.mutate(sid)}
+        onTakeoverAgent={(agentId) => takeoverMutation.mutate(agentId)}
+        onReleaseAgent={(agentId) => releaseMutation.mutate(agentId)}
         height={compact ? 620 : 760}
       />
 
