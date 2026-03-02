@@ -22,6 +22,11 @@ import {
 const SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:3000';
 const API_KEY = process.env.MCP_API_KEY || '';
 const DEBUG = process.env.MCP_DEBUG === 'true';
+// Optional comma-separated list of tool categories to expose (e.g. "page,task,research").
+// When set, only tools matching these categories are registered. Empty = all tools.
+const TOOL_CATEGORIES = process.env.MCP_TOOL_CATEGORIES
+  ? new Set(process.env.MCP_TOOL_CATEGORIES.split(',').map((s) => s.trim()))
+  : null;
 
 function log(...args: any[]) {
   if (DEBUG) {
@@ -61,6 +66,7 @@ interface RavenTool {
   name: string;
   description: string;
   inputSchema: Record<string, any>;
+  category?: string;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -71,8 +77,17 @@ async function main() {
   let tools: RavenTool[] = [];
   try {
     const result = await post('list_tools');
-    tools = result?.tools || [];
+    tools = result?.data?.tools || result?.tools || [];
     log(`Fetched ${tools.length} tools`);
+
+    // Filter to specific categories if MCP_TOOL_CATEGORIES is set.
+    // This keeps the tool count small enough that Claude Code preloads
+    // all definitions instead of activating Tool Search mode.
+    if (TOOL_CATEGORIES && TOOL_CATEGORIES.size > 0) {
+      const before = tools.length;
+      tools = tools.filter((t) => t.category && TOOL_CATEGORIES.has(t.category));
+      log(`Filtered ${before} → ${tools.length} tools (categories: ${[...TOOL_CATEGORIES].join(', ')})`);
+    }
   } catch (err: any) {
     log(`Failed to fetch tools: ${err.message}`);
   }

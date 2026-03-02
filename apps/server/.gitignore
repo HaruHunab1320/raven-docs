@@ -39,3 +39,6 @@ lerna-debug.log*
 
 # Raven agent injected files
 .git-workspace/
+
+# Raven agent injected files
+CLAUDE.md
