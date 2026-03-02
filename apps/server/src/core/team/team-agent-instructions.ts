@@ -249,6 +249,93 @@ hypothesis_update({
 Status options: \`proposed\`, \`testing\`, \`validated\`, \`refuted\`, \`inconclusive\`, \`superseded\`. Confidence ranges from 0 to 1.`);
   }
 
+  // --- Open questions ---
+  if (hasCap(capabilities, 'openquestion.create')) {
+    blocks.push(`## Tracking Open Questions
+
+When your research surfaces questions that can't be answered right now, record them as open questions:
+\`\`\`
+openquestion_create({
+  "workspaceId": "${wid}",
+  "spaceId": "${sid}",
+  "title": "Does the rate limiter handle distributed deployments?",
+  "description": "Our caching tests assumed a single-node deployment. If we scale to multiple nodes, does the token bucket algorithm need a shared counter (e.g. Redis-backed)? This affects the architecture recommendation."
+})
+\`\`\`
+
+**List open questions** to see what remains unanswered:
+\`\`\`
+openquestion_list({ "workspaceId": "${wid}", "spaceId": "${sid}" })
+\`\`\`
+
+Open questions are tracked as tasks with the "open-question" label. When you find the answer, update the task to "done" using \`task_update\`.`);
+  }
+
+  // --- Pattern detection ---
+  if (hasCap(capabilities, 'pattern')) {
+    blocks.push(`## Reviewing Detected Patterns
+
+The system automatically detects patterns across research artifacts (contradictions, stale hypotheses, knowledge gaps). Check for patterns periodically:
+\`\`\`
+pattern_list({ "workspaceId": "${wid}" })
+\`\`\`
+
+**Acknowledge** a pattern when you've taken action on it:
+\`\`\`
+pattern_acknowledge({ "patternId": "<pattern ID>", "actionTaken": "Created follow-up experiment to resolve the contradiction between hypothesis H1 and H2" })
+\`\`\`
+
+**Dismiss** a pattern if it's not relevant:
+\`\`\`
+pattern_dismiss({ "patternId": "<pattern ID>" })
+\`\`\`
+
+**Trigger pattern detection** manually after a batch of research work:
+\`\`\`
+pattern_run({ "workspaceId": "${wid}" })
+\`\`\`
+
+Use patterns to identify gaps, contradictions, and stale areas in your research graph.`);
+  }
+
+  // --- Relationships (domain graph) ---
+  if (hasCap(capabilities, 'relationship.create')) {
+    blocks.push(`## Building the Knowledge Graph
+
+Connect research artifacts with typed relationships to build a navigable domain graph:
+\`\`\`
+relationship_create({
+  "fromPageId": "<experiment page ID>",
+  "toPageId": "<hypothesis page ID>",
+  "type": "TESTS_HYPOTHESIS"
+})
+\`\`\`
+
+**Relationship types:**
+- \`TESTS_HYPOTHESIS\` — experiment → hypothesis it tests
+- \`VALIDATES\` — evidence that supports a hypothesis
+- \`CONTRADICTS\` — evidence that conflicts with a hypothesis
+- \`BUILDS_ON\` — work that extends or refines earlier work
+- \`RELATED_TO\` — general thematic connection
+
+**Example — linking experiment results to a hypothesis:**
+\`\`\`
+relationship_create({
+  "fromPageId": "<completed experiment ID>",
+  "toPageId": "<hypothesis ID>",
+  "type": "VALIDATES",
+  "metadata": { "confidence": 0.85, "note": "p95 latency dropped 34%, exceeding the 30% threshold" }
+})
+\`\`\`
+
+**List relationships** to see how artifacts connect:
+\`\`\`
+relationship_list({ "pageId": "<page ID>" })
+\`\`\`
+
+Build relationships as you work — they power the intelligence query system and help the team avoid redundant research.`);
+  }
+
   // --- Context/intelligence query ---
   if (
     hasCap(capabilities, 'context.query') ||

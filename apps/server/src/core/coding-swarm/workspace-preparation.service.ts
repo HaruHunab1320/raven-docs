@@ -516,6 +516,13 @@ ${JSON.stringify(params.taskContext, null, 2)}
         case 'research':
           cats.add('research');
           break;
+        case 'pattern':
+          cats.add('research');
+          break;
+        case 'context':
+        case 'intelligence':
+          cats.add('research');
+          break;
         case 'space':
           cats.add('space');
           break;

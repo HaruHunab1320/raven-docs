@@ -32,6 +32,7 @@ import { IntelligenceContextHandler } from './handlers/intelligence-context.hand
 import { RelationshipHandler } from './handlers/relationship.handler';
 import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
+import { OpenQuestionHandler } from './handlers/open-question.handler';
 import { SwarmHandler } from './handlers/swarm.handler';
 import { GitHubIssueHandler } from './handlers/github-issue.handler';
 import { RepoBrowseService } from '../repo/repo-browse.service';
@@ -80,6 +81,7 @@ import { TeamModule } from '../../core/team/team.module';
 import { PatternDetectionModule } from '../../core/pattern-detection/pattern-detection.module';
 import { CodingSwarmModule } from '../../core/coding-swarm/coding-swarm.module';
 import { GitWorkspaceModule } from '../../core/git-workspace/git-workspace.module';
+import { ResearchDashboardModule } from '../../core/research-dashboard/research-dashboard.module';
 
 /**
  * Machine Control Protocol (MCP) Module
@@ -120,6 +122,7 @@ import { GitWorkspaceModule } from '../../core/git-workspace/git-workspace.modul
     PatternDetectionModule,
     CodingSwarmModule,
     GitWorkspaceModule,
+    ResearchDashboardModule,
     EventEmitterModule.forRoot(),
   ],
   controllers: [ApiKeyController, ApprovalCenterController],
@@ -160,6 +163,7 @@ import { GitWorkspaceModule } from '../../core/git-workspace/git-workspace.modul
     PatternHandler,
     SwarmHandler,
     GitHubIssueHandler,
+    OpenQuestionHandler,
     // Register services
     MCPSchemaService,
     MCPContextService,

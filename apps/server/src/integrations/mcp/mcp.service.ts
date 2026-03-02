@@ -34,6 +34,7 @@ import { TeamHandler } from './handlers/team.handler';
 import { PatternHandler } from './handlers/pattern.handler';
 import { SwarmHandler } from './handlers/swarm.handler';
 import { GitHubIssueHandler } from './handlers/github-issue.handler';
+import { OpenQuestionHandler } from './handlers/open-question.handler';
 import { User } from '@raven-docs/db/types/entity.types';
 import {
   createInternalError,
@@ -102,6 +103,7 @@ export class MCPService {
     private readonly patternHandler: PatternHandler,
     private readonly swarmHandler: SwarmHandler,
     private readonly githubIssueHandler: GitHubIssueHandler,
+    private readonly openQuestionHandler: OpenQuestionHandler,
     private readonly bugReportService: BugReportService,
   ) {}
 
@@ -447,6 +449,14 @@ export class MCPService {
           case 'team':
             this.logger.debug(`MCPService: Delegating to team handler`);
             result = await this.handleTeamRequest(
+              operation,
+              request.params,
+              user.id,
+            );
+            break;
+          case 'openquestion':
+            this.logger.debug(`MCPService: Delegating to open question handler`);
+            result = await this.handleOpenQuestionRequest(
               operation,
               request.params,
               user.id,
@@ -1553,6 +1563,21 @@ export class MCPService {
         return this.patternHandler.run(params, userId);
       default:
         throw createMethodNotFoundError(`pattern.${operation}`);
+    }
+  }
+
+  private async handleOpenQuestionRequest(
+    operation: string,
+    params: any,
+    userId: string,
+  ): Promise<any> {
+    switch (operation) {
+      case 'create':
+        return this.openQuestionHandler.create(params, userId);
+      case 'list':
+        return this.openQuestionHandler.list(params, userId);
+      default:
+        throw createMethodNotFoundError(`openquestion.${operation}`);
     }
   }
 

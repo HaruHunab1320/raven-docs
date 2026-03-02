@@ -1856,6 +1856,102 @@ export const TOOL_CATALOG: MCPToolDefinition[] = [
   },
 
   // ==========================================================================
+  // OPEN QUESTIONS
+  // ==========================================================================
+  {
+    name: 'openquestion_create',
+    description: 'Create an open question — a task tagged with the "open-question" label. Use this to track unanswered questions that surface during research.',
+    category: 'research',
+    tags: ['openquestion', 'create', 'question', 'research'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'The open question (e.g. "Does the rate limiter handle distributed deployments?")' },
+        description: { type: 'string', description: 'Additional context explaining why this question matters and what answering it would unblock' },
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        spaceId: { type: 'string', description: 'ID of the space' },
+        priority: { type: 'string', description: 'Priority level: urgent, high, medium, low (default: medium)' },
+      },
+      required: ['title', 'workspaceId', 'spaceId'],
+    },
+  },
+  {
+    name: 'openquestion_list',
+    description: 'List open questions (tasks with "open-question" label that are not yet done) for a workspace. Returns questions sorted by priority and recency.',
+    category: 'research',
+    tags: ['openquestion', 'list', 'questions', 'research'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        spaceId: { type: 'string', description: 'Optional space ID to filter by' },
+      },
+      required: ['workspaceId'],
+    },
+  },
+
+  // ==========================================================================
+  // PATTERN DETECTION
+  // ==========================================================================
+  {
+    name: 'pattern_list',
+    description: 'List detected patterns (contradictions, stale hypotheses, knowledge gaps) across research artifacts in a workspace.',
+    category: 'research',
+    tags: ['pattern', 'list', 'detection', 'research'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace' },
+        spaceId: { type: 'string', description: 'Optional space ID to filter by' },
+        status: { type: 'string', description: 'Filter by status: active, acknowledged, dismissed' },
+        patternType: { type: 'string', description: 'Filter by pattern type' },
+        limit: { type: 'number', description: 'Maximum results (default: 50)' },
+      },
+      required: ['workspaceId'],
+    },
+  },
+  {
+    name: 'pattern_acknowledge',
+    description: 'Acknowledge a detected pattern, indicating you have taken action on it.',
+    category: 'research',
+    tags: ['pattern', 'acknowledge', 'detection'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        patternId: { type: 'string', description: 'ID of the pattern to acknowledge' },
+        actionTaken: { type: 'string', description: 'Description of the action taken to address the pattern' },
+      },
+      required: ['patternId'],
+    },
+  },
+  {
+    name: 'pattern_dismiss',
+    description: 'Dismiss a detected pattern as not relevant or not actionable.',
+    category: 'research',
+    tags: ['pattern', 'dismiss', 'detection'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        patternId: { type: 'string', description: 'ID of the pattern to dismiss' },
+      },
+      required: ['patternId'],
+    },
+  },
+  {
+    name: 'pattern_run',
+    description: 'Manually trigger pattern detection for a workspace. Analyzes research artifacts and detects contradictions, stale hypotheses, knowledge gaps, and other patterns.',
+    category: 'research',
+    tags: ['pattern', 'run', 'detection', 'analyze'],
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: 'ID of the workspace to run detection on' },
+      },
+      required: ['workspaceId'],
+    },
+  },
+
+  // ==========================================================================
   // NAVIGATION
   // ==========================================================================
   {
