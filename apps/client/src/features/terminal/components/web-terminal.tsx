@@ -14,9 +14,6 @@ import {
   Alert,
 } from "@mantine/core";
 import {
-  IconTerminal2,
-  IconPlugConnected,
-  IconPlugConnectedX,
   IconExternalLink,
   IconX,
 } from "@tabler/icons-react";
@@ -29,6 +26,8 @@ interface WebTerminalProps {
   sessionId: string;
   onClose?: () => void;
   height?: number | string;
+  /** Hide the header bar (use when parent already provides context) */
+  compact?: boolean;
 }
 
 const STATUS_COLORS: Record<TerminalSessionStatus, string> = {
@@ -53,6 +52,7 @@ export function WebTerminal({
   sessionId,
   onClose,
   height = 400,
+  compact = false,
 }: WebTerminalProps) {
   const { t } = useTranslation();
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -89,6 +89,12 @@ export function WebTerminal({
     xtermRef.current?.writeln(`\r\n\x1b[31m[Error] ${errorMsg}\x1b[0m\r\n`);
   }, []);
 
+  const handleClear = useCallback(() => {
+    // Use clear() not reset() — reset() destroys terminal emulation state
+    // (saved cursor positions, modes, etc.) that TUI apps like Claude Code depend on.
+    xtermRef.current?.clear();
+  }, []);
+
   const handleConnect = useCallback(() => {
     xtermRef.current?.writeln(
       `\x1b[90m[System] Connected to terminal gateway.\x1b[0m`
@@ -107,12 +113,19 @@ export function WebTerminal({
   } = useTerminalSocket({
     sessionId,
     onData: handleData,
+    onClear: handleClear,
     onStatusChange: handleStatusChange,
     onError: handleError,
     onConnect: handleConnect,
   });
 
-  // Initialize xterm
+  // Stable refs for socket callbacks — prevents terminal re-initialization
+  const sendInputRef = useRef(sendInput);
+  sendInputRef.current = sendInput;
+  const resizeRef = useRef(resize);
+  resizeRef.current = resize;
+
+  // Initialize xterm (mount-only — refs keep callbacks fresh without re-running)
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
 
@@ -159,14 +172,14 @@ export function WebTerminal({
 
     // Handle user input
     terminal.onData((data) => {
-      sendInput(data);
+      sendInputRef.current(data);
     });
 
     // Handle resize
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
       if (terminal.cols && terminal.rows) {
-        resize(terminal.cols, terminal.rows);
+        resizeRef.current(terminal.cols, terminal.rows);
       }
     });
     resizeObserver.observe(terminalRef.current);
@@ -181,7 +194,8 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sendInput, resize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-attach when connected
   useEffect(() => {
@@ -189,6 +203,19 @@ export function WebTerminal({
       attach();
     }
   }, [isConnected, isAttached, attach]);
+
+  // Send terminal dimensions to PTY after attach completes.
+  // The ResizeObserver fires before the socket is attached, so the initial
+  // dimensions are never sent. This ensures the PTY knows the correct size,
+  // which is critical for TUI apps (Claude Code) that render based on TIOCGWINSZ.
+  useEffect(() => {
+    if (isAttached && xtermRef.current) {
+      const { cols, rows } = xtermRef.current;
+      if (cols && rows) {
+        resize(cols, rows);
+      }
+    }
+  }, [isAttached, resize]);
 
   // Handle cleanup on unmount
   useEffect(() => {
@@ -200,70 +227,54 @@ export function WebTerminal({
   }, [isAttached, detach]);
 
   return (
-    <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-      {/* Terminal header */}
-      <Group
-        justify="space-between"
-        p="xs"
-        style={{ borderBottom: "1px solid var(--mantine-color-dark-4)" }}
-        bg="dark.7"
-      >
-        <Group gap="xs">
-          <IconTerminal2 size={18} />
-          <Text size="sm" fw={500}>
-            {t("Terminal")}
-          </Text>
-          {status && (
-            <Badge size="sm" color={STATUS_COLORS[status]} variant="light">
-              {STATUS_LABELS[status]}
-            </Badge>
-          )}
+    <Paper
+      withBorder={!compact}
+      radius={compact ? "sm" : "md"}
+      style={{ overflow: "hidden", position: "relative" }}
+    >
+      {/* Terminal header — hidden in compact mode */}
+      {!compact && (
+        <Group
+          justify="space-between"
+          px="xs"
+          py={4}
+          style={{ borderBottom: "1px solid var(--mantine-color-dark-4)" }}
+          bg="dark.7"
+        >
+          <Group gap="xs">
+            {status && (
+              <Badge size="xs" color={STATUS_COLORS[status]} variant="light">
+                {STATUS_LABELS[status]}
+              </Badge>
+            )}
+          </Group>
+          <Group gap="xs">
+            {status === "login_required" && loginUrl && (
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconExternalLink size={14} />}
+                component="a"
+                href={loginUrl}
+                target="_blank"
+              >
+                {t("Login")}
+              </Button>
+            )}
+            {onClose && (
+              <Button
+                size="xs"
+                variant="subtle"
+                color="gray"
+                onClick={onClose}
+                p={4}
+              >
+                <IconX size={16} />
+              </Button>
+            )}
+          </Group>
         </Group>
-        <Group gap="xs">
-          {isConnected ? (
-            <Badge
-              size="sm"
-              color="green"
-              variant="dot"
-              leftSection={<IconPlugConnected size={12} />}
-            >
-              {t("Connected")}
-            </Badge>
-          ) : (
-            <Badge
-              size="sm"
-              color="red"
-              variant="dot"
-              leftSection={<IconPlugConnectedX size={12} />}
-            >
-              {t("Disconnected")}
-            </Badge>
-          )}
-          {status === "login_required" && loginUrl && (
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconExternalLink size={14} />}
-              component="a"
-              href={loginUrl}
-              target="_blank"
-            >
-              {t("Login")}
-            </Button>
-          )}
-          {onClose && (
-            <Button
-              size="xs"
-              variant="subtle"
-              color="gray"
-              onClick={onClose}
-              p={4}
-            >
-              <IconX size={16} />
-            </Button>
-          )}
-        </Group>
-      </Group>
+      )}
 
       {/* Error alert */}
       {error && (

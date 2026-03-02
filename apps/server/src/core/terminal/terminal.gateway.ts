@@ -165,27 +165,51 @@ export class TerminalGateway
         client.workspaceId,
       );
 
+      // Clean up any existing attachment on this client before re-attaching.
+      // This prevents orphaned listeners from sending duplicate data.
+      if (client.localAttachmentUnsub) {
+        client.localAttachmentUnsub();
+        client.localAttachmentUnsub = undefined;
+      }
+      client.localAttachment = undefined;
+      if (client.runtimeWs) {
+        client.runtimeWs.close();
+        client.runtimeWs = undefined;
+      }
+      if (client.sessionId) {
+        client.leave(`session:${client.sessionId}`);
+        this.proxyConnections.delete(client.sessionId);
+      }
+
       client.sessionId = session.id;
       client.join(`session:${session.id}`);
 
       // Check if we need to use proxy mode
       const hasLegacyConnection = this.runtimeConnections.has(session.runtimeSessionId);
 
+      let resolvedStatus = session.status;
+
       if (!hasLegacyConnection && session.runtimeEndpoint) {
+        // Close any existing orphaned proxy for this session
+        const existingProxy = this.proxyConnections.get(session.id);
+        if (existingProxy) {
+          existingProxy.close();
+          this.proxyConnections.delete(session.id);
+        }
         // Proxy mode: Connect to runtime's terminal WebSocket
         await this.setupProxyConnection(client, session);
       } else if (!hasLegacyConnection && this.agentExecution?.mode === 'local') {
         // Local PTY mode: attach directly to the local runtime session.
+        // IMPORTANT: We store the attachment but defer the onData listener
+        // until after clear + log replay so live data doesn't interleave
+        // with historical data (which corrupts TUI rendering).
         const localAttachment = this.agentExecution.attachTerminal(
           session.runtimeSessionId,
         ) as TerminalAttachment | null;
         if (localAttachment) {
           client.localAttachment = localAttachment;
-          client.localAttachmentUnsub = localAttachment.onData((chunk) => {
-            client.emit('data', chunk);
-            void this.terminalSessionService.logOutput(session.id, chunk.slice(0, 10000));
-          });
           await this.terminalSessionService.updateStatus(session.id, 'active');
+          resolvedStatus = 'active';
         }
       }
 
@@ -193,10 +217,14 @@ export class TerminalGateway
       client.emit('attached', {
         sessionId: session.id,
         agentId: session.agentId,
-        status: session.status,
+        status: resolvedStatus,
         cols: session.cols,
         rows: session.rows,
       });
+
+      // Tell client to clear before replaying historical logs.
+      // This prevents duplicate content when reconnecting.
+      client.emit('clear');
 
       // Send recent logs to catch up
       const logs = await this.terminalSessionService.getRecentLogs(session.id, 500);
@@ -206,6 +234,17 @@ export class TerminalGateway
           .map((l) => l.content)
           .join('');
         client.emit('data', output);
+      }
+
+      // NOW start the live data listener — after clear + replay are done.
+      // This ensures historical data is delivered cleanly before live
+      // streaming begins, preventing interleaved/garbled TUI output.
+      if (client.localAttachment && !client.localAttachmentUnsub) {
+        const sid = session.id;
+        client.localAttachmentUnsub = client.localAttachment.onData((chunk) => {
+          client.emit('data', chunk);
+          void this.terminalSessionService.logOutput(sid, chunk.slice(0, 10000));
+        });
       }
 
       this.logger.log(`User ${client.userId} attached to session ${session.id}`);

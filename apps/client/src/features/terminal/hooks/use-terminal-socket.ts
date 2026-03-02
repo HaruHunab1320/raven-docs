@@ -5,6 +5,7 @@ import type { TerminalSessionStatus } from "../services/terminal-service";
 interface UseTerminalSocketOptions {
   sessionId: string;
   onData?: (data: string) => void;
+  onClear?: () => void;
   onStatusChange?: (status: TerminalSessionStatus, loginUrl?: string) => void;
   onError?: (error: string) => void;
   onConnect?: () => void;
@@ -25,6 +26,7 @@ interface TerminalSocketReturn {
 export function useTerminalSocket({
   sessionId,
   onData,
+  onClear,
   onStatusChange,
   onError,
   onConnect,
@@ -36,8 +38,22 @@ export function useTerminalSocket({
   const [status, setStatus] = useState<TerminalSessionStatus | null>(null);
   const [loginUrl, setLoginUrl] = useState<string | null>(null);
 
+  // Store callbacks in refs so the socket effect never re-runs due to callback identity changes.
+  // This is the critical fix: the socket should be created once per sessionId, period.
+  const onDataRef = useRef(onData);
+  onDataRef.current = onData;
+  const onClearRef = useRef(onClear);
+  onClearRef.current = onClear;
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const onConnectRef = useRef(onConnect);
+  onConnectRef.current = onConnect;
+  const onDisconnectRef = useRef(onDisconnect);
+  onDisconnectRef.current = onDisconnect;
+
   useEffect(() => {
-    // Get the base URL from current origin or environment
     const baseUrl = window.location.origin;
     const wsUrl = baseUrl.replace(/^http/, "ws");
 
@@ -50,13 +66,13 @@ export function useTerminalSocket({
 
     socket.on("connect", () => {
       setIsConnected(true);
-      onConnect?.();
+      onConnectRef.current?.();
     });
 
     socket.on("disconnect", () => {
       setIsConnected(false);
       setIsAttached(false);
-      onDisconnect?.();
+      onDisconnectRef.current?.();
     });
 
     socket.on("attached", (data: { sessionId: string; status: TerminalSessionStatus; cols: number; rows: number }) => {
@@ -69,7 +85,13 @@ export function useTerminalSocket({
     });
 
     socket.on("data", (data: string) => {
-      onData?.(data);
+      onDataRef.current?.(data);
+    });
+
+    // Server sends "clear" before replaying historical logs on re-attach.
+    // This prevents duplicate content from accumulating.
+    socket.on("clear", () => {
+      onClearRef.current?.();
     });
 
     socket.on("status", (data: { status: TerminalSessionStatus; loginUrl?: string }) => {
@@ -77,18 +99,20 @@ export function useTerminalSocket({
       if (data.loginUrl) {
         setLoginUrl(data.loginUrl);
       }
-      onStatusChange?.(data.status, data.loginUrl);
+      onStatusChangeRef.current?.(data.status, data.loginUrl);
     });
 
     socket.on("error", (data: { message: string }) => {
-      onError?.(data.message);
+      onErrorRef.current?.(data.message);
     });
 
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [onConnect, onData, onDisconnect, onError, onStatusChange]);
+    // Only recreate the socket if the sessionId changes.
+    // Callbacks are accessed via refs and never cause reconnection.
+  }, [sessionId]);
 
   const attach = useCallback(() => {
     if (socketRef.current && isConnected && !isAttached) {
