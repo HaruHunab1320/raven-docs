@@ -34,6 +34,7 @@ import { PatternDetectionModule } from './pattern-detection/pattern-detection.mo
 import { GitWorkspaceModule } from './git-workspace/git-workspace.module';
 import { CodingSwarmModule } from './coding-swarm/coding-swarm.module';
 import { LocalSyncModule } from './local-sync/local-sync.module';
+import { ParallaxRuntimeModule } from './parallax-runtime/parallax-runtime.module';
 
 const modules = [
   UserModule,
@@ -63,6 +64,7 @@ const modules = [
   GitWorkspaceModule,
   CodingSwarmModule,
   LocalSyncModule,
+  ParallaxRuntimeModule,
 ];
 
 @Module({

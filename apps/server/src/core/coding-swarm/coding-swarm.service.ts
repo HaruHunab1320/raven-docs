@@ -14,6 +14,7 @@ import { KyselyDB } from '../../database/types/kysely.types';
 import { QueueName, QueueJob } from '../../integrations/queue/constants';
 import { resolveAgentSettings } from '../agent/agent-settings';
 import { mapSwarmPermissionToApprovalPreset } from './swarm-permission-level';
+import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
 import { mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -31,9 +32,14 @@ export class CodingSwarmService implements OnModuleInit {
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly userService: UserService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly parallaxClient: ParallaxClientService,
     @InjectQueue(QueueName.GENERAL_QUEUE) private readonly generalQueue: Queue,
     @InjectKysely() private readonly db: KyselyDB,
   ) {}
+
+  private get isRemoteMode(): boolean {
+    return !!process.env.AGENT_RUNTIME_ENDPOINT;
+  }
 
   async onModuleInit() {
     // Recover active executions after server restarts.
@@ -147,32 +153,67 @@ export class CodingSwarmService implements OnModuleInit {
         agentSettings.swarmPermissionLevel,
       );
 
-      // Step 3: Prepare workspace — MCP API key, memory file, approval config, env vars
-      const prepResult =
-        await this.workspacePreparationService.prepareWorkspace({
-          workspacePath: workdir,
-          workspaceId: execution.workspaceId,
-          executionId,
-          agentType: execution.agentType,
-          triggeredBy: execution.triggeredBy || 'system',
-          taskDescription: execution.taskDescription,
-          taskContext: execution.taskContext as Record<string, any> | undefined,
-          approvalPreset: config.approvalPreset || defaultApprovalPreset,
-        });
-      const fullEnv = { ...agentEnv, ...prepResult.env };
+      // Step 3 & 4: Prepare workspace and spawn agent
+      // Branch on runtime mode — local writes files to disk, remote sends as payload
+      let spawnResult: { id: string };
 
-      // Step 4: Spawn coding agent via AgentExecutionService (local PTY or remote)
-      const spawnResult = await this.agentExecutionService.spawn(
-        execution.workspaceId,
-        {
-          type: execution.agentType,
-          name: `swarm-${executionId.slice(0, 8)}`,
-          workdir,
-          env: fullEnv,
-          adapterConfig: prepResult.adapterConfig,
-        },
-        execution.triggeredBy || 'system',
-      );
+      if (this.isRemoteMode) {
+        const remotePrepResult =
+          await this.workspacePreparationService.prepareRemoteWorkspace({
+            workspaceId: execution.workspaceId,
+            executionId,
+            agentType: execution.agentType,
+            triggeredBy: execution.triggeredBy || 'system',
+            taskDescription: execution.taskDescription,
+            taskContext: execution.taskContext as Record<string, any> | undefined,
+            approvalPreset: config.approvalPreset || defaultApprovalPreset,
+            repoUrl: config.repoUrl || undefined,
+            branch: config.baseBranch || 'main',
+          });
+        const fullEnv = { ...agentEnv, ...remotePrepResult.env };
+
+        spawnResult = await this.agentExecutionService.spawn(
+          execution.workspaceId,
+          {
+            type: execution.agentType,
+            name: `swarm-${executionId.slice(0, 8)}`,
+            workdir: config.repoUrl || workdir,
+            env: fullEnv,
+            adapterConfig: remotePrepResult.adapterConfig,
+            remoteContext: {
+              contextFiles: remotePrepResult.contextFiles,
+              repoUrl: config.repoUrl,
+              branch: config.baseBranch || 'main',
+            },
+          },
+          execution.triggeredBy || 'system',
+        );
+      } else {
+        const prepResult =
+          await this.workspacePreparationService.prepareWorkspace({
+            workspacePath: workdir,
+            workspaceId: execution.workspaceId,
+            executionId,
+            agentType: execution.agentType,
+            triggeredBy: execution.triggeredBy || 'system',
+            taskDescription: execution.taskDescription,
+            taskContext: execution.taskContext as Record<string, any> | undefined,
+            approvalPreset: config.approvalPreset || defaultApprovalPreset,
+          });
+        const fullEnv = { ...agentEnv, ...prepResult.env };
+
+        spawnResult = await this.agentExecutionService.spawn(
+          execution.workspaceId,
+          {
+            type: execution.agentType,
+            name: `swarm-${executionId.slice(0, 8)}`,
+            workdir,
+            env: fullEnv,
+            adapterConfig: prepResult.adapterConfig,
+          },
+          execution.triggeredBy || 'system',
+        );
+      }
 
       const agentId = spawnResult.id;
       if (agentId) {

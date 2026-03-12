@@ -7,7 +7,6 @@ import {
   generateApprovalConfig,
   type AdapterType,
   type ApprovalPreset,
-  type ApprovalConfig,
 } from 'coding-agent-adapters';
 import { readFileSync, writeFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
@@ -186,6 +185,150 @@ export class WorkspacePreparationService {
         approvalPreset,
       },
     };
+  }
+
+  /**
+   * Prepare a workspace payload for remote agent execution.
+   *
+   * Instead of writing files to the local filesystem, this returns the
+   * context files and env vars as a JSON payload that the Parallax runtime
+   * unpacks into the agent's workdir on pod init.
+   */
+  async prepareRemoteWorkspace(params: {
+    workspaceId: string;
+    executionId: string;
+    agentType: string;
+    triggeredBy: string;
+    taskDescription: string;
+    taskContext?: Record<string, any>;
+    approvalPreset?: ApprovalPreset;
+    repoUrl?: string;
+    branch?: string;
+  }): Promise<{
+    env: Record<string, string>;
+    contextFiles: Array<{ path: string; content: string }>;
+    adapterConfig: Record<string, unknown>;
+  }> {
+    const {
+      workspaceId,
+      executionId,
+      agentType,
+      triggeredBy,
+      taskDescription,
+    } = params;
+    const approvalPreset = params.approvalPreset || DEFAULT_APPROVAL_PRESET;
+    const adapterType = AGENT_TYPE_TO_ADAPTER[agentType] || agentType;
+
+    // Step 1: Generate scoped MCP API key
+    const keyName = `swarm-${executionId.slice(0, 8)}`;
+    const apiKey = await this.mcpApiKeyService.generateApiKey(
+      triggeredBy,
+      workspaceId,
+      keyName,
+    );
+    this.logger.log(`Generated MCP API key "${keyName}" for remote execution ${executionId}`);
+
+    // Step 2: Build context content
+    const serverUrl = process.env.APP_URL || 'http://localhost:3000';
+    const content = this.buildContextContent({
+      serverUrl,
+      apiKey: keyName,
+      executionId,
+      workspaceId,
+      taskDescription,
+      taskContext: params.taskContext,
+    });
+
+    // Step 3: Build context files array (instead of writing to disk)
+    const contextFiles: Array<{ path: string; content: string }> = [];
+
+    // Memory file (CLAUDE.md for Claude, etc.)
+    const memoryFilePath = this.getMemoryFilePath(adapterType);
+    contextFiles.push({ path: memoryFilePath, content });
+
+    // MCP config (for Claude agents)
+    if (adapterType === 'claude') {
+      const monorepoRoot = resolve(__dirname, '../../../../..');
+      const bridgePath = resolve(monorepoRoot, 'packages/mcp-bridge/src/index.ts');
+      const tsxBin = resolve(monorepoRoot, 'node_modules/.bin/tsx');
+
+      const bridgeEnv: Record<string, string> = {
+        MCP_SERVER_URL: serverUrl,
+        MCP_API_KEY: apiKey,
+      };
+
+      const categories = this.capabilitiesToToolCategories(params.taskContext?.capabilities);
+      if (categories.length > 0) {
+        bridgeEnv.MCP_TOOL_CATEGORIES = categories.join(',');
+      }
+
+      const mcpConfig = {
+        mcpServers: {
+          'raven-docs': {
+            command: tsxBin,
+            args: [bridgePath],
+            env: bridgeEnv,
+          },
+        },
+      };
+      contextFiles.push({ path: '.mcp.json', content: JSON.stringify(mcpConfig, null, 2) });
+
+      // Settings file
+      const settings: Record<string, any> = {
+        permissions: {
+          allow: ['mcp__raven-docs', 'Bash(*)'],
+        },
+        sandbox: {
+          enabled: true,
+          autoAllowBashIfSandboxed: true,
+        },
+      };
+      contextFiles.push({
+        path: '.claude/settings.local.json',
+        content: JSON.stringify(settings, null, 2),
+      });
+    }
+
+    // Step 4: Generate approval config env vars
+    let approvalEnv: Record<string, string> = {};
+    try {
+      const approvalConfig = generateApprovalConfig(adapterType as AdapterType, approvalPreset);
+      approvalEnv = approvalConfig.envVars;
+    } catch (error: any) {
+      this.logger.warn(`Failed to generate approval config: ${error.message}`);
+    }
+
+    return {
+      env: {
+        MCP_SERVER_URL: serverUrl,
+        MCP_API_KEY: apiKey,
+        RAVEN_WORKSPACE_ID: workspaceId,
+        RAVEN_EXECUTION_ID: executionId,
+        ENABLE_TOOL_SEARCH: 'false',
+        ...approvalEnv,
+      },
+      contextFiles,
+      adapterConfig: {
+        interactive: true,
+        approvalPreset,
+      },
+    };
+  }
+
+  /**
+   * Get the memory file path for an adapter type.
+   */
+  private getMemoryFilePath(adapterType: string): string {
+    switch (adapterType) {
+      case 'claude':
+        return 'CLAUDE.md';
+      case 'codex':
+        return 'AGENTS.md';
+      case 'gemini':
+        return 'GEMINI.md';
+      default:
+        return 'AGENT_CONTEXT.md';
+    }
   }
 
   /**

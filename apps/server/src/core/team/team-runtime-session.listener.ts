@@ -5,6 +5,7 @@ import { TerminalSessionService } from '../terminal/terminal-session.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WorkspacePreparationService } from '../coding-swarm/workspace-preparation.service';
 import { AgentExecutionService } from '../coding-swarm/agent-execution.service';
+import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
 import { TeamMessagingService } from './team-messaging.service';
 
 const COMPLETION_CHECK_INTERVAL_MS = 20_000;
@@ -29,8 +30,13 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     private readonly eventEmitter: EventEmitter2,
     private readonly workspacePreparationService: WorkspacePreparationService,
     private readonly agentExecution: AgentExecutionService,
+    private readonly parallaxClient: ParallaxClientService,
     @Optional() private readonly teamMessaging: TeamMessagingService,
   ) {}
+
+  private get isRemoteMode(): boolean {
+    return !!process.env.AGENT_RUNTIME_ENDPOINT;
+  }
 
   onModuleInit() {
     this.completionCheckTimer = setInterval(
@@ -82,6 +88,59 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     } catch {
       // best-effort — don't crash the interval
     }
+  }
+
+  /**
+   * Remote Parallax execution: an agent has been spawned and assigned an ID.
+   * Map the Parallax agent ID to the corresponding Raven team_agent record
+   * by matching role name so that subsequent parallax.* events (stopped,
+   * error, login_required, etc.) can find the team_agent.
+   */
+  @OnEvent('parallax.agent_started')
+  async handleRemoteAgentStarted(data: {
+    workspaceId?: string;
+    agent?: { id?: string; name?: string; type?: string; role?: string; runtimeSessionId?: string };
+  }) {
+    const agent = data.agent;
+    if (!agent?.id || !agent?.role || !data.workspaceId) return;
+
+    // Find active deployments in this workspace
+    const deployments = await this.teamRepo.findActiveDeployments();
+    for (const deployment of deployments) {
+      if (deployment.workspaceId !== data.workspaceId) continue;
+
+      const agents = await this.teamRepo.getAgentsByDeployment(deployment.id);
+      // Find the first agent with matching role that doesn't already have a runtime session
+      const match = agents.find(
+        (a) =>
+          a.role === agent.role &&
+          !a.runtimeSessionId,
+      );
+
+      if (match) {
+        const runtimeSessionId = agent.runtimeSessionId || agent.id;
+        await this.teamRepo.updateAgentRuntimeSession(match.id, {
+          runtimeSessionId,
+          agentType: agent.type || match.agentType,
+        });
+        await this.teamRepo.updateAgentStatus(match.id, 'running');
+
+        this.logger.log(
+          `Mapped remote Parallax agent ${agent.id} → team_agent ${match.id} (role=${agent.role})`,
+        );
+
+        this.eventEmitter.emit('team.agent_loop.started', {
+          deploymentId: deployment.id,
+          teamAgentId: match.id,
+          role: match.role,
+        });
+        return;
+      }
+    }
+
+    this.logger.warn(
+      `No matching team_agent found for remote agent ${agent.id} (role=${agent.role})`,
+    );
   }
 
   @OnEvent('parallax.agent_stopped')
@@ -392,97 +451,21 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
     const stepId = teamAgent.currentStepId || undefined;
 
     // --- Auto-login: drive the /login flow to extract an auth URL ---
-    // The original session is usually dead by the time we get here (Claude
-    // exits immediately in task mode when not logged in).  Try the existing
-    // session first; if that fails, spawn a fresh interactive session.
     let loginUrl: string | undefined;
     let loginSessionId: string | undefined;
 
-    // Step 1: try the existing (possibly dead) session
-    try {
-      this.logger.log(
-        `Attempting auto-login on existing session ${runtimeSessionId}`,
-      );
-      await this.agentExecution.send(runtimeSessionId, '/login');
-      await new Promise((r) => setTimeout(r, 2000));
-      this.agentExecution.sendKeys(runtimeSessionId, 'enter');
-      await new Promise((r) => setTimeout(r, 3000));
-
-      loginUrl = this.extractAuthUrl(
-        this.agentExecution.getOutputBuffer(runtimeSessionId),
-      );
-      if (loginUrl) {
-        loginSessionId = runtimeSessionId;
-        this.logger.log(
-          `Extracted login URL from existing session: ${loginUrl}`,
-        );
-      }
-    } catch {
-      this.logger.log(
-        `Existing session ${runtimeSessionId} is dead — will spawn temporary login session`,
-      );
-    }
-
-    // Step 2: if no URL yet, spawn a fresh interactive Claude session for login.
-    // Key: pass adapterConfig.interactive = true so the adapter does NOT add
-    // --print (which causes Claude to exit immediately when not logged in).
-    if (!loginUrl) {
-      try {
-        const tempResult = await this.agentExecution.spawn(
-          teamAgent.workspaceId,
-          {
-            type: teamAgent.agentType || 'claude',
-            name: `login-${teamAgent.id.slice(-8)}`,
-            workdir: process.env.HOME || '/tmp',
-            inheritProcessEnv: true,
-            adapterConfig: { interactive: true },
-          },
-        );
-        loginSessionId = tempResult.id;
-        this.logger.log(
-          `Spawned temporary login session ${loginSessionId} for agent ${teamAgent.id}`,
-        );
-
-        // Wait for the interactive REPL to start (no task = stays alive)
-        await new Promise((r) => setTimeout(r, 4000));
-
-        await this.agentExecution.send(loginSessionId, '/login');
-        await new Promise((r) => setTimeout(r, 2000));
-        this.agentExecution.sendKeys(loginSessionId, 'enter');
-        await new Promise((r) => setTimeout(r, 3000));
-
-        loginUrl = this.extractAuthUrl(
-          this.agentExecution.getOutputBuffer(loginSessionId),
-        );
-
-        // Retry once if URL not yet in buffer (Claude may be slow to render)
-        if (!loginUrl) {
-          await new Promise((r) => setTimeout(r, 3000));
-          loginUrl = this.extractAuthUrl(
-            this.agentExecution.getOutputBuffer(loginSessionId),
-          );
-        }
-
-        if (loginUrl) {
-          this.logger.log(
-            `Extracted login URL from temp session: ${loginUrl}`,
-          );
-        } else {
-          this.logger.warn(
-            `Failed to extract login URL from temp session ${loginSessionId}`,
-          );
-          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
-          loginSessionId = undefined;
-        }
-      } catch (err: any) {
-        this.logger.warn(
-          `Failed to spawn temp login session: ${err?.message || 'unknown'}`,
-        );
-        if (loginSessionId) {
-          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
-          loginSessionId = undefined;
-        }
-      }
+    if (this.isRemoteMode) {
+      // ── Remote flow: drive login via Parallax HTTP API ──
+      ({ loginUrl, loginSessionId } = await this.extractLoginUrlRemote(
+        runtimeSessionId,
+        teamAgent,
+      ));
+    } else {
+      // ── Local flow: drive login via local PTY ──
+      ({ loginUrl, loginSessionId } = await this.extractLoginUrlLocal(
+        runtimeSessionId,
+        teamAgent,
+      ));
     }
 
     // Update the auth flow state with the extracted URL and session
@@ -740,6 +723,200 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
   }
 
   /**
+   * Local flow: drive /login via local PTY to extract OAuth URL.
+   */
+  private async extractLoginUrlLocal(
+    runtimeSessionId: string,
+    teamAgent: { id: string; workspaceId: string; agentType?: string | null },
+  ): Promise<{ loginUrl?: string; loginSessionId?: string }> {
+    let loginUrl: string | undefined;
+    let loginSessionId: string | undefined;
+
+    // Step 1: try the existing (possibly dead) session
+    try {
+      this.logger.log(
+        `Attempting auto-login on existing session ${runtimeSessionId}`,
+      );
+      await this.agentExecution.send(runtimeSessionId, '/login');
+      await new Promise((r) => setTimeout(r, 2000));
+      this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+      await new Promise((r) => setTimeout(r, 3000));
+
+      loginUrl = this.extractAuthUrl(
+        this.agentExecution.getOutputBuffer(runtimeSessionId),
+      );
+      if (loginUrl) {
+        loginSessionId = runtimeSessionId;
+        this.logger.log(`Extracted login URL from existing session: ${loginUrl}`);
+      }
+    } catch {
+      this.logger.log(
+        `Existing session ${runtimeSessionId} is dead — will spawn temporary login session`,
+      );
+    }
+
+    // Step 2: if no URL yet, spawn a fresh interactive session
+    if (!loginUrl) {
+      try {
+        const tempResult = await this.agentExecution.spawn(
+          teamAgent.workspaceId,
+          {
+            type: teamAgent.agentType || 'claude',
+            name: `login-${teamAgent.id.slice(-8)}`,
+            workdir: process.env.HOME || '/tmp',
+            inheritProcessEnv: true,
+            adapterConfig: { interactive: true },
+          },
+        );
+        loginSessionId = tempResult.id;
+        this.logger.log(
+          `Spawned temporary login session ${loginSessionId} for agent ${teamAgent.id}`,
+        );
+
+        await new Promise((r) => setTimeout(r, 4000));
+
+        await this.agentExecution.send(loginSessionId, '/login');
+        await new Promise((r) => setTimeout(r, 2000));
+        this.agentExecution.sendKeys(loginSessionId, 'enter');
+        await new Promise((r) => setTimeout(r, 3000));
+
+        loginUrl = this.extractAuthUrl(
+          this.agentExecution.getOutputBuffer(loginSessionId),
+        );
+
+        // Retry once if URL not yet in buffer
+        if (!loginUrl) {
+          await new Promise((r) => setTimeout(r, 3000));
+          loginUrl = this.extractAuthUrl(
+            this.agentExecution.getOutputBuffer(loginSessionId),
+          );
+        }
+
+        if (loginUrl) {
+          this.logger.log(`Extracted login URL from temp session: ${loginUrl}`);
+        } else {
+          this.logger.warn(
+            `Failed to extract login URL from temp session ${loginSessionId}`,
+          );
+          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
+          loginSessionId = undefined;
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to spawn temp login session: ${err?.message || 'unknown'}`,
+        );
+        if (loginSessionId) {
+          try { await this.agentExecution.stop(loginSessionId); } catch { /* best-effort */ }
+          loginSessionId = undefined;
+        }
+      }
+    }
+
+    return { loginUrl, loginSessionId };
+  }
+
+  /**
+   * Remote flow: drive /login via Parallax HTTP API to extract OAuth URL.
+   * Uses POST /api/agents/:id/send and GET /api/agents/:id/output.
+   */
+  private async extractLoginUrlRemote(
+    runtimeSessionId: string,
+    teamAgent: { id: string; workspaceId: string; agentType?: string | null },
+  ): Promise<{ loginUrl?: string; loginSessionId?: string }> {
+    let loginUrl: string | undefined;
+    const loginSessionId = runtimeSessionId;
+
+    // Step 1: try sending /login to the existing remote agent
+    try {
+      this.logger.log(
+        `Remote auto-login: sending /login to agent ${runtimeSessionId}`,
+      );
+
+      // Send /login command
+      await this.agentExecution.send(runtimeSessionId, '/login', teamAgent.workspaceId);
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Send Enter to confirm
+      await this.parallaxClient.sendAgentKeys(runtimeSessionId, 'enter');
+      await new Promise((r) => setTimeout(r, 3000));
+
+      // Read output via HTTP API
+      const output = await this.parallaxClient.getAgentOutput(runtimeSessionId);
+      loginUrl = this.extractAuthUrl(output);
+
+      // Retry once — remote may be slower
+      if (!loginUrl) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const retryOutput = await this.parallaxClient.getAgentOutput(runtimeSessionId);
+        loginUrl = this.extractAuthUrl(retryOutput);
+      }
+
+      if (loginUrl) {
+        this.logger.log(`Remote: extracted login URL: ${loginUrl}`);
+      } else {
+        this.logger.warn(
+          `Remote: failed to extract login URL from agent ${runtimeSessionId}`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Remote auto-login failed for ${runtimeSessionId}: ${err?.message || 'unknown'}`,
+      );
+    }
+
+    // If no URL from existing session, try spawning a fresh remote login agent
+    if (!loginUrl) {
+      try {
+        this.logger.log(
+          `Remote: spawning temporary login agent for ${teamAgent.id}`,
+        );
+        const tempResult = await this.agentExecution.spawn(
+          teamAgent.workspaceId,
+          {
+            type: teamAgent.agentType || 'claude',
+            name: `login-${teamAgent.id.slice(-8)}`,
+            workdir: '/tmp',
+            adapterConfig: { interactive: true },
+          },
+        );
+        const tempSessionId = tempResult.id;
+
+        // Wait for agent to be ready
+        await new Promise((r) => setTimeout(r, 5000));
+
+        // Send /login + Enter via HTTP
+        await this.agentExecution.send(tempSessionId, '/login', teamAgent.workspaceId);
+        await new Promise((r) => setTimeout(r, 2000));
+        await this.parallaxClient.sendAgentKeys(tempSessionId, 'enter');
+        await new Promise((r) => setTimeout(r, 4000));
+
+        const output = await this.parallaxClient.getAgentOutput(tempSessionId);
+        loginUrl = this.extractAuthUrl(output);
+
+        if (!loginUrl) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const retryOutput = await this.parallaxClient.getAgentOutput(tempSessionId);
+          loginUrl = this.extractAuthUrl(retryOutput);
+        }
+
+        if (loginUrl) {
+          this.logger.log(`Remote: extracted login URL from temp agent: ${loginUrl}`);
+          return { loginUrl, loginSessionId: tempSessionId };
+        } else {
+          this.logger.warn(`Remote: failed to extract login URL from temp agent`);
+          try { await this.agentExecution.stop(tempSessionId, teamAgent.workspaceId); } catch { /* best-effort */ }
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Remote: failed to spawn temp login agent: ${err?.message || 'unknown'}`,
+        );
+      }
+    }
+
+    return { loginUrl, loginSessionId: loginUrl ? loginSessionId : undefined };
+  }
+
+  /**
    * Strip ANSI escape codes from PTY output and look for an auth URL.
    * Prefers claude.ai / anthropic.com URLs, falls back to the last URL found.
    */
@@ -777,7 +954,14 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
       await new Promise((r) => setTimeout(r, CHECK_INTERVAL_MS));
 
       try {
-        const output = this.agentExecution.getOutputBuffer(runtimeSessionId);
+        // Get output — remote uses HTTP, local uses PTY buffer
+        let output: string;
+        if (this.isRemoteMode) {
+          output = await this.parallaxClient.getAgentOutput(runtimeSessionId);
+        } else {
+          output = this.agentExecution.getOutputBuffer(runtimeSessionId);
+        }
+
         if (!output) {
           // Session may have been killed (e.g. user reset) — stop polling
           this.logger.log(
@@ -797,14 +981,20 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
           this.logger.log(
             `Login monitor: detected successful login for agent ${teamAgentId} — sending Enter`,
           );
-          this.agentExecution.sendKeys(runtimeSessionId, 'enter');
 
-          // Small delay then send another Enter in case the first was swallowed
-          await new Promise((r) => setTimeout(r, 1000));
-          try {
+          // Send Enter — remote uses HTTP, local uses PTY
+          if (this.isRemoteMode) {
+            await this.parallaxClient.sendAgentKeys(runtimeSessionId, 'enter');
+            await new Promise((r) => setTimeout(r, 1000));
+            await this.parallaxClient.sendAgentKeys(runtimeSessionId, 'enter');
+          } else {
             this.agentExecution.sendKeys(runtimeSessionId, 'enter');
-          } catch {
-            // session may have already moved on
+            await new Promise((r) => setTimeout(r, 1000));
+            try {
+              this.agentExecution.sendKeys(runtimeSessionId, 'enter');
+            } catch {
+              // session may have already moved on
+            }
           }
 
           // Mark auth flow as completed

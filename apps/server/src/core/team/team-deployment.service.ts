@@ -23,6 +23,7 @@ import type { OrgPattern } from './org-chart.types';
 import { cleanupScratchDirs } from './team-scratch-dir';
 import type { WorkflowState } from './workflow-state.types';
 import type { KyselyDB } from '../../database/types/kysely.types';
+import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
 
 export type TeamMemoryPolicy = 'none' | 'carry_all';
 
@@ -40,9 +41,19 @@ export class TeamDeploymentService {
     private readonly terminalSessionService: TerminalSessionService,
     @Optional() private readonly agentExecution: AgentExecutionService,
     @Optional() private readonly teamMessaging: TeamMessagingService,
+    @Optional() private readonly parallaxClient: ParallaxClientService,
     @InjectKysely() private readonly db: KyselyDB,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  /**
+   * Whether the Parallax remote runtime is available for team execution.
+   * When true, triggerTeamRun will upload the org pattern and execute it
+   * on Parallax instead of spawning local PTY agents.
+   */
+  get isRemoteRuntimeAvailable(): boolean {
+    return !!this.parallaxClient?.isAvailable();
+  }
 
   /**
    * Deploy a team from a template to a space/project.
@@ -308,6 +319,12 @@ export class TeamDeploymentService {
       );
     }
 
+    // ── Remote execution via Parallax ────────────────────────────────
+    if (this.isRemoteRuntimeAvailable) {
+      return this.triggerRemoteTeamRun(workspaceId, deployment, agents, coordinator);
+    }
+
+    // ── Local execution via PTY agents ────────────────────────────────
     // Build and send the initial task message to the coordinator
     const initialMessage = this.teamMessaging.buildInitialTaskMessage(
       deployment,
@@ -331,6 +348,113 @@ export class TeamDeploymentService {
     );
 
     return { triggered: 'messaging', deploymentId, coordinatorId: coordinator.id };
+  }
+
+  /**
+   * Execute a team deployment via Parallax remote runtime.
+   *
+   * 1. Upload the OrgPattern to Parallax (idempotent)
+   * 2. Execute the pattern with task input
+   * 3. Map Parallax agent IDs back to Raven team_agent records
+   * 4. Stream execution events into the existing event pipeline
+   */
+  private async triggerRemoteTeamRun(
+    workspaceId: string,
+    deployment: any,
+    agents: any[],
+    coordinator: any,
+  ) {
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const orgPattern = this.parseJsonSafe(deployment.orgPattern) as OrgPattern | null;
+
+    if (!orgPattern) {
+      throw new BadRequestException(
+        'Deployment has no org pattern — cannot execute remotely.',
+      );
+    }
+
+    // Step 1: Upload org pattern to Parallax
+    const uploadResult = await this.parallaxClient!.uploadOrgPattern(orgPattern);
+    if (!uploadResult.success) {
+      this.logger.error(`Failed to upload pattern to Parallax: ${uploadResult.error}`);
+      throw new BadRequestException(
+        `Failed to register pattern with Parallax: ${uploadResult.error}`,
+      );
+    }
+
+    // Step 2: Build execution input
+    const targetExperimentId = deploymentConfig.targetExperimentId as string | undefined;
+    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
+    const serverUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    // Build env vars that every agent pod needs for MCP connectivity
+    const agentEnv: Record<string, string> = {
+      MCP_SERVER_URL: serverUrl,
+      RAVEN_WORKSPACE_ID: workspaceId,
+      RAVEN_DEPLOYMENT_ID: deployment.id,
+    };
+
+    // Step 3: Execute pattern on Parallax
+    const executionResult = await this.parallaxClient!.executePattern({
+      patternName: orgPattern.name,
+      input: {
+        workspaceId,
+        spaceId: deployment.spaceId,
+        deploymentId: deployment.id,
+        targetExperimentId,
+        targetTaskId,
+        teamName: deploymentConfig.teamName || orgPattern.name,
+        agents: agents.map((a) => ({
+          id: a.id,
+          role: a.role,
+          instanceNumber: a.instanceNumber,
+          userId: a.userId,
+          systemPrompt: a.systemPrompt,
+          capabilities: a.capabilities,
+          agentType: a.agentType,
+        })),
+      },
+      options: {
+        stream: true,
+        timeout: 600_000, // 10 min timeout for team runs
+      },
+      webhook: {
+        url: `${serverUrl}/api/parallax-agents/spawn-callback`,
+      },
+      agentEnv,
+    });
+
+    // Step 4: Store execution ID in deployment config
+    const updatedConfig = {
+      ...deploymentConfig,
+      parallaxExecutionId: executionResult.id,
+      parallaxStreamUrl: executionResult.streamUrl,
+    };
+    await this.teamRepo.updateConfig(deployment.id, updatedConfig as any);
+
+    // Step 5: Update workflow state
+    const stateRow = await this.teamRepo.getWorkflowState(deployment.id);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as WorkflowState)
+        : ((stateRow?.workflowState || {}) as unknown as WorkflowState);
+    state.currentPhase = 'running';
+    state.startedAt = new Date().toISOString();
+    state.coordinatorInvocations = (state.coordinatorInvocations || 0) + 1;
+    await this.teamRepo.updateWorkflowState(deployment.id, state as any);
+
+    this.logger.log(
+      `Triggered REMOTE team run for deployment ${deployment.id}: ` +
+      `pattern=${orgPattern.name}, execution=${executionResult.id}, ` +
+      `coordinator=${coordinator.role} (${coordinator.id.slice(0, 8)})`,
+    );
+
+    return {
+      triggered: 'parallax',
+      deploymentId: deployment.id,
+      coordinatorId: coordinator.id,
+      parallaxExecutionId: executionResult.id,
+    };
   }
 
   /**
@@ -379,6 +503,11 @@ export class TeamDeploymentService {
 
     await this.teamRepo.updateAgentUserTakeover(agentId, true);
 
+    // Pause the remote agent if running on Parallax
+    if (this.parallaxClient?.isRuntimeConfigured() && agent.runtimeSessionId) {
+      await this.parallaxClient.pauseAgent(agent.runtimeSessionId);
+    }
+
     this.eventEmitter.emit('team.agent_takeover', {
       deploymentId: agent.deploymentId,
       teamAgentId: agentId,
@@ -413,6 +542,11 @@ export class TeamDeploymentService {
           `Failed to flush pending messages on release for agent ${agentId}: ${err?.message}`,
         );
       }
+    }
+
+    // Resume the remote agent if running on Parallax
+    if (this.parallaxClient?.isRuntimeConfigured() && agent.runtimeSessionId) {
+      await this.parallaxClient.resumeAgent(agent.runtimeSessionId);
     }
 
     this.eventEmitter.emit('team.agent_takeover', {
@@ -554,6 +688,17 @@ export class TeamDeploymentService {
 
     // Clear all user takeover flags before tearing down
     await this.teamRepo.clearAllUserTakeovers(deploymentId);
+
+    // Cancel Parallax execution if running remotely
+    const parallaxExecutionId = deploymentConfig.parallaxExecutionId as string | undefined;
+    if (parallaxExecutionId && this.parallaxClient) {
+      try {
+        await this.parallaxClient.cancelExecution(parallaxExecutionId);
+        this.logger.log(`Cancelled Parallax execution ${parallaxExecutionId}`);
+      } catch (err: any) {
+        this.logger.warn(`Failed to cancel Parallax execution: ${err?.message}`);
+      }
+    }
 
     // Stop all running agent PTY processes + terminal sessions
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);

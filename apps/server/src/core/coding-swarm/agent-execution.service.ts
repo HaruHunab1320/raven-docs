@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
+import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
 import { StallClassifierService } from './stall-classifier.service';
 
 export interface AgentSpawnConfig {
@@ -26,6 +27,12 @@ export interface AgentSpawnConfig {
   readySettleMs?: number;
   /** When false, the spawned agent only gets explicit env vars — no parent process secrets leak. */
   inheritProcessEnv?: boolean;
+  /** Context payload for remote (Parallax) execution — files to inject and repo info. */
+  remoteContext?: {
+    contextFiles: Array<{ path: string; content: string }>;
+    repoUrl?: string;
+    branch?: string;
+  };
 }
 
 @Injectable()
@@ -55,6 +62,7 @@ export class AgentExecutionService implements OnModuleDestroy {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     @Optional() private readonly parallaxAgentsService: ParallaxAgentsService,
+    @Optional() private readonly parallaxClient: ParallaxClientService,
     @Optional() private readonly stallClassifier: StallClassifierService,
   ) {
     this.mode = process.env.AGENT_RUNTIME_ENDPOINT ? 'remote' : 'local';
@@ -415,7 +423,12 @@ export class AgentExecutionService implements OnModuleDestroy {
         agentType: this.normalizeAgentType(config.type),
         count: 1,
         name: config.name,
-        config: { workdir: config.workdir },
+        config: {
+          workdir: config.workdir,
+          env: config.env,
+          adapterConfig: config.adapterConfig,
+          ...(config.remoteContext || {}),
+        },
       },
       triggeredBy || 'system',
     );
@@ -547,18 +560,36 @@ export class AgentExecutionService implements OnModuleDestroy {
   }
 
   /**
-   * Get the raw output buffer for a session (local mode only).
-   * Returns an empty string if the session is not found or not in local mode.
+   * Get the raw output buffer for a session.
+   * In local mode reads from PTY; in remote mode fetches from Parallax runtime.
    */
   getOutputBuffer(sessionId: string): string {
-    if (!this.ptyManager) return '';
-    const session = (this.ptyManager as any).sessions?.get(sessionId);
-    if (!session) return '';
-    try {
-      return session.getOutputBuffer() || '';
-    } catch {
-      return '';
+    if (this.mode === 'local') {
+      if (!this.ptyManager) return '';
+      const session = (this.ptyManager as any).sessions?.get(sessionId);
+      if (!session) return '';
+      try {
+        return session.getOutputBuffer() || '';
+      } catch {
+        return '';
+      }
     }
+    // Remote mode — synchronous fallback returns empty.
+    // Use getOutputBufferAsync() for remote sessions.
+    return '';
+  }
+
+  /**
+   * Async version of getOutputBuffer that works in remote mode.
+   */
+  async getOutputBufferAsync(sessionId: string): Promise<string> {
+    if (this.mode === 'local') {
+      return this.getOutputBuffer(sessionId);
+    }
+    if (this.parallaxClient) {
+      return this.parallaxClient.getAgentOutput(sessionId);
+    }
+    return '';
   }
 
   /**
@@ -584,14 +615,25 @@ export class AgentExecutionService implements OnModuleDestroy {
    */
   async forceClassifySession(
     sessionId: string,
-    context?: { agentType?: string; role?: string },
+    _context?: { agentType?: string; role?: string },
   ): Promise<void> {
-    if (!this.ptyManager || !this.stallClassifier) return;
-    const session = (this.ptyManager as any).sessions?.get(sessionId);
-    if (!session) return;
+    if (!this.stallClassifier) return;
+
     try {
-      const buffer: string = session.getOutputBuffer?.() || '';
-      const output = buffer.slice(-2000);
+      let output = '';
+
+      if (this.mode === 'local') {
+        if (!this.ptyManager) return;
+        const session = (this.ptyManager as any).sessions?.get(sessionId);
+        if (!session) return;
+        const buffer: string = session.getOutputBuffer?.() || '';
+        output = buffer.slice(-2000);
+      } else {
+        // Remote mode — fetch output from Parallax runtime
+        const buffer = await this.getOutputBufferAsync(sessionId);
+        output = buffer.slice(-2000);
+      }
+
       if (!output) return;
       await this.classifyStall(sessionId, output, 0);
     } catch {
@@ -647,7 +689,10 @@ export class AgentExecutionService implements OnModuleDestroy {
       return lines;
     }
 
-    // Remote mode — no local logs, return empty
+    // Remote mode — fetch logs from Parallax runtime
+    if (this.parallaxClient) {
+      return this.parallaxClient.getAgentLogs(sessionId, limit);
+    }
     return [];
   }
 
