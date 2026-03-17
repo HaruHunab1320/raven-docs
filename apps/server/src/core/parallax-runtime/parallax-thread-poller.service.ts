@@ -43,7 +43,9 @@ export class ParallaxThreadPollerService implements OnModuleInit, OnModuleDestro
   ) {}
 
   onModuleInit() {
-    if (!this.parallaxClient.isSdkAvailable) return;
+    // SDK client may be configured but health check is async — start if client
+    // is instantiated, let poll() skip silently if still unhealthy.
+    if (!this.parallaxClient.sdkClient) return;
     this.pollingTimer = setInterval(() => void this.poll(), POLL_INTERVAL_MS);
     this.logger.log('Thread poller started');
   }
@@ -59,6 +61,8 @@ export class ParallaxThreadPollerService implements OnModuleInit, OnModuleDestro
   }
 
   private async poll(): Promise<void> {
+    // Skip if SDK not yet healthy (health check is async and may still be pending)
+    if (!this.parallaxClient.isSdkAvailable) return;
     try {
       const deployments = await this.teamRepo.findActiveDeployments();
 

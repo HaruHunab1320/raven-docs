@@ -466,7 +466,13 @@ export class AgentExecutionService implements OnModuleDestroy {
       return;
     }
 
-    // Remote mode — send via HTTP
+    // Thread mode — send via Parallax SDK managed threads
+    if (this.parallaxClient?.isSdkAvailable) {
+      await this.parallaxClient.sendToThread(sessionId, message);
+      return;
+    }
+
+    // Legacy remote mode — send via HTTP runtime endpoint
     const endpoint = process.env.AGENT_RUNTIME_ENDPOINT;
     const response = await fetch(`${endpoint}/api/agents/${sessionId}/send`, {
       method: 'POST',

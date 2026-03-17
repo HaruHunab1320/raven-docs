@@ -35,7 +35,7 @@ export class TeamRuntimeSessionListener implements OnModuleInit, OnModuleDestroy
   ) {}
 
   private get isRemoteMode(): boolean {
-    return !!process.env.AGENT_RUNTIME_ENDPOINT;
+    return !!process.env.AGENT_RUNTIME_ENDPOINT || !!this.parallaxClient?.isSdkAvailable;
   }
 
   onModuleInit() {
