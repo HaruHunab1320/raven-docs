@@ -47,9 +47,16 @@ export class TeamDeploymentService {
   ) {}
 
   /**
-   * Whether the Parallax remote runtime is available for team execution.
-   * When true, triggerTeamRun will upload the org pattern and execute it
-   * on Parallax instead of spawning local PTY agents.
+   * Whether the Parallax SDK is available for thread-based execution.
+   * Preferred over pattern execution when PARALLAX_API_KEY is configured.
+   */
+  get isThreadRuntimeAvailable(): boolean {
+    return !!this.parallaxClient?.isSdkAvailable;
+  }
+
+  /**
+   * Whether the Parallax remote runtime is available for pattern-based execution.
+   * Legacy path — used when SDK is not configured but control plane URL is set.
    */
   get isRemoteRuntimeAvailable(): boolean {
     return !!this.parallaxClient?.isAvailable();
@@ -319,7 +326,12 @@ export class TeamDeploymentService {
       );
     }
 
-    // ── Remote execution via Parallax ────────────────────────────────
+    // ── Thread-based execution via Parallax SDK (preferred) ──────────
+    if (this.isThreadRuntimeAvailable) {
+      return this.triggerThreadedTeamRun(workspaceId, deployment, agents, coordinator);
+    }
+
+    // ── Pattern-based execution via Parallax (legacy) ─────────────────
     if (this.isRemoteRuntimeAvailable) {
       return this.triggerRemoteTeamRun(workspaceId, deployment, agents, coordinator);
     }
@@ -348,6 +360,115 @@ export class TeamDeploymentService {
     );
 
     return { triggered: 'messaging', deploymentId, coordinatorId: coordinator.id };
+  }
+
+  /**
+   * Execute a team deployment via Parallax managed threads (SDK path).
+   *
+   * Spawns one long-running thread per agent role. The thread poller
+   * translates thread lifecycle events into parallax.* events so all
+   * existing team event handlers work without modification.
+   *
+   * Local mode (no PARALLAX_API_KEY): never called — falls through to PTY.
+   */
+  private async triggerThreadedTeamRun(
+    workspaceId: string,
+    deployment: any,
+    agents: any[],
+    coordinator: any,
+  ) {
+    const deploymentConfig = this.parseJsonSafe(deployment.config) || {};
+    const serverUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    // Use deployment ID as the Parallax execution ID so all threads are grouped
+    const executionId = deployment.id;
+
+    // Build base env vars injected into every thread
+    const baseEnv: Record<string, string> = {
+      MCP_SERVER_URL: serverUrl,
+      RAVEN_WORKSPACE_ID: workspaceId,
+      RAVEN_DEPLOYMENT_ID: deployment.id,
+    };
+
+    const targetExperimentId = deploymentConfig.targetExperimentId as string | undefined;
+    const targetTaskId = deploymentConfig.targetTaskId as string | undefined;
+    if (targetExperimentId) baseEnv.RAVEN_TARGET_EXPERIMENT_ID = targetExperimentId;
+    if (targetTaskId) baseEnv.RAVEN_TARGET_TASK_ID = targetTaskId;
+
+    const spawnedThreadIds: string[] = [];
+
+    // Spawn a thread for each agent
+    for (const agent of agents) {
+      const isCoordinator = agent.id === coordinator.id;
+
+      // Coordinator gets the full initial task; workers get their system prompt
+      const objective = isCoordinator
+        ? (this.teamMessaging?.buildInitialTaskMessage(deployment, agents) ?? agent.systemPrompt ?? agent.role)
+        : (agent.systemPrompt || `You are the ${agent.role} agent. Wait for instructions from the coordinator.`);
+
+      try {
+        const thread = await this.parallaxClient!.spawnThread({
+          executionId,
+          agentType: agent.agentType || 'claude',
+          name: `${agent.role}-${agent.instanceNumber || 1}`,
+          role: agent.role,
+          objective,
+          environment: {
+            ...baseEnv,
+            RAVEN_AGENT_ID: agent.id,
+            RAVEN_AGENT_ROLE: agent.role,
+          },
+          metadata: {
+            ravenDeploymentId: deployment.id,
+            ravenAgentId: agent.id,
+            ravenWorkspaceId: workspaceId,
+          },
+        });
+
+        spawnedThreadIds.push(thread.id);
+
+        this.logger.log(
+          `Spawned thread ${thread.id} for agent ${agent.id} (role=${agent.role})`,
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to spawn thread for agent ${agent.id} (role=${agent.role}): ${err?.message}`,
+        );
+        throw err;
+      }
+    }
+
+    // Persist execution ID + thread IDs so the poller knows what to watch
+    const updatedConfig = {
+      ...deploymentConfig,
+      parallaxExecutionId: executionId,
+      parallaxThreadIds: spawnedThreadIds,
+    };
+    await this.teamRepo.updateConfig(deployment.id, updatedConfig as any);
+
+    // Update workflow state
+    const stateRow = await this.teamRepo.getWorkflowState(deployment.id);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as any)
+        : ((stateRow?.workflowState || {}) as any);
+    state.currentPhase = 'running';
+    state.startedAt = new Date().toISOString();
+    state.coordinatorInvocations = (state.coordinatorInvocations || 0) + 1;
+    await this.teamRepo.updateWorkflowState(deployment.id, state);
+
+    this.logger.log(
+      `Triggered THREADED team run for deployment ${deployment.id}: ` +
+      `${spawnedThreadIds.length} threads spawned (executionId=${executionId})`,
+    );
+
+    return {
+      triggered: 'parallax_threads',
+      deploymentId: deployment.id,
+      coordinatorId: coordinator.id,
+      parallaxExecutionId: executionId,
+      threadCount: spawnedThreadIds.length,
+    };
   }
 
   /**

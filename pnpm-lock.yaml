@@ -603,6 +603,9 @@ importers:
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
+      '@parallaxai/client':
+        specifier: 0.1.0
+        version: 0.1.0(typescript@5.9.3)
       '@parallaxai/org-chart-compiler':
         specifier: 1.0.0
         version: 1.0.0
@@ -4187,6 +4190,11 @@ packages:
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
     engines: {node: '>=8.0.0'}
+
+  '@parallaxai/client@0.1.0':
+    resolution: {integrity: sha512-8EjbXF3w+WUvKiKlqNmDdQuFjKlH21iA0PdrleovKmr71Q40lKDzgmDcAaZ8WKqmg14o0jb7Zjskj6U0Flvj7w==}
+    peerDependencies:
+      typescript: '>=5.0.0'
 
   '@parallaxai/org-chart-compiler@1.0.0':
     resolution: {integrity: sha512-pVi/4cIWVeGNQs6b8e2LWlvvKw7O4Cbs92dgtYM93eAM9UpUkX7hgcDOsfqHlvesmmYDpJrwC1GJunHLqydSqg==}
@@ -18138,6 +18146,10 @@ snapshots:
   '@one-ini/wasm@0.1.1': {}
 
   '@opentelemetry/api@1.9.0': {}
+
+  '@parallaxai/client@0.1.0(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
 
   '@parallaxai/org-chart-compiler@1.0.0':
     dependencies:

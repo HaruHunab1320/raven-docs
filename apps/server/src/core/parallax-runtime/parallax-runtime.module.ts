@@ -1,21 +1,22 @@
 import { Module, Global } from '@nestjs/common';
 import { ParallaxClientService } from './parallax-client.service';
+import { ParallaxThreadPollerService } from './parallax-thread-poller.service';
 
 /**
  * Global module providing Parallax runtime integration.
  *
- * When PARALLAX_CONTROL_PLANE_URL is set, enables:
- *   - OrgPattern upload (YAML serialization → Parallax pattern registry)
- *   - Pattern execution (team deployments run on Parallax K8s runtime)
- *   - Execution monitoring (status polling, event streaming)
- *   - Remote agent management (logs, output, keys, pause/resume)
+ * When PARALLAX_API_KEY + PARALLAX_CONTROL_PLANE_URL are set (deployed mode):
+ *   - Uses @parallaxai/client SDK for all API calls
+ *   - Spawns long-running agent threads (instead of ephemeral PTY processes)
+ *   - Polls thread events and translates them to parallax.* events
+ *   - All existing team event handlers work unchanged
  *
- * When not configured, the service reports isAvailable() = false
- * and callers fall back to local PTY-based agent execution.
+ * When not configured, isAvailable() returns false and callers fall back
+ * to local PTY-based agent execution.
  */
 @Global()
 @Module({
-  providers: [ParallaxClientService],
-  exports: [ParallaxClientService],
+  providers: [ParallaxClientService, ParallaxThreadPollerService],
+  exports: [ParallaxClientService, ParallaxThreadPollerService],
 })
 export class ParallaxRuntimeModule {}
