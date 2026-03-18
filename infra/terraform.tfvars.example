@@ -108,5 +108,5 @@ db_password = ""
 # Set to true once the parallax-api-key secret exists in Secret Manager
 # parallax_enabled = true
 
-# Parallax control plane HTTP URL (not a secret — plain env var)
-# parallax_control_plane_url = "http://34.58.31.212:8080"
+# Both PARALLAX_API_KEY and PARALLAX_CONTROL_PLANE_URL are stored as secrets
+# in GCP Secret Manager (not in this file) to avoid exposing infra details.

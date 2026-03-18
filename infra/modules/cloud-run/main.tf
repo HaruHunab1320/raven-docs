@@ -74,6 +74,14 @@ resource "google_secret_manager_secret_iam_member" "parallax_api_key" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "parallax_control_plane_url" {
+  count     = var.parallax_control_plane_url_id != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = var.parallax_control_plane_url_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # Grant Cloud SQL Client access
 resource "google_project_iam_member" "cloud_sql_client" {
   project = var.project_id
@@ -320,12 +328,17 @@ resource "google_cloud_run_v2_service" "main" {
         }
       }
 
-      # Plain env: PARALLAX_CONTROL_PLANE_URL (not sensitive)
+      # Secret: PARALLAX_CONTROL_PLANE_URL (stored as secret to avoid exposing infra)
       dynamic "env" {
-        for_each = var.parallax_control_plane_url != "" ? [1] : []
+        for_each = var.parallax_control_plane_url_id != "" ? [1] : []
         content {
-          name  = "PARALLAX_CONTROL_PLANE_URL"
-          value = var.parallax_control_plane_url
+          name = "PARALLAX_CONTROL_PLANE_URL"
+          value_source {
+            secret_key_ref {
+              secret  = var.parallax_control_plane_url_id
+              version = "latest"
+            }
+          }
         }
       }
 

@@ -147,8 +147,8 @@ variable "parallax_api_key_id" {
   default     = ""
 }
 
-variable "parallax_control_plane_url" {
-  description = "Parallax control plane HTTP URL (e.g. http://34.58.31.212:8080)"
+variable "parallax_control_plane_url_id" {
+  description = "Secret Manager secret ID for PARALLAX_CONTROL_PLANE_URL"
   type        = string
   default     = ""
 }

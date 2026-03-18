@@ -212,8 +212,3 @@ variable "parallax_enabled" {
   default     = false
 }
 
-variable "parallax_control_plane_url" {
-  description = "Parallax control plane HTTP URL (e.g. http://34.58.31.212:8080)"
-  type        = string
-  default     = ""
-}

@@ -64,3 +64,10 @@ data "google_secret_manager_secret" "parallax_api_key" {
   secret_id = "${var.resource_prefix}-parallax-api-key"
   project   = var.project_id
 }
+
+# Parallax Control Plane URL (optional - stored as secret to avoid exposing infra)
+data "google_secret_manager_secret" "parallax_control_plane_url" {
+  count     = var.enable_parallax ? 1 : 0
+  secret_id = "${var.resource_prefix}-parallax-control-plane-url"
+  project   = var.project_id
+}

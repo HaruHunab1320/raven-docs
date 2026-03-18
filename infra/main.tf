@@ -232,8 +232,8 @@ module "cloud_run" {
   resend_api_key_id = module.secrets.resend_api_key_id
   gemini_api_key_id = module.secrets.gemini_api_key_id
 
-  parallax_api_key_id        = module.secrets.parallax_api_key_id
-  parallax_control_plane_url = var.parallax_control_plane_url
+  parallax_api_key_id           = module.secrets.parallax_api_key_id
+  parallax_control_plane_url_id = module.secrets.parallax_control_plane_url_id
 
   # Storage service account for GCS access
   storage_bucket_name = module.cloud_storage.bucket_name
