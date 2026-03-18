@@ -38,3 +38,8 @@ output "gemini_api_key_id" {
   description = "Gemini API key secret resource ID"
   value       = var.enable_gemini ? data.google_secret_manager_secret.gemini_api_key[0].id : ""
 }
+
+output "parallax_api_key_id" {
+  description = "Parallax API key secret resource ID"
+  value       = var.enable_parallax ? data.google_secret_manager_secret.parallax_api_key[0].id : ""
+}

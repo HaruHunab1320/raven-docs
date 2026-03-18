@@ -66,6 +66,14 @@ resource "google_secret_manager_secret_iam_member" "gemini_api_key" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "parallax_api_key" {
+  count     = var.parallax_api_key_id != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = var.parallax_api_key_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # Grant Cloud SQL Client access
 resource "google_project_iam_member" "cloud_sql_client" {
   project = var.project_id
@@ -295,6 +303,29 @@ resource "google_cloud_run_v2_service" "main" {
         content {
           name  = "GEMINI_AGENT_MODEL"
           value = "gemini-3-pro-preview"
+        }
+      }
+
+      # Secret: PARALLAX_API_KEY (optional)
+      dynamic "env" {
+        for_each = var.parallax_api_key_id != "" ? [1] : []
+        content {
+          name = "PARALLAX_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = var.parallax_api_key_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      # Plain env: PARALLAX_CONTROL_PLANE_URL (not sensitive)
+      dynamic "env" {
+        for_each = var.parallax_control_plane_url != "" ? [1] : []
+        content {
+          name  = "PARALLAX_CONTROL_PLANE_URL"
+          value = var.parallax_control_plane_url
         }
       }
 

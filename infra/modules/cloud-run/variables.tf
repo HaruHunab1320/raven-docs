@@ -141,6 +141,18 @@ variable "gemini_api_key_id" {
   default     = ""
 }
 
+variable "parallax_api_key_id" {
+  description = "Secret Manager secret ID for PARALLAX_API_KEY"
+  type        = string
+  default     = ""
+}
+
+variable "parallax_control_plane_url" {
+  description = "Parallax control plane HTTP URL (e.g. http://34.58.31.212:8080)"
+  type        = string
+  default     = ""
+}
+
 variable "storage_bucket_name" {
   description = "Cloud Storage bucket name for file uploads"
   type        = string

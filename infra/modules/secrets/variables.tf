@@ -43,3 +43,9 @@ variable "enable_gemini" {
   type        = bool
   default     = false
 }
+
+variable "enable_parallax" {
+  description = "Whether Parallax API key exists in Secret Manager"
+  type        = bool
+  default     = false
+}

@@ -205,3 +205,15 @@ variable "gemini_enabled" {
   type        = bool
   default     = false
 }
+
+variable "parallax_enabled" {
+  description = "Enable Parallax remote agent runtime (requires parallax-api-key secret in Secret Manager)"
+  type        = bool
+  default     = false
+}
+
+variable "parallax_control_plane_url" {
+  description = "Parallax control plane HTTP URL (e.g. http://34.58.31.212:8080)"
+  type        = string
+  default     = ""
+}

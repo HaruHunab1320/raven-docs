@@ -57,3 +57,10 @@ data "google_secret_manager_secret" "gemini_api_key" {
   secret_id = "${var.resource_prefix}-gemini-api-key"
   project   = var.project_id
 }
+
+# Parallax API Key (optional - may not exist)
+data "google_secret_manager_secret" "parallax_api_key" {
+  count     = var.enable_parallax ? 1 : 0
+  secret_id = "${var.resource_prefix}-parallax-api-key"
+  project   = var.project_id
+}

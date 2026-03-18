@@ -100,3 +100,13 @@ db_password = ""
 # Google Gemini API key - required for agent features and memory embeddings
 # Get one at: https://aistudio.google.com/app/apikey
 # gemini_api_key = "AIza..."
+
+# -----------------------------------------------------------------------------
+# Optional: Parallax Remote Agent Runtime
+# -----------------------------------------------------------------------------
+
+# Set to true once the parallax-api-key secret exists in Secret Manager
+# parallax_enabled = true
+
+# Parallax control plane HTTP URL (not a secret — plain env var)
+# parallax_control_plane_url = "http://34.58.31.212:8080"

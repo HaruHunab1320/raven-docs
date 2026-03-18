@@ -76,6 +76,7 @@ module "secrets" {
   enable_postmark = var.mail_driver == "postmark"
   enable_resend   = var.mail_driver == "resend"
   enable_gemini   = var.gemini_enabled
+  enable_parallax = var.parallax_enabled
 
   depends_on = [google_project_service.required_apis]
 }
@@ -230,6 +231,9 @@ module "cloud_run" {
   postmark_token_id = module.secrets.postmark_token_id
   resend_api_key_id = module.secrets.resend_api_key_id
   gemini_api_key_id = module.secrets.gemini_api_key_id
+
+  parallax_api_key_id        = module.secrets.parallax_api_key_id
+  parallax_control_plane_url = var.parallax_control_plane_url
 
   # Storage service account for GCS access
   storage_bucket_name = module.cloud_storage.bucket_name
