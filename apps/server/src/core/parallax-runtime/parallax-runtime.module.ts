@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { ParallaxClientService } from './parallax-client.service';
 import { ParallaxThreadPollerService } from './parallax-thread-poller.service';
 import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.repo';
+import { DatabaseModule } from '../../database/database.module';
 
 /**
  * Global module providing Parallax runtime integration.
@@ -17,6 +18,7 @@ import { TeamDeploymentRepo } from '../../database/repos/team/team-deployment.re
  */
 @Global()
 @Module({
+  imports: [DatabaseModule],
   providers: [ParallaxClientService, ParallaxThreadPollerService, TeamDeploymentRepo],
   exports: [ParallaxClientService, ParallaxThreadPollerService],
 })
