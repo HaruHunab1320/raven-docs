@@ -392,9 +392,42 @@ jobs:
           IMAGE_URL: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
         run: |
           echo "Deploying image: $IMAGE_URL"
-          gcloud run services update raven-docs-production-app \
-            --image=$IMAGE_URL \
-            --region=${{ env.REGION }}
+          # Use REST API to update image — avoids a gcloud CLI bug where it
+          # crashes parsing full-resource-path secret annotations written by Terraform.
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+          SVC=$(curl -sf -X GET \
+            "https://run.googleapis.com/v2/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/services/raven-docs-production-app" \
+            -H "Authorization: Bearer $ACCESS_TOKEN")
+          PATCHED=$(echo "$SVC" | python3 -c "
+          import json, sys
+          svc = json.load(sys.stdin)
+          svc['template']['containers'][0]['image'] = '$IMAGE_URL'
+          print(json.dumps({'template': svc['template']}))
+          ")
+          OP=$(curl -sf -X PATCH \
+            "https://run.googleapis.com/v2/projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/services/raven-docs-production-app" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PATCHED")
+          OP_NAME=$(echo "$OP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))")
+          echo "Operation: $OP_NAME"
+          # Poll until done
+          for i in $(seq 1 24); do
+            sleep 5
+            STATUS=$(curl -sf \
+              "https://run.googleapis.com/v2/$OP_NAME" \
+              -H "Authorization: Bearer $ACCESS_TOKEN")
+            DONE=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('done', False))")
+            ERR=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',''))")
+            if [ "$DONE" = "True" ]; then
+              if [ -n "$ERR" ] && [ "$ERR" != "" ]; then
+                echo "Deploy failed: $ERR"; exit 1
+              fi
+              echo "Deploy succeeded"; exit 0
+            fi
+            echo "Waiting... ($((i*5))s)"
+          done
+          echo "Timed out waiting for deploy"; exit 1
 
       - name: Show deployment URL
         run: |
