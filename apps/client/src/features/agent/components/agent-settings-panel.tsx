@@ -21,6 +21,7 @@ import {
 import { IconCheck, IconX, IconRefresh } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  checkRuntimeHealth,
   createAgentHandoff,
   getAgentSettings,
   runAgentLoop,
@@ -279,10 +280,6 @@ export function AgentSettingsPanel() {
         },
         spaceOverrides: {},
         hostingMode: 'local' as AgentHostingMode,
-        runtimeEndpoint: '',
-        runtimeAuthType: 'api_key',
-        runtimeApiKey: '',
-        defaultRegion: '',
         runtimeStatus: undefined,
       };
 
@@ -416,6 +413,13 @@ export function AgentSettingsPanel() {
         message: "Failed to trigger autonomy schedule",
         color: "red",
       });
+    },
+  });
+
+  const healthMutation = useMutation({
+    mutationFn: () => checkRuntimeHealth(),
+    onSuccess: (data) => {
+      mutation.mutate({ runtimeStatus: { connected: data.connected, error: data.error } });
     },
   });
 
@@ -1252,54 +1256,6 @@ export function AgentSettingsPanel() {
               { label: 'Custom', value: 'custom' },
             ]}
           />
-          {currentSettings.hostingMode !== 'parallax' && (
-            <>
-              <TextInput
-                label="Runtime endpoint"
-                placeholder="http://localhost:8765"
-                description="URL where the agent runtime is listening"
-                value={currentSettings.runtimeEndpoint || ''}
-                onChange={(event) =>
-                  mutation.mutate({ runtimeEndpoint: event.currentTarget.value })
-                }
-                disabled={!isAdmin}
-              />
-              <SegmentedControl
-                value={currentSettings.runtimeAuthType || 'api_key'}
-                onChange={(value) => mutation.mutate({ runtimeAuthType: value as any })}
-                disabled={!isAdmin}
-                data={[
-                  { label: 'API Key', value: 'api_key' },
-                  { label: 'None', value: 'none' },
-                ]}
-              />
-              {currentSettings.runtimeAuthType === 'api_key' && (
-                <TextInput
-                  label="Runtime API key"
-                  placeholder="sk-..."
-                  description="API key for authenticating with the runtime"
-                  value={currentSettings.runtimeApiKey || ''}
-                  onChange={(event) =>
-                    mutation.mutate({ runtimeApiKey: event.currentTarget.value })
-                  }
-                  disabled={!isAdmin}
-                  type="password"
-                />
-              )}
-            </>
-          )}
-          {currentSettings.hostingMode === 'parallax' && (
-            <TextInput
-              label="Default region"
-              placeholder="us-west-2"
-              description="Preferred region for Parallax-managed agents"
-              value={currentSettings.defaultRegion || ''}
-              onChange={(event) =>
-                mutation.mutate({ defaultRegion: event.currentTarget.value })
-              }
-              disabled={!isAdmin}
-            />
-          )}
           <Card withBorder radius="sm" p="sm" mt="xs">
             <Group justify="space-between">
               <Text size="sm" fw={500}>Runtime Status</Text>
@@ -1317,7 +1273,9 @@ export function AgentSettingsPanel() {
                   <Button
                     size="xs"
                     variant="subtle"
-                    disabled={!isAdmin || !currentSettings.runtimeEndpoint}
+                    disabled={!isAdmin || currentSettings.hostingMode === 'local'}
+                    loading={healthMutation.isPending}
+                    onClick={() => healthMutation.mutate()}
                     leftSection={<IconRefresh size={14} />}
                   >
                     Test

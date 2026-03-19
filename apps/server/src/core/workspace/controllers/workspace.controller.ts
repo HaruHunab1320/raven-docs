@@ -38,6 +38,7 @@ import { RemoveWorkspaceUserDto } from '../dto/remove-workspace-user.dto';
 import { AgentSettingsDto } from '../dto/agent-settings.dto';
 import { WorkspaceIntegrationSettingsDto } from '../dto/workspace-integration-settings.dto';
 import { IntelligenceSettingsDto } from '../dto/intelligence-settings.dto';
+import { ParallaxClientService } from '../../parallax-runtime/parallax-client.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('workspace')
@@ -47,6 +48,7 @@ export class WorkspaceController {
     private readonly workspaceInvitationService: WorkspaceInvitationService,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
     private environmentService: EnvironmentService,
+    private readonly parallaxClient: ParallaxClientService,
   ) {}
 
   @Public()
@@ -92,6 +94,24 @@ export class WorkspaceController {
     }
 
     return this.workspaceService.getIntegrationSettings(workspace.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('/agent-settings/runtime-health')
+  async getRuntimeHealth(
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const ability = this.workspaceAbility.createForUser(user, workspace);
+    if (ability.cannot(WorkspaceCaslAction.Read, WorkspaceCaslSubject.Settings)) {
+      throw new ForbiddenException();
+    }
+    const result = await this.parallaxClient.healthCheck();
+    return {
+      connected: result.healthy,
+      latency: result.latency,
+      error: result.healthy ? undefined : result.message,
+    };
   }
 
   @HttpCode(HttpStatus.OK)

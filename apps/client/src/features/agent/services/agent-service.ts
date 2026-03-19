@@ -17,6 +17,15 @@ export async function updateAgentSettings(
   return req.data;
 }
 
+export async function checkRuntimeHealth(): Promise<{
+  connected: boolean;
+  latency?: number;
+  error?: string;
+}> {
+  const req = await api.post("/workspace/agent-settings/runtime-health");
+  return req.data;
+}
+
 export async function sendAgentChat(params: {
   spaceId: string;
   message: string;
