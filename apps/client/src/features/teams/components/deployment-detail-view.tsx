@@ -22,6 +22,7 @@ import {
 } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  TEAM_KEYS,
   useDeploymentStatus,
   usePauseDeploymentMutation,
   useResumeDeploymentMutation,
@@ -275,6 +276,16 @@ export function DeploymentDetailView({
   const resetMutation = useResetTeamMutation();
   const takeoverMutation = useTakeoverAgentMutation();
   const releaseMutation = useReleaseAgentMutation();
+  const triggerMutation = useMutation({
+    mutationFn: (id: string) =>
+      import("../services/team-service").then((s) => s.triggerTeamRun(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: TEAM_KEYS.deploymentStatus(deploymentId),
+      });
+      queryClient.invalidateQueries({ queryKey: ["team-deployments"] });
+    },
+  });
   const [renameOpened, { open: openRename, close: closeRename }] =
     useDisclosure(false);
   const [targetExperimentId, setTargetExperimentId] = useState<string | null>(
@@ -404,11 +415,8 @@ export function DeploymentDetailView({
                           size="xs"
                           variant="light"
                           leftSection={<IconBolt size={14} />}
-                          onClick={() =>
-                            import("../services/team-service").then((s) =>
-                              s.triggerTeamRun(deploymentId),
-                            )
-                          }
+                          onClick={() => triggerMutation.mutate(deploymentId)}
+                          loading={triggerMutation.isPending}
                         >
                           Trigger Run
                         </Button>
