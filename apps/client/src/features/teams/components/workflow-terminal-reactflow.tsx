@@ -523,25 +523,14 @@ function WorkflowTerminalReactFlowInner({
 }) {
   const { fitView } = useReactFlow();
   const nodesInitialized = useNodesInitialized();
-  const hasFitted = useRef(false);
 
-  // fitView once after all nodes have been measured.
-  useEffect(() => {
-    if (nodesInitialized && !hasFitted.current) {
-      hasFitted.current = true;
-      fitView({ padding: 0.08, duration: 200 });
-    }
-  }, [nodesInitialized, fitView]);
-
-  // Re-center whenever node count changes (agents spawn/despawn).
+  // Re-center whenever nodes are fully measured or count changes.
   const prevNodeCount = useRef(nodes.length);
   useEffect(() => {
-    if (prevNodeCount.current !== nodes.length) {
-      prevNodeCount.current = nodes.length;
-      // Reset so fitView fires again after the new nodes are measured.
-      hasFitted.current = false;
-    }
-  }, [nodes.length]);
+    if (!nodesInitialized) return;
+    prevNodeCount.current = nodes.length;
+    fitView({ padding: 0.12, duration: 250 });
+  }, [nodesInitialized, nodes.length, fitView]);
 
   return (
     <div style={{ height, width: "100%", position: "relative" }}>
@@ -551,6 +540,8 @@ function WorkflowTerminalReactFlowInner({
         nodeTypes={nodeTypes}
         nodesFocusable={false}
         edgesFocusable={false}
+        fitView
+        fitViewOptions={{ padding: 0.12 }}
         minZoom={0.3}
         maxZoom={1}
         zoomOnScroll={false}
