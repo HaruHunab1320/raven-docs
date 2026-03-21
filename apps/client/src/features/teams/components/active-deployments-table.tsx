@@ -38,8 +38,6 @@ function statusColor(status: string) {
   switch (status) {
     case "active":
       return "green";
-    case "provisioning":
-      return "violet";
     case "paused":
       return "yellow";
     case "torn_down":

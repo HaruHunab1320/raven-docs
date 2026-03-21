@@ -55,8 +55,6 @@ function statusColor(status: string) {
     case "active":
     case "idle":
       return "green";
-    case "provisioning":
-      return "violet";
     case "running":
       return "blue";
     case "paused":
