@@ -163,6 +163,11 @@ export class TeamDeploymentService {
       `Deployed team "${templateName}" with ${agents.length} agents to space ${spaceId}`,
     );
 
+    // Spawn Parallax threads eagerly at deploy time (if SDK is available)
+    if (this.isThreadRuntimeAvailable) {
+      await this.spawnThreadsForDeployment(deployment, agents, workspaceId);
+    }
+
     return {
       deployment,
       agents,
@@ -328,6 +333,11 @@ export class TeamDeploymentService {
 
     // ── Thread-based execution via Parallax SDK (preferred) ──────────
     if (this.isThreadRuntimeAvailable) {
+      // If coordinator already has a thread ID (spawned at deploy time), send task to it
+      if (coordinator.runtimeSessionId) {
+        return this.sendTaskToExistingThreads(deployment, agents, coordinator);
+      }
+      // No pre-spawned threads — spawn fresh ones now (first trigger on old deployments)
       return this.triggerThreadedTeamRun(workspaceId, deployment, agents, coordinator);
     }
 
@@ -469,6 +479,120 @@ export class TeamDeploymentService {
       parallaxExecutionId: executionId,
       threadCount: spawnedThreadIds.length,
     };
+  }
+
+  /**
+   * Send the initial task message to the coordinator's pre-spawned Parallax thread.
+   * The thread is already running — we just deliver the task objective.
+   */
+  private async sendTaskToExistingThreads(
+    deployment: any,
+    agents: any[],
+    coordinator: any,
+  ) {
+    const message = this.teamMessaging!.buildInitialTaskMessage(deployment, agents);
+
+    this.logger.log(
+      `Sending task to existing coordinator thread ${coordinator.runtimeSessionId} ` +
+      `(role=${coordinator.role}, deploymentId=${deployment.id})`,
+    );
+
+    await this.parallaxClient!.sendToThread(coordinator.runtimeSessionId, message);
+
+    const stateRow = await this.teamRepo.getWorkflowState(deployment.id);
+    const state =
+      typeof stateRow?.workflowState === 'string'
+        ? (JSON.parse(stateRow.workflowState) as any)
+        : ((stateRow?.workflowState || {}) as any);
+    state.currentPhase = 'running';
+    state.startedAt = new Date().toISOString();
+    state.coordinatorInvocations = (state.coordinatorInvocations || 0) + 1;
+    await this.teamRepo.updateWorkflowState(deployment.id, state);
+
+    this.logger.log(
+      `Triggered team run via existing threads for deployment ${deployment.id}: ` +
+      `coordinator=${coordinator.role} (thread=${coordinator.runtimeSessionId})`,
+    );
+
+    return {
+      triggered: 'parallax_threads_existing',
+      deploymentId: deployment.id,
+      coordinatorId: coordinator.id,
+      coordinatorThreadId: coordinator.runtimeSessionId,
+    };
+  }
+
+  /**
+   * Spawn Parallax threads for every agent at deploy time.
+   * Stores thread ID in each agent's runtimeSessionId.
+   * Status flows: provisioning → active.
+   */
+  private async spawnThreadsForDeployment(
+    deployment: any,
+    agents: any[],
+    workspaceId: string,
+  ) {
+    const serverUrl = process.env.APP_URL || 'http://localhost:3000';
+    const executionId = deployment.id;
+
+    const baseEnv: Record<string, string> = {
+      MCP_SERVER_URL: serverUrl,
+      RAVEN_WORKSPACE_ID: workspaceId,
+      RAVEN_DEPLOYMENT_ID: deployment.id,
+    };
+
+    await this.teamRepo.updateStatus(deployment.id, 'provisioning');
+
+    for (const agent of agents) {
+      const objective =
+        agent.systemPrompt ||
+        `You are the ${agent.role} agent. Stay running and wait for instructions from the coordinator.`;
+
+      try {
+        const thread = await this.parallaxClient!.spawnThread({
+          executionId,
+          agentType: agent.agentType || 'claude',
+          name: `${agent.role}-${agent.instanceNumber || 1}`,
+          role: agent.role,
+          objective,
+          environment: {
+            ...baseEnv,
+            RAVEN_AGENT_ID: agent.id,
+            RAVEN_AGENT_ROLE: agent.role,
+          },
+          metadata: {
+            ravenDeploymentId: deployment.id,
+            ravenAgentId: agent.id,
+            ravenWorkspaceId: workspaceId,
+          },
+        });
+
+        await this.teamRepo.updateAgentRuntimeSession(agent.id, {
+          runtimeSessionId: thread.id,
+          terminalSessionId: null,
+        });
+
+        this.logger.log(
+          `Spawned thread ${thread.id} for agent ${agent.id} (role=${agent.role}) at deploy time`,
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to spawn thread for agent ${agent.id} (role=${agent.role}): ${err?.message}`,
+        );
+      }
+    }
+
+    await this.teamRepo.updateStatus(deployment.id, 'active');
+
+    const config = this.parseJsonSafe(deployment.config) || {};
+    await this.teamRepo.updateConfig(deployment.id, {
+      ...config,
+      parallaxExecutionId: executionId,
+    } as any);
+
+    this.logger.log(
+      `Deployed ${agents.length} Parallax threads for deployment ${deployment.id}`,
+    );
   }
 
   /**
@@ -699,30 +823,33 @@ export class TeamDeploymentService {
     for (const agent of agents) {
       if (agent.status === 'paused') continue; // respect explicitly paused agents
 
-      // Stop the PTY process first (kills the actual claude process)
-      if (agent.runtimeSessionId && this.agentExecution) {
-        try {
-          await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
-        } catch {
-          // best-effort — process may already be dead
-        }
-      }
+      // In thread mode runtimeSessionId is the Parallax thread ID — keep it alive.
+      // In PTY mode stop the process and clear the session.
+      const isThreadMode = this.isThreadRuntimeAvailable && !!agent.runtimeSessionId;
 
-      // Then clean up the terminal session DB record
-      if (agent.terminalSessionId) {
-        try {
-          await this.terminalSessionService.terminate(agent.terminalSessionId);
-        } catch {
-          // best-effort cleanup
+      if (!isThreadMode) {
+        if (agent.runtimeSessionId && this.agentExecution) {
+          try {
+            await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
+          } catch {
+            // best-effort — process may already be dead
+          }
         }
+        if (agent.terminalSessionId) {
+          try {
+            await this.terminalSessionService.terminate(agent.terminalSessionId);
+          } catch {
+            // best-effort cleanup
+          }
+        }
+        await this.teamRepo.updateAgentRuntimeSession(agent.id, {
+          runtimeSessionId: null,
+          terminalSessionId: null,
+        });
       }
 
       await this.teamRepo.updateAgentStatus(agent.id, 'idle');
       await this.teamRepo.updateAgentCurrentStep(agent.id, null);
-      await this.teamRepo.updateAgentRuntimeSession(agent.id, {
-        runtimeSessionId: null,
-        terminalSessionId: null,
-      });
       await this.teamRepo.resetAgentStats(agent.id);
       resetCount++;
     }
@@ -810,29 +937,42 @@ export class TeamDeploymentService {
     // Clear all user takeover flags before tearing down
     await this.teamRepo.clearAllUserTakeovers(deploymentId);
 
-    // Cancel Parallax execution if running remotely
-    const parallaxExecutionId = deploymentConfig.parallaxExecutionId as string | undefined;
-    if (parallaxExecutionId && this.parallaxClient) {
-      try {
-        await this.parallaxClient.cancelExecution(parallaxExecutionId);
-        this.logger.log(`Cancelled Parallax execution ${parallaxExecutionId}`);
-      } catch (err: any) {
-        this.logger.warn(`Failed to cancel Parallax execution: ${err?.message}`);
-      }
-    }
-
-    // Stop all running agent PTY processes + terminal sessions
     const agents = await this.teamRepo.getAgentsByDeployment(deploymentId);
-    for (const agent of agents) {
-      if (agent.runtimeSessionId && this.agentExecution) {
-        try {
-          await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
-        } catch { /* best-effort */ }
+
+    if (this.isThreadRuntimeAvailable) {
+      // Thread mode: stop each agent's Parallax thread individually
+      for (const agent of agents) {
+        if (agent.runtimeSessionId && this.parallaxClient) {
+          try {
+            await this.parallaxClient.stopThread(agent.runtimeSessionId, { force: true });
+            this.logger.log(`Stopped thread ${agent.runtimeSessionId} for agent ${agent.id}`);
+          } catch (err: any) {
+            this.logger.warn(`Failed to stop thread for agent ${agent.id}: ${err?.message}`);
+          }
+        }
       }
-      if (agent.terminalSessionId) {
+    } else {
+      // Legacy: cancel whole Parallax execution or stop PTY processes
+      const parallaxExecutionId = deploymentConfig.parallaxExecutionId as string | undefined;
+      if (parallaxExecutionId && this.parallaxClient) {
         try {
-          await this.terminalSessionService.terminate(agent.terminalSessionId);
-        } catch { /* best-effort */ }
+          await this.parallaxClient.cancelExecution(parallaxExecutionId);
+          this.logger.log(`Cancelled Parallax execution ${parallaxExecutionId}`);
+        } catch (err: any) {
+          this.logger.warn(`Failed to cancel Parallax execution: ${err?.message}`);
+        }
+      }
+      for (const agent of agents) {
+        if (agent.runtimeSessionId && this.agentExecution) {
+          try {
+            await this.agentExecution.stop(agent.runtimeSessionId, workspaceId);
+          } catch { /* best-effort */ }
+        }
+        if (agent.terminalSessionId) {
+          try {
+            await this.terminalSessionService.terminate(agent.terminalSessionId);
+          } catch { /* best-effort */ }
+        }
       }
     }
 
@@ -1106,6 +1246,11 @@ export class TeamDeploymentService {
     this.logger.log(
       `Deployed org-pattern "${orgPattern.name}" with ${agents.length} agents to space ${spaceId} (memoryPolicy=${memoryPolicy})`,
     );
+
+    // Spawn Parallax threads eagerly at deploy time (if SDK is available)
+    if (this.isThreadRuntimeAvailable) {
+      await this.spawnThreadsForDeployment(deployment, agents, workspaceId);
+    }
 
     return { deployment, agents };
   }
