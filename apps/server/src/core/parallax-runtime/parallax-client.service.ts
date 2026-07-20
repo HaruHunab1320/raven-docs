@@ -1,7 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ParallaxClient } from '@parallaxai/client';
-import { serializeOrgPatternToYaml, toParallaxOrgPattern } from './org-pattern-serializer';
-import type { OrgPattern } from '../team/org-chart.types';
 import type {
   AgentStatus,
   AgentLogEntry,
@@ -9,64 +7,6 @@ import type {
 } from '@parallaxai/runtime-interface';
 
 export type { AgentStatus, AgentLogEntry, AgentHandle };
-
-export interface ParallaxExecutionRequest {
-  patternName: string;
-  input: Record<string, unknown>;
-  options?: {
-    timeout?: number;
-    stream?: boolean;
-    credentials?: {
-      type: 'pat' | 'oauth';
-      token: string;
-    };
-  };
-  webhook?: {
-    url: string;
-  };
-  /** Extra env vars to inject into every spawned agent pod */
-  agentEnv?: Record<string, string>;
-  /** Context files to write into agent workdir on init */
-  contextFiles?: Array<{ path: string; content: string }>;
-}
-
-export interface ParallaxExecutionResult {
-  id: string;
-  status: string;
-  message?: string;
-  streamUrl?: string;
-  webhookConfigured?: boolean;
-}
-
-export interface ParallaxExecutionStatus {
-  id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-  patternName: string;
-  startTime?: string;
-  endTime?: string;
-  result?: unknown;
-  confidence?: number;
-  agents?: Array<{
-    id: string;
-    role: string;
-    status: AgentStatus;
-    endpoint?: string;
-  }>;
-  metrics?: {
-    totalExecutions?: number;
-    agentsUsed?: number;
-    averageConfidence?: number;
-    executionTime?: number;
-  };
-  error?: string;
-}
-
-export interface ParallaxPatternUploadResult {
-  success: boolean;
-  name: string;
-  version?: string;
-  error?: string;
-}
 
 export interface ParallaxThread {
   id: string;
@@ -166,112 +106,6 @@ export class ParallaxClientService implements OnModuleInit, OnModuleDestroy {
 
   getRuntimeEndpoint(): string | null {
     return this.runtimeEndpoint;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // Pattern Management
-  // ═══════════════════════════════════════════════════════════════════════
-
-  async uploadOrgPattern(
-    orgPattern: OrgPattern,
-    overwrite = true,
-  ): Promise<ParallaxPatternUploadResult> {
-    if (!this._sdkClient) {
-      throw new Error('Parallax control plane not configured');
-    }
-
-    const content = serializeOrgPatternToYaml(orgPattern);
-    const filename = `${orgPattern.name.replace(/\s+/g, '-').toLowerCase()}.yaml`;
-
-    this.logger.log(`Uploading org pattern "${orgPattern.name}" to Parallax`);
-
-    try {
-      const result = await this._sdkClient.patterns.upload({ filename, content, overwrite });
-      this.logger.log(`Pattern "${orgPattern.name}" uploaded successfully`);
-      return {
-        success: true,
-        name: orgPattern.name,
-        version: orgPattern.version,
-        ...(result as object),
-      };
-    } catch (error: any) {
-      this.logger.error(`Failed to upload pattern: ${error.message}`);
-      return {
-        success: false,
-        name: orgPattern.name,
-        error: error.message,
-      };
-    }
-  }
-
-  async uploadOrgPatternDirect(
-    orgPattern: OrgPattern,
-  ): Promise<ParallaxPatternUploadResult> {
-    if (!this._sdkClient) {
-      throw new Error('Parallax control plane not configured');
-    }
-
-    const parallaxPattern = toParallaxOrgPattern(orgPattern);
-    this.logger.log(`Uploading org pattern "${orgPattern.name}" directly to Parallax`);
-
-    try {
-      const result = await this._sdkClient.patterns.create(parallaxPattern as any);
-      return {
-        success: true,
-        name: orgPattern.name,
-        version: orgPattern.version,
-        ...(result as object),
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        name: orgPattern.name,
-        error: error.message,
-      };
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // Execution Management
-  // ═══════════════════════════════════════════════════════════════════════
-
-  async executePattern(
-    request: ParallaxExecutionRequest,
-  ): Promise<ParallaxExecutionResult> {
-    if (!this._sdkClient) {
-      throw new Error('Parallax control plane not configured');
-    }
-
-    this.logger.log(`Executing pattern "${request.patternName}"`);
-
-    const result = await this._sdkClient.executions.create({
-      patternName: request.patternName,
-      input: {
-        ...request.input,
-        ...(request.agentEnv ? { agentEnv: request.agentEnv } : {}),
-        ...(request.contextFiles ? { contextFiles: request.contextFiles } : {}),
-      },
-      options: request.options,
-      webhook: request.webhook,
-    });
-
-    this.logger.log(`Execution started: ${(result as any).id}`);
-    return result as ParallaxExecutionResult;
-  }
-
-  async getExecutionStatus(executionId: string): Promise<ParallaxExecutionStatus> {
-    if (!this._sdkClient) {
-      throw new Error('Parallax control plane not configured');
-    }
-    return this._sdkClient.executions.get(executionId) as Promise<ParallaxExecutionStatus>;
-  }
-
-  async cancelExecution(executionId: string): Promise<void> {
-    if (!this._sdkClient) {
-      throw new Error('Parallax control plane not configured');
-    }
-    await this._sdkClient.executions.cancel(executionId);
-    this.logger.log(`Execution ${executionId} cancelled`);
   }
 
   // ═══════════════════════════════════════════════════════════════════════

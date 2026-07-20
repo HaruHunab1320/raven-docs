@@ -34,7 +34,6 @@ import {
 import { OrgPattern } from './org-chart.types';
 import { TeamTemplateValidationService } from './team-template-validation.service';
 import { StallClassifierService } from '../coding-swarm/stall-classifier.service';
-import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
 import { Logger } from '@nestjs/common';
 
 @Controller('teams')
@@ -47,26 +46,8 @@ export class TeamController {
     private readonly templateRepo: TeamTemplateRepo,
     private readonly templateValidation: TeamTemplateValidationService,
     private readonly stallClassifier: StallClassifierService,
-    private readonly parallaxClient: ParallaxClientService,
   ) {}
 
-  /**
-   * Best-effort registration of an OrgPattern with Parallax.
-   * Non-blocking — failures are logged but don't prevent template CRUD.
-   */
-  private async registerPatternWithParallax(orgPattern: OrgPattern): Promise<void> {
-    if (!this.parallaxClient.isAvailable()) return;
-    try {
-      const result = await this.parallaxClient.uploadOrgPattern(orgPattern);
-      if (result.success) {
-        this.logger.log(`Registered pattern "${orgPattern.name}" with Parallax`);
-      } else {
-        this.logger.warn(`Failed to register pattern with Parallax: ${result.error}`);
-      }
-    } catch (err: any) {
-      this.logger.warn(`Parallax pattern registration failed: ${err.message}`);
-    }
-  }
 
   // ─── Template Endpoints ──────────────────────────────────────────────────
 
@@ -116,9 +97,6 @@ export class TeamController {
       createdBy: user.id,
     });
 
-    // Best-effort: register with Parallax for remote execution
-    void this.registerPatternWithParallax(dto.orgPattern as OrgPattern);
-
     return template;
   }
 
@@ -155,11 +133,6 @@ export class TeamController {
       orgPattern: dto.orgPattern,
       metadata: dto.metadata,
     });
-
-    // Best-effort: re-register with Parallax if org pattern changed
-    if (dto.orgPattern) {
-      void this.registerPatternWithParallax(dto.orgPattern as OrgPattern);
-    }
 
     return updated;
   }
