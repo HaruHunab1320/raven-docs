@@ -530,6 +530,8 @@ export class TeamDeploymentService {
 
     await this.teamRepo.updateStatus(deployment.id, 'provisioning');
 
+    const spawnedThreadIds: Record<string, string> = {};
+
     for (const agent of agents) {
       const objective =
         agent.systemPrompt ||
@@ -558,6 +560,7 @@ export class TeamDeploymentService {
           runtimeSessionId: thread.id,
           terminalSessionId: null,
         });
+        spawnedThreadIds[agent.id] = thread.id;
 
         this.logger.log(
           `Spawned thread ${thread.id} for agent ${agent.id} (role=${agent.role}) at deploy time`,
@@ -575,6 +578,9 @@ export class TeamDeploymentService {
     await this.teamRepo.updateConfig(deployment.id, {
       ...config,
       parallaxExecutionId: executionId,
+      // The thread poller only polls deployments that have both
+      // parallaxExecutionId and parallaxThreadIds set.
+      parallaxThreadIds: spawnedThreadIds,
     } as any);
 
     this.logger.log(
