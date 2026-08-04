@@ -393,15 +393,18 @@ export class TeamDeploymentService {
     if (targetTaskId) baseEnv.RAVEN_TARGET_TASK_ID = targetTaskId;
 
     const spawnedThreadIds: string[] = [];
+    let coordinatorThreadId: string | null = null;
 
     // Spawn a thread for each agent
     for (const agent of agents) {
-      const isCoordinator = agent.id === coordinator.id;
-
-      // Coordinator gets the full initial task; workers get their system prompt
-      const objective = isCoordinator
-        ? (this.teamMessaging?.buildInitialTaskMessage(deployment, agents) ?? agent.systemPrompt ?? agent.role)
-        : (agent.systemPrompt || `You are the ${agent.role} agent. Wait for instructions from the coordinator.`);
+      // Parallax treats the spawn objective as a *priming* turn: it consumes
+      // that turn's completion and only then reports the thread ready. So the
+      // objective must prime the agent, never carry the task — otherwise the
+      // task's completion is swallowed and never surfaces as a turn result.
+      // The real task goes out via sendToThread once every thread is up.
+      const objective =
+        agent.systemPrompt ||
+        `You are the ${agent.role} agent. Stay running and wait for instructions from the coordinator.`;
 
       try {
         const thread = await this.parallaxClient!.spawnThread({
@@ -422,7 +425,14 @@ export class TeamDeploymentService {
           },
         });
 
+        // Persist the thread ID so the next trigger reuses this thread via
+        // sendTaskToExistingThreads instead of spawning a duplicate set.
+        await this.teamRepo.updateAgentRuntimeSession(agent.id, {
+          runtimeSessionId: thread.id,
+          terminalSessionId: null,
+        });
         spawnedThreadIds.push(thread.id);
+        if (agent.id === coordinator.id) coordinatorThreadId = thread.id;
 
         this.logger.log(
           `Spawned thread ${thread.id} for agent ${agent.id} (role=${agent.role})`,
@@ -442,6 +452,21 @@ export class TeamDeploymentService {
       parallaxThreadIds: spawnedThreadIds,
     };
     await this.teamRepo.updateConfig(deployment.id, updatedConfig as any);
+
+    // Threads are primed — now deliver the actual task to the coordinator,
+    // the same way sendTaskToExistingThreads does for pre-spawned threads.
+    if (coordinatorThreadId) {
+      const message = this.teamMessaging!.buildInitialTaskMessage(deployment, agents);
+      await this.parallaxClient!.sendToThread(coordinatorThreadId, message);
+      this.logger.log(
+        `Sent initial task to coordinator thread ${coordinatorThreadId} ` +
+        `(role=${coordinator.role}, deploymentId=${deployment.id})`,
+      );
+    } else {
+      this.logger.error(
+        `No thread spawned for coordinator ${coordinator.id} — task not delivered`,
+      );
+    }
 
     // Update workflow state
     const stateRow = await this.teamRepo.getWorkflowState(deployment.id);
