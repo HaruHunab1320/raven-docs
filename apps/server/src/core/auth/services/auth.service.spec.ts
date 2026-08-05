@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
+import { autoMocker } from '../../../common/testing/auto-mock';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -7,7 +8,9 @@ describe('AuthService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [AuthService],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<AuthService>(AuthService);
   });

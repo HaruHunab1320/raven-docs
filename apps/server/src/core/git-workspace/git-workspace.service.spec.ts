@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GitWorkspaceService } from './git-workspace.service';
 import { CodingWorkspaceRepo } from '../../database/repos/coding-swarm/coding-workspace.repo';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 // Mock the git-workspace-service package
 jest.mock('git-workspace-service', () => ({
@@ -44,7 +45,9 @@ describe('GitWorkspaceService', () => {
         { provide: WorkspaceRepo, useValue: mockWorkspaceRepo },
         { provide: 'KyselyModuleConnectionToken', useValue: mockDb },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<GitWorkspaceService>(GitWorkspaceService);
     codingWorkspaceRepo = module.get<CodingWorkspaceRepo>(CodingWorkspaceRepo);

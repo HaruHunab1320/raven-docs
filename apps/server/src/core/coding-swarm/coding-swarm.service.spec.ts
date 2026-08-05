@@ -9,6 +9,7 @@ import { AgentExecutionService } from './agent-execution.service';
 import { WorkspacePreparationService } from './workspace-preparation.service';
 import { WorkspaceRepo } from '../../database/repos/workspace/workspace.repo';
 import { QueueName } from '../../integrations/queue/constants';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 describe('CodingSwarmService', () => {
   let service: CodingSwarmService;
@@ -110,7 +111,9 @@ describe('CodingSwarmService', () => {
         { provide: getQueueToken(QueueName.GENERAL_QUEUE), useValue: mockQueue },
         { provide: 'KyselyModuleConnectionToken', useValue: mockDb },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<CodingSwarmService>(CodingSwarmService);
   });

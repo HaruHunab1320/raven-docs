@@ -3,6 +3,7 @@ import { WorkspacePreparationService } from './workspace-preparation.service';
 import { MCPApiKeyService } from '../../integrations/mcp/services/mcp-api-key.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 // Mock adapters
 const mockWriteMemoryFile = jest.fn().mockResolvedValue('/tmp/test/CLAUDE.md');
@@ -64,7 +65,9 @@ describe('WorkspacePreparationService', () => {
         WorkspacePreparationService,
         { provide: MCPApiKeyService, useValue: mockMcpApiKeyService },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<WorkspacePreparationService>(
       WorkspacePreparationService,
@@ -199,7 +202,10 @@ describe('WorkspacePreparationService', () => {
       expect(content).toContain('Fix the authentication bug');
       expect(content).toContain(baseParams.executionId);
       expect(content).toContain('workspace-123');
-      expect(content).toContain('/api/mcp-standard');
+      // Tools are exposed natively over MCP now — the context must not tell
+      // agents to reach for an HTTP endpoint.
+      expect(content).toContain('native MCP tools');
+      expect(content).not.toContain('/api/mcp-standard');
       // Should contain at least some tool categories
       expect(content).toContain('Page Management');
       expect(content).toContain('Search');
@@ -212,25 +218,32 @@ describe('WorkspacePreparationService', () => {
       expect(content).not.toMatch(/\{\{toolCategories\}\}/);
     });
 
-    it('should update .gitignore with memory file entry', async () => {
+    it('should ignore only the injected config files', async () => {
       await service.prepareWorkspace(baseParams);
 
-      expect((fs.appendFileSync as jest.Mock)).toHaveBeenCalledWith(
+      const [gitignorePath, addition] = (
+        fs.appendFileSync as jest.Mock
+      ).mock.calls[0];
+
+      expect(gitignorePath).toBe(
         path.resolve(baseParams.workspacePath, '.gitignore'),
-        expect.stringContaining('CLAUDE.md'),
       );
+      expect(addition).toContain('.claude/settings.local.json');
+      expect(addition).toContain('.git-workspace/');
     });
 
-    it('should use adapter memoryFilePath for .gitignore (aider)', async () => {
-      await service.prepareWorkspace({
-        ...baseParams,
-        agentType: 'aider',
-      });
+    it('should NOT ignore the memory file — the repo may commit its own', async () => {
+      // Deliberate: a repo owner's own CLAUDE.md must stay tracked. Ignoring
+      // it would silently drop their file from version control.
+      for (const agentType of ['claude-code', 'aider']) {
+        (fs.appendFileSync as jest.Mock).mockClear();
 
-      expect((fs.appendFileSync as jest.Mock)).toHaveBeenCalledWith(
-        path.resolve(baseParams.workspacePath, '.gitignore'),
-        expect.stringContaining('.aider.conventions.md'),
-      );
+        await service.prepareWorkspace({ ...baseParams, agentType });
+
+        const addition = (fs.appendFileSync as jest.Mock).mock.calls[0][1];
+        expect(addition).not.toContain('CLAUDE.md');
+        expect(addition).not.toContain('.aider.conventions.md');
+      }
     });
 
     it('should not duplicate .gitignore entries', async () => {
@@ -243,7 +256,7 @@ describe('WorkspacePreparationService', () => {
           return realReadFileSync(p, ...args);
         }
         if (String(p).endsWith('.gitignore'))
-          return 'node_modules/\nCLAUDE.md\n.git-workspace/\n';
+          return 'node_modules/\n.claude/settings.local.json\n.git-workspace/\n';
         return '';
       });
 

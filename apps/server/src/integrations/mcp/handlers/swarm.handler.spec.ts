@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SwarmHandler } from './swarm.handler';
 import { CodingSwarmService } from '../../../core/coding-swarm/coding-swarm.service';
+import { autoMocker } from '../../../common/testing/auto-mock';
 
 describe('SwarmHandler', () => {
   let handler: SwarmHandler;
@@ -21,7 +22,9 @@ describe('SwarmHandler', () => {
         SwarmHandler,
         { provide: CodingSwarmService, useValue: mockCodingSwarmService },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     handler = module.get<SwarmHandler>(SwarmHandler);
   });
@@ -120,27 +123,49 @@ describe('SwarmHandler', () => {
 
       mockCodingSwarmService.getStatus.mockResolvedValue(mockExecution);
 
-      const result = await handler.status({ executionId: 'exec-001' }, userId);
+      const result = await handler.status(
+        { workspaceId: 'workspace-123', executionId: 'exec-001' },
+        userId,
+      );
 
       expect(result).toMatchObject({
         id: 'exec-001',
         status: 'running',
         agentType: 'claude-code',
       });
+      // Lookups are workspace-scoped — the workspace must reach the service.
+      expect(mockCodingSwarmService.getStatus).toHaveBeenCalledWith(
+        'workspace-123',
+        'exec-001',
+      );
     });
 
     it('should throw when execution not found', async () => {
       mockCodingSwarmService.getStatus.mockResolvedValue(null);
 
       await expect(
-        handler.status({ executionId: 'nonexistent' }, userId),
+        handler.status(
+          { workspaceId: 'workspace-123', executionId: 'nonexistent' },
+          userId,
+        ),
       ).rejects.toMatchObject({
         code: expect.any(Number),
       });
     });
 
+    it('should throw when workspaceId is missing', async () => {
+      await expect(
+        handler.status({ executionId: 'exec-001' }, userId),
+      ).rejects.toMatchObject({
+        code: expect.any(Number),
+      });
+      expect(mockCodingSwarmService.getStatus).not.toHaveBeenCalled();
+    });
+
     it('should throw when executionId is missing', async () => {
-      await expect(handler.status({}, userId)).rejects.toMatchObject({
+      await expect(
+        handler.status({ workspaceId: 'workspace-123' }, userId),
+      ).rejects.toMatchObject({
         code: expect.any(Number),
       });
     });
@@ -201,17 +226,35 @@ describe('SwarmHandler', () => {
         status: 'cancelled',
       });
 
-      const result = await handler.stop({ executionId: 'exec-001' }, userId);
+      const result = await handler.stop(
+        { workspaceId: 'workspace-123', executionId: 'exec-001' },
+        userId,
+      );
 
       expect(result).toEqual({
         success: true,
         executionId: 'exec-001',
         status: 'cancelled',
       });
+      expect(mockCodingSwarmService.stop).toHaveBeenCalledWith(
+        'workspace-123',
+        'exec-001',
+      );
+    });
+
+    it('should throw when workspaceId is missing', async () => {
+      await expect(
+        handler.stop({ executionId: 'exec-001' }, userId),
+      ).rejects.toMatchObject({
+        code: expect.any(Number),
+      });
+      expect(mockCodingSwarmService.stop).not.toHaveBeenCalled();
     });
 
     it('should throw when executionId is missing', async () => {
-      await expect(handler.stop({}, userId)).rejects.toMatchObject({
+      await expect(
+        handler.stop({ workspaceId: 'workspace-123' }, userId),
+      ).rejects.toMatchObject({
         code: expect.any(Number),
       });
     });
@@ -229,19 +272,31 @@ describe('SwarmHandler', () => {
       mockCodingSwarmService.getLogs.mockResolvedValue(mockLogs);
 
       const result = await handler.logs(
-        { executionId: 'exec-001', limit: 50 },
+        { workspaceId: 'workspace-123', executionId: 'exec-001', limit: 50 },
         userId,
       );
 
       expect(result).toEqual(mockLogs);
       expect(mockCodingSwarmService.getLogs).toHaveBeenCalledWith(
+        'workspace-123',
         'exec-001',
         50,
       );
     });
 
+    it('should throw when workspaceId is missing', async () => {
+      await expect(
+        handler.logs({ executionId: 'exec-001' }, userId),
+      ).rejects.toMatchObject({
+        code: expect.any(Number),
+      });
+      expect(mockCodingSwarmService.getLogs).not.toHaveBeenCalled();
+    });
+
     it('should throw when executionId is missing', async () => {
-      await expect(handler.logs({}, userId)).rejects.toMatchObject({
+      await expect(
+        handler.logs({ workspaceId: 'workspace-123' }, userId),
+      ).rejects.toMatchObject({
         code: expect.any(Number),
       });
     });

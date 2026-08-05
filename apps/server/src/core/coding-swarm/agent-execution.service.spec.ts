@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AgentExecutionService } from './agent-execution.service';
 import { ParallaxAgentsService } from '../parallax-agents/parallax-agents.service';
+import { ParallaxClientService } from '../parallax-runtime/parallax-client.service';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 // Mock pty-manager
 jest.mock('pty-manager', () => {
@@ -61,7 +63,9 @@ describe('AgentExecutionService', () => {
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: ParallaxAgentsService, useValue: mockParallaxAgentsService },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<AgentExecutionService>(AgentExecutionService);
   });
@@ -125,14 +129,45 @@ describe('AgentExecutionService', () => {
   });
 
   describe('send (local mode)', () => {
-    it('should send a message to the PTY session', async () => {
-      __mockPTYManager.send.mockReturnValue({ id: 'msg-1' });
+    // Keep the TUI settle delay short so these run fast.
+    const originalDelay = process.env.AGENT_SEND_ENTER_DELAY_MS;
+    beforeEach(() => {
+      process.env.AGENT_SEND_ENTER_DELAY_MS = '1';
+    });
+    afterEach(() => {
+      if (originalDelay === undefined) {
+        delete process.env.AGENT_SEND_ENTER_DELAY_MS;
+      } else {
+        process.env.AGENT_SEND_ENTER_DELAY_MS = originalDelay;
+      }
+    });
+
+    it('should write the message then press enter separately', async () => {
+      const session = { writeRaw: jest.fn(), sendKeys: jest.fn() };
+      __mockPTYManager.getSession.mockReturnValue(session);
 
       await service.send('session-123', 'Fix the login bug');
 
-      expect(__mockPTYManager.send).toHaveBeenCalledWith(
-        'session-123',
-        'Fix the login bug',
+      // Text and Enter are deliberately separate: Claude Code's Ink TUI needs
+      // time to digest the paste before Enter submits it.
+      expect(session.writeRaw).toHaveBeenCalledWith('Fix the login bug');
+      expect(session.sendKeys).toHaveBeenCalledWith('enter');
+    });
+
+    it('should flatten newlines so Enter submits instead of adding a line', async () => {
+      const session = { writeRaw: jest.fn(), sendKeys: jest.fn() };
+      __mockPTYManager.getSession.mockReturnValue(session);
+
+      await service.send('session-123', 'line one\n\nline two\n');
+
+      expect(session.writeRaw).toHaveBeenCalledWith('line one line two');
+    });
+
+    it('should throw when the session does not exist', async () => {
+      __mockPTYManager.getSession.mockReturnValue(undefined);
+
+      await expect(service.send('missing', 'hi')).rejects.toThrow(
+        /Session missing not found/,
       );
     });
   });
@@ -306,16 +341,28 @@ describe('AgentExecutionService (remote mode)', () => {
     spawnAgents: jest.fn(),
   };
 
+  // Explicit rather than auto-mocked: `isSdkAvailable` selects between the
+  // SDK thread path and the legacy HTTP path, so it has to be a real boolean.
+  const mockParallaxClient = {
+    isSdkAvailable: false,
+    sendToThread: jest.fn(),
+    getAgentLogs: jest.fn(),
+  };
+
   beforeEach(async () => {
     process.env.AGENT_RUNTIME_ENDPOINT = 'http://localhost:3001';
+    mockParallaxClient.isSdkAvailable = false;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AgentExecutionService,
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: ParallaxAgentsService, useValue: mockParallaxAgentsService },
+        { provide: ParallaxClientService, useValue: mockParallaxClient },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<AgentExecutionService>(AgentExecutionService);
   });
@@ -372,6 +419,20 @@ describe('AgentExecutionService (remote mode)', () => {
         }),
       );
     });
+
+    it('should prefer the Parallax SDK thread over the legacy HTTP path', async () => {
+      mockParallaxClient.isSdkAvailable = true;
+      const mockFetch = jest.fn();
+      global.fetch = mockFetch as any;
+
+      await service.send('thread-123', 'Fix the bug', 'workspace-1');
+
+      expect(mockParallaxClient.sendToThread).toHaveBeenCalledWith(
+        'thread-123',
+        'Fix the bug',
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('stop (remote mode)', () => {
@@ -412,9 +473,16 @@ describe('AgentExecutionService (remote mode)', () => {
   });
 
   describe('getLogs (remote mode)', () => {
-    it('should return empty array', async () => {
-      const logs = await service.getLogs('session-123');
-      expect(logs).toEqual([]);
+    it('should delegate to the Parallax client', async () => {
+      mockParallaxClient.getAgentLogs.mockResolvedValue(['line one', 'line two']);
+
+      const logs = await service.getLogs('session-123', 10);
+
+      expect(mockParallaxClient.getAgentLogs).toHaveBeenCalledWith(
+        'session-123',
+        10,
+      );
+      expect(logs).toEqual(['line one', 'line two']);
     });
   });
 

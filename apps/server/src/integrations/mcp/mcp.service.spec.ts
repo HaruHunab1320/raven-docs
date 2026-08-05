@@ -49,6 +49,7 @@ import { GitHubIssueHandler } from './handlers/github-issue.handler';
 import { MCPEventService } from './services/mcp-event.service';
 import { BugReportService } from '../../core/bug-report/bug-report.service';
 import { MCPErrorCode } from './utils/error.utils';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 describe('MCPService', () => {
   let service: MCPService;
@@ -159,7 +160,9 @@ describe('MCPService', () => {
         { provide: MCPEventService, useValue: mockEventService },
         { provide: BugReportService, useValue: mockBugReportService },
       ],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     service = module.get<MCPService>(MCPService);
   });

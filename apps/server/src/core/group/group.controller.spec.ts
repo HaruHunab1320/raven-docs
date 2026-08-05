@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GroupController } from './group.controller';
 import { GroupService } from './services/group.service';
+import { autoMocker } from '../../common/testing/auto-mock';
 
 describe('GroupController', () => {
   let controller: GroupController;
@@ -9,7 +10,9 @@ describe('GroupController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GroupController],
       providers: [GroupService],
-    }).compile();
+    })
+      .useMocker(autoMocker)
+      .compile();
 
     controller = module.get<GroupController>(GroupController);
   });
